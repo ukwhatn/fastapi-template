@@ -1,0 +1,23 @@
+name: CD
+on:
+  push:
+    branches: [ develop ]
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install SSH Key for Deploy
+        uses: appleboy/ssh-action@master
+        with:
+          key: ${{ secrets.SK }}
+          host: ${{secrets.SSH_HOST}}
+          username: ${{secrets.SSH_USERNAME}}
+          port: ${{secrets.SSH_PORT}}
+          script: |
+            cd isp2-b02-backend
+            git pull origin develop
+            make build
+            make down
+            make up
+            make migrate
