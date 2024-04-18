@@ -1,2 +1,2 @@
-sentry-sdk==1.39.2
+sentry-sdk==1.45.0
 py-cord==2.5.0
