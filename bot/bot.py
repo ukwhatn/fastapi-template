@@ -1,8 +1,8 @@
 import logging
 
 import discord
-from discord.ext import commands
 import sentry_sdk
+from discord.ext import commands
 
 from config import bot_config
 

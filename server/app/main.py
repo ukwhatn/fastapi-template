@@ -11,11 +11,13 @@ from util.env import get_env
 env_mode = get_env("ENV_MODE", "development")
 
 # logger config
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.WARN)
+logger = logging.getLogger("uvicorn")
 
 if env_mode == "development":
     logger.setLevel(level=logging.DEBUG)
+elif env_mode == "production":
+    logger.setLevel(level=logging.INFO)
 
 # production時，docsを表示しない
 app_params = {}
