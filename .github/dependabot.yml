@@ -1,39 +1,106 @@
-# To get started with Dependabot version updates, you'll need to specify which
-# package ecosystems to update and where the package manifests are located.
-# Please see the documentation for all configuration options:
-# https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
-
 version: 2
 updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    target-branch: "develop"
+    commit-message:
+      prefix: "chore(deps:github-actions)"
+    labels:
+      - "dependencies"
+      - "automated pr"
+    assignees:
+      - "ukwhatn"
+    reviewers:
+      - "ukwhatn"
+
   - package-ecosystem: "pip"
     directory: "/server"
     schedule:
       interval: "daily"
-    target-branch: "main"
+    target-branch: "develop"
     commit-message:
-      prefix: "chore(deps)"
+      prefix: "chore(deps:server)"
     labels:
       - "dependencies"
       - "automated pr"
+    assignees:
+      - "ukwhatn"
+    reviewers:
+      - "ukwhatn"
 
   - package-ecosystem: "pip"
     directory: "/server/db"
     schedule:
       interval: "daily"
-    target-branch: "main"
+    target-branch: "develop"
     commit-message:
-      prefix: "chore(deps)"
+      prefix: "chore(deps:server-db)"
     labels:
       - "dependencies"
       - "automated pr"
+    assignees:
+      - "ukwhatn"
+    reviewers:
+      - "ukwhatn"
 
   - package-ecosystem: "pip"
     directory: "/bot"
     schedule:
       interval: "daily"
-    target-branch: "main"
+    target-branch: "develop"
     commit-message:
-      prefix: "chore(deps)"
+      prefix: "chore(deps:bot)"
     labels:
       - "dependencies"
       - "automated pr"
+    assignees:
+      - "ukwhatn"
+    reviewers:
+      - "ukwhatn"
+
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    target-branch: "develop"
+    commit-message:
+      prefix: "chore(deps:docker)"
+    labels:
+      - "dependencies"
+      - "automated pr"
+    assignees:
+      - "ukwhatn"
+    reviewers:
+      - "ukwhatn"
+
+  - package-ecosystem: "docker"
+    directory: "/docker/bot"
+    schedule:
+      interval: "daily"
+    target-branch: "develop"
+    commit-message:
+      prefix: "chore(deps:dockerfile-bot)"
+    labels:
+      - "dependencies"
+      - "automated pr"
+    assignees:
+      - "ukwhatn"
+    reviewers:
+      - "ukwhatn"
+
+  - package-ecosystem: "docker"
+    directory: "/docker/server"
+    schedule:
+      interval: "daily"
+    target-branch: "develop"
+    commit-message:
+      prefix: "chore(deps:dockerfile-server)"
+    labels:
+      - "dependencies"
+      - "automated pr"
+    assignees:
+      - "ukwhatn"
+    reviewers:
+      - "ukwhatn"
