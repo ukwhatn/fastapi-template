@@ -1,6 +1,41 @@
 version: "3"
 
 services:
+  nginx:
+    image: nginx:latest
+    environment:
+      - TZ=Asia/Tokyo
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./nginx/log:/var/log/nginx
+      - front_dist:/www/dist
+    ports:
+      - "127.0.0.1:59980:80"
+    restart: always
+    networks:
+      - nginx
+
+  front:
+    build:
+      context: .
+      dockerfile: ./front/Dockerfile
+    command: [ "/bin/sh", "-c", "yarn dev" ]
+    ports:
+      - "127.0.0.1:59981:5173"
+    environment:
+      NODE_ENV: development
+      CHOKIDAR_USEPOLLING: true
+      LANG: C.UTF-8
+      TZ: Asia/Tokyo
+    volumes:
+      - ./front:/app
+      - node_modules:/app/node_modules
+      - front_dist:/app/dist
+    restart: always
+    networks:
+      - nginx
+
   server:
     build:
       context: .
@@ -9,8 +44,6 @@ services:
       - ./server:/app
       - ./db/package:/app/db
       - ./redis:/app/redis_crud
-    ports:
-      - "127.0.0.1:58080:80"
     env_file:
       - ./envs/db.env
       - ./envs/server.env
@@ -20,6 +53,10 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    networks:
+      - db
+      - redis
+      - nginx
 
   db:
     image: postgres:16.1
@@ -29,13 +66,13 @@ services:
       - pg_data:/var/lib/postgresql/data
       - ./server/db/init:/docker-entrypoint-initdb.d
     restart: always
-    expose:
-      - "5432"
     healthcheck:
       test: pg_isready -U postgres
       interval: 2s
       timeout: 5s
       retries: 30
+    networks:
+      - db
 
   redis:
     image: redis:7.2.4
@@ -46,14 +83,16 @@ services:
       interval: 2s
       timeout: 5s
       retries: 30
+    networks:
+      - redis
 
   discord:
     build:
       context: .
       dockerfile: discord/Dockerfile
     volumes:
-      - ./bot:/app
-      - ./db:/app/db
+      - ./discord:/app
+      - ./db/package:/app/db
       - ./redis:/app/redis_crud
     env_file:
       - ./envs/discord.env
@@ -65,6 +104,9 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    networks:
+      - db
+      - redis
 
   db-migrator:
     build:
@@ -78,7 +120,20 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    networks:
+      - db
 
 volumes:
   pg_data:
   redis_data:
+  node_modules:
+  front_dist:
+
+
+networks:
+  nginx:
+    driver: bridge
+  db:
+    driver: bridge
+  redis:
+    driver: bridge
