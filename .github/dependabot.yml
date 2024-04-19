@@ -29,7 +29,7 @@ updates:
       - "ukwhatn"
     reviewers:
       - "ukwhatn"
-      -
+
   - package-ecosystem: "npm"
     directory: "/front"
     schedule:
