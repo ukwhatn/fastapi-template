@@ -67,8 +67,8 @@ services:
       context: .
       dockerfile: discord/Dockerfile
     volumes:
-      - ./bot:/app
-      - ./db:/app/db
+      - ./discord:/app
+      - ./db/package:/app/db
       - ./redis:/app/redis_crud
     env_file:
       - ./envs/discord.env
