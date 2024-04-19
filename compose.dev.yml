@@ -96,4 +96,5 @@ services:
 
 volumes:
   pg_data:
-  redis_data:  node_modules:
+  redis_data:
+  node_modules:
