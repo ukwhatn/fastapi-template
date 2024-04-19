@@ -1,6 +1,6 @@
-# fastapi - bot template
+# ukwhatn's application template
 
-## Project Structures
+## Project Structures Setup
 
 ### source directory
 
