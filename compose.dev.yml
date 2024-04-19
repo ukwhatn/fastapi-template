@@ -1,6 +1,21 @@
 version: "3"
 
 services:
+  front:
+    build:
+      context: .
+      dockerfile: ./front/Dockerfile
+    command: [ "/bin/sh", "-c", "npm run dev" ]
+    environment:
+      NODE_ENV: development
+      CHOKIDAR_USEPOLLING: true
+    volumes:
+      - ./front:/app
+      - node_modules:/app/node_modules
+    ports:
+      - "58051:3000"
+    restart: always
+
   server:
     build:
       context: .
@@ -81,4 +96,4 @@ services:
 
 volumes:
   pg_data:
-  redis_data:
+  redis_data:  node_modules:

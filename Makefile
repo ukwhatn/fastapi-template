@@ -14,7 +14,7 @@ build\:no-cache:
 	docker compose -f $(COMPOSE_YML) build --no-cache
 
 up:
-	docker compose -f $(COMPOSE_YML) up -d
+	docker compose -f $(COMPOSE_YML) up --build -d
 
 down:
 	docker compose -f $(COMPOSE_YML) down
@@ -64,16 +64,14 @@ dev\:setup:
 	poetry install --with $(POETRY_GROUPS)
 
 db\:revision\:create:
-	docker compose -f $(COMPOSE_YML) build db-migrator
-	docker compose -f $(COMPOSE_YML) up -d db-migrator
+	docker compose -f $(COMPOSE_YML) up --build -d db-migrator
 	docker compose -f $(COMPOSE_YML) exec db-migrator /bin/bash -c "alembic revision --autogenerate -m '${NAME}'"
 	docker compose -f $(COMPOSE_YML) down db-migrator
 
 db\:migrate:
 	# db-migrator起動時に自動実行
-	docker compose -f $(COMPOSE_YML) build db-migrator
 	docker compose -f $(COMPOSE_YML) down db-migrator
-	docker compose -f $(COMPOSE_YML) up -d db-migrator
+	docker compose -f $(COMPOSE_YML) up --build -d db-migrator
 	docker compose -f $(COMPOSE_YML) down db-migrator
 
 envs\:init:
