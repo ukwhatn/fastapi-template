@@ -1,4 +1,4 @@
-FROM python:3.12.1-slim
+FROM python:3.12.3-slim
 
 # ser workdir
 WORKDIR /app
