@@ -1,0 +1,84 @@
+version: "3"
+
+services:
+  server:
+    build:
+      context: .
+      dockerfile: ./server/Dockerfile
+    volumes:
+      - ./server:/app
+      - ./db/package:/app/db
+      - ./redis:/app/redis_crud
+    ports:
+      - "127.0.0.1:58080:80"
+    env_file:
+      - ./envs/db.env
+      - ./envs/server.env
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  db:
+    image: postgres:16.1
+    env_file:
+      - ./envs/db.env
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./server/db/init:/docker-entrypoint-initdb.d
+    restart: always
+    expose:
+      - "5432"
+    healthcheck:
+      test: pg_isready -U postgres
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+  redis:
+    image: redis:7.2.4
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: redis-cli ping
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+  discord:
+    build:
+      context: .
+      dockerfile: discord/Dockerfile
+    volumes:
+      - ./bot:/app
+      - ./db:/app/db
+      - ./redis:/app/redis_crud
+    env_file:
+      - ./envs/discord.env
+      - ./envs/db.env
+      - ./envs/sentry.env
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  db-migrator:
+    build:
+      context: .
+      dockerfile: ./db/Dockerfile
+    tty: true
+    volumes:
+      - ./db:/app
+    env_file:
+      - ./envs/db.env
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pg_data:
+  redis_data:

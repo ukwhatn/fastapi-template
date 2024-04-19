@@ -1,0 +1,21 @@
+#file: noinspection YAMLSchemaValidation
+name: CD
+on:
+  push:
+    branches: [ change_this_value_to_main ]
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy
+        uses: appleboy/ssh-action@master
+        with:
+          key: ${{secrets.SSH_PRIVATE_KEY}}
+          host: ${{secrets.SSH_HOST}}
+          username: ${{secrets.SSH_USER}}
+          port: ${{secrets.SSH_PORT}}
+          script: |
+            cd ${{github.event.repository.name}}
+            git pull origin main
+            make deploy:prod ENV=prod

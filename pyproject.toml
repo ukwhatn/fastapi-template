@@ -1,0 +1,44 @@
+[tool.poetry]
+name = "application-template"
+version = "0.1.0"
+description = "A template for creating a new application"
+authors = ["Yuki Watanabe <ukwhatn@gmail.com>"]
+package-mode = false
+
+[tool.poetry.dependencies]
+python = "^3.10"
+
+[tool.poetry.group.discord]
+optional = true
+[tool.poetry.group.discord.dependencies]
+sentry-sdk = "1.45.0"
+py-cord = "2.5.0"
+
+[tool.poetry.group.server]
+optional = true
+[tool.poetry.group.server.dependencies]
+fastapi = "^0.110.2"
+uvicorn = { extras = ["standard"], version = "^0.29.0" }
+websockets = "^12.0"
+redis = "^5.0.3"
+
+[tool.poetry.group.dev]
+optional = true
+[tool.poetry.group.dev.dependencies]
+flake8 = "^7.0.0"
+mypy = "^1.9.0"
+isort = "^5.13.2"
+black = "^24.4.0"
+
+[tool.poetry.group.db]
+optional = true
+[tool.poetry.group.db.dependencies]
+sqlalchemy = "^2.0.29"
+alembic = "^1.13.1"
+psycopg2-binary = "^2.9.9"
+pydantic = "^2.7.0"
+
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
