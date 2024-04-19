@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from routers.template import main as template_router
+from routers.root import main as root_router
 from util.env import get_env
 
 # get environment mode
@@ -46,6 +46,5 @@ app.mount("/static", StaticFiles(directory="/app/static"), name="static")
 
 # add routers
 app.include_router(
-    template_router.router,
-    prefix="/template"
+    root_router.router
 )
