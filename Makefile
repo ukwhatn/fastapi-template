@@ -20,6 +20,7 @@ down:
 	docker compose -f $(COMPOSE_YML) down
 
 reload:
+	docker compose -f $(COMPOSE_YML) build
 	docker compose -f $(COMPOSE_YML) down
 	docker compose -f $(COMPOSE_YML) up -d
 
