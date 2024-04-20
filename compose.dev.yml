@@ -11,7 +11,7 @@ services:
       - ./nginx/log:/var/log/nginx
       - front_dist:/www/dist
     ports:
-      - "127.0.0.1:59980:80"
+      - "127.0.0.1:59990:80"
     restart: always
     networks:
       - nginx
@@ -22,7 +22,7 @@ services:
       dockerfile: ./front/Dockerfile
     command: [ "/bin/sh", "-c", "yarn dev" ]
     ports:
-      - "127.0.0.1:59981:5173"
+      - "127.0.0.1:59991:5173"
     environment:
       NODE_ENV: development
       CHOKIDAR_USEPOLLING: true
