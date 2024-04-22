@@ -67,7 +67,7 @@ services:
       - ./envs/db.env
     volumes:
       - pg_data:/var/lib/postgresql/data
-      - ./server/db/init:/docker-entrypoint-initdb.d
+      - ./db/init:/docker-entrypoint-initdb.d
     restart: always
     healthcheck:
       test: pg_isready -U postgres
