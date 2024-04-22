@@ -15,6 +15,9 @@ services:
     restart: always
     networks:
       - nginx
+    depends_on:
+      - front
+      - server
 
   front:
     build:
@@ -61,7 +64,7 @@ services:
       - ./envs/db.env
     volumes:
       - pg_data:/var/lib/postgresql/data
-      - ./server/db/init:/docker-entrypoint-initdb.d
+      - ./db/init:/docker-entrypoint-initdb.d
     restart: always
     healthcheck:
       test: pg_isready -U postgres
