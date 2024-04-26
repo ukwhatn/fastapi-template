@@ -7,7 +7,7 @@ services:
       - TZ=Asia/Tokyo
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf
-      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./nginx/conf.d/server.dev.conf:/etc/nginx/conf.d/server.conf
       - ./nginx/log:/var/log/nginx
       - front_dist:/www/dist
     ports:
@@ -34,7 +34,7 @@ services:
     volumes:
       - ./front:/app
       - node_modules:/app/node_modules
-      - front_dist:/app/dist
+      - front_dist:/usr/build/dist
     restart: always
     networks:
       - nginx
@@ -45,7 +45,7 @@ services:
       dockerfile: ./server/Dockerfile
     volumes:
       - ./server:/app
-      - ./db/package:/app/db
+      - ./db:/app/db
       - ./redis:/app/redis_crud
     env_file:
       - ./envs/db.env
@@ -77,6 +77,18 @@ services:
     networks:
       - db
 
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    environment:
+      PGADMIN_DEFAULT_EMAIL: user@example.com
+      PGADMIN_DEFAULT_PASSWORD: password
+    ports:
+      - "127.0.0.1:59113:80"
+    depends_on:
+      - db
+    networks:
+      - db
+
   redis:
     image: redis:7.2.4
     volumes:
@@ -95,7 +107,7 @@ services:
       dockerfile: discord/Dockerfile
     volumes:
       - ./discord:/app
-      - ./db/package:/app/db
+      - ./db:/app/db
       - ./redis:/app/redis_crud
     env_file:
       - ./envs/discord.env

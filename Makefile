@@ -25,7 +25,7 @@ reload:
 	docker compose -f $(COMPOSE_YML) up -d
 
 reset:
-	docker compose -f $(COMPOSE_YML) down --volumes --remove-orphans
+	docker compose -f $(COMPOSE_YML) down --volumes --remove-orphans --rmi all
 
 logs:
 	docker compose -f $(COMPOSE_YML) logs -f
@@ -65,15 +65,12 @@ dev\:setup:
 	poetry install --with $(POETRY_GROUPS)
 
 db\:revision\:create:
-	docker compose -f $(COMPOSE_YML) up --build -d db-migrator
-	docker compose -f $(COMPOSE_YML) exec db-migrator /bin/bash -c "alembic revision --autogenerate -m '${NAME}'"
-	docker compose -f $(COMPOSE_YML) down db-migrator
+	docker compose -f $(COMPOSE_YML) build db-migrator
+	docker compose -f $(COMPOSE_YML) run --rm db-migrator /bin/bash -c "alembic revision --autogenerate -m '${NAME}'"
 
 db\:migrate:
-	# db-migrator起動時に自動実行
-	docker compose -f $(COMPOSE_YML) down db-migrator
-	docker compose -f $(COMPOSE_YML) up --build -d db-migrator
-	docker compose -f $(COMPOSE_YML) down db-migrator
+	docker compose -f $(COMPOSE_YML) build db-migrator
+	docker compose -f $(COMPOSE_YML) run --rm db-migrator /bin/bash -c "alembic upgrade head"
 
 envs\:init:
 	cp envs/discord.env.example envs/discord.env
