@@ -11,7 +11,7 @@
     "i18next-extract": "babel --config-file ./i18n/babel.config.json './src/**/*.{js,jsx,ts,tsx}'"
   },
   "dependencies": {
-    "@babel/cli": "^7.24.1",
+    "@babel/cli": "^7.24.5",
     "@babel/preset-react": "^7.24.1",
     "@babel/preset-typescript": "^7.24.1",
     "babel-plugin-i18next-extract": "^0.10.0",
