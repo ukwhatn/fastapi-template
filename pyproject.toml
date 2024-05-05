@@ -11,13 +11,13 @@ python = "^3.10"
 [tool.poetry.group.discord]
 optional = true
 [tool.poetry.group.discord.dependencies]
-sentry-sdk = "2.0.0"
+sentry-sdk = "2.0.1"
 py-cord = "2.5.0"
 
 [tool.poetry.group.server]
 optional = true
 [tool.poetry.group.server.dependencies]
-fastapi = "^0.110.2"
+fastapi = "^0.111.0"
 uvicorn = { extras = ["standard"], version = "^0.29.0" }
 websockets = "^12.0"
 redis = "^5.0.4"
@@ -28,7 +28,7 @@ optional = true
 flake8 = "^7.0.0"
 mypy = "^1.10.0"
 isort = "^5.13.2"
-black = "^24.4.1"
+black = "^24.4.2"
 
 [tool.poetry.group.db]
 optional = true
