@@ -11,7 +11,7 @@ python = "^3.10"
 [tool.poetry.group.discord]
 optional = true
 [tool.poetry.group.discord.dependencies]
-sentry-sdk = "2.0.1"
+sentry-sdk = "2.2.0"
 py-cord = "2.5.0"
 
 [tool.poetry.group.server]
@@ -33,7 +33,7 @@ black = "^24.4.2"
 [tool.poetry.group.db]
 optional = true
 [tool.poetry.group.db.dependencies]
-sqlalchemy = "^2.0.29"
+sqlalchemy = "^2.0.30"
 alembic = "^1.13.1"
 psycopg2-binary = "^2.9.9"
 pydantic = "^2.7.1"
