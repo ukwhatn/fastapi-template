@@ -93,7 +93,7 @@ services:
       dockerfile: discord/Dockerfile
     volumes:
       - ./discord:/app
-      - ./db/package:/app/db
+      - ./db:/app/db
       - ./redis:/app/redis_crud
     env_file:
       - ./envs/discord.env
