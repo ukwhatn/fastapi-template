@@ -10,27 +10,24 @@ from routers.v1 import main as v1_router
 from util.env import get_env
 
 # get environment mode
-env_mode = get_env("ENV_MODE", "development")
+env_mode = get_env("ENV_MODE", "production")
 
 # logger config
 logging.basicConfig(level=logging.WARN)
 logger = logging.getLogger("uvicorn")
 
-if env_mode == "development":
-    logger.setLevel(level=logging.DEBUG)
-elif env_mode == "production":
-    logger.setLevel(level=logging.INFO)
-
 # production時，docsを表示しない
 app_params = {}
-if env_mode == "production":
-    app_params["docs_url"] = None
-    app_params["redoc_url"] = None
-    app_params["openapi_url"] = None
-else:
+if env_mode == "development":
+    logger.setLevel(level=logging.DEBUG)
     app_params["docs_url"] = "/api/docs"
     app_params["redoc_url"] = "/api/redoc"
     app_params["openapi_url"] = "/api/openapi.json"
+elif env_mode == "production":
+    logger.setLevel(level=logging.INFO)
+    app_params["docs_url"] = None
+    app_params["redoc_url"] = None
+    app_params["openapi_url"] = None
 
 # create app
 app = FastAPI(**app_params)

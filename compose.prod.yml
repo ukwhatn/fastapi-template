@@ -48,6 +48,8 @@ services:
     env_file:
       - ./envs/db.env
       - ./envs/server.env
+    environment:
+      - ENV_MODE=production
     restart: always
     depends_on:
       db:
