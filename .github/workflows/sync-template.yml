@@ -15,6 +15,8 @@ jobs:
         run: |
           IS_TEMPLATE=$(gh repo view --json isTemplate --jq '.isTemplate')
           echo "is_template=$IS_TEMPLATE" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: actions-template-sync
         if: steps.is_template.outputs.is_template == 'false'
         uses: AndreasAugustin/actions-template-sync@v2
