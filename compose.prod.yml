@@ -40,13 +40,16 @@ services:
     build:
       context: .
       dockerfile: ./server/Dockerfile
+    command: [ "/bin/sh", "-c", "fastapi run main.py --host 0.0.0.0 --port 80 --proxy-headers" ]
     volumes:
       - ./server:/app
-      - ./db/package:/app/db
+      - ./db:/app/db
       - ./redis:/app/redis_crud
     env_file:
       - ./envs/db.env
       - ./envs/server.env
+    environment:
+      - ENV_MODE=production
     restart: always
     depends_on:
       db:

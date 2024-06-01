@@ -1,5 +1,6 @@
-class TemplateSchema:
-    attr: int
+from dataclasses import dataclass
 
-    def __init__(self, attr: int = None):
-        self.attr = attr
+
+@dataclass
+class SessionSchema:
+    data: any = None

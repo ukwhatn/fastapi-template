@@ -15,6 +15,3 @@ RUN make poetry:install
 
 # add poetry files for symlinks
 COPY ./pyproject.toml ./poetry.lock /
-
-# run app
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "80", "--proxy-headers"]
