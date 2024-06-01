@@ -1,7 +1,8 @@
-import secrets
 import os
+import secrets
 
 from .redis import RedisCrud
+from .schemas import SessionSchema
 
 
 class SessionCrud:
@@ -26,18 +27,29 @@ class SessionCrud:
     def _delete(self, key):
         return self.crud.delete(key)
 
-    def create(self, response, data):
-        session_id = secrets.token_urlsafe(16)
+    def create(self, response, data: SessionSchema) -> SessionSchema | None:
+        session_id = secrets.token_urlsafe(64)
         self._set(session_id, data)
         response.set_cookie(key=self.cookie_name, value=session_id)
+        return self._get(session_id)
 
-    def get(self, request):
+    def get(self, request) -> SessionSchema | None:
         sess_id = request.cookies.get(self.cookie_name)
         if sess_id is None:
             return None
         return self._get(sess_id)
 
-    def delete(self, request, response):
+    def update(self, request, response, data: SessionSchema) -> SessionSchema | None:
+        sess_id = request.cookies.get(self.cookie_name)
+
+        # create new session if not exists
+        if sess_id is None:
+            return self.create(response, data)
+
+        self._set(sess_id, data)
+        return data
+
+    def delete(self, request, response) -> None:
         sess_id = request.cookies.get(self.cookie_name)
         if sess_id is None:
             return None
