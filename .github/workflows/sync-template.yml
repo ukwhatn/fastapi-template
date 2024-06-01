@@ -21,4 +21,4 @@ jobs:
         with:
           source_repo_path: ukwhatn/application-template
           upstream_branch: develop
-          pr_labels: automated pr, sync-template
+          pr_labels: automated pr,sync-template
