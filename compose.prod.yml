@@ -42,7 +42,7 @@ services:
       dockerfile: ./server/Dockerfile
     volumes:
       - ./server:/app
-      - ./db/package:/app/db
+      - ./db:/app/db
       - ./redis:/app/redis_crud
     env_file:
       - ./envs/db.env
