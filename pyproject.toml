@@ -36,7 +36,7 @@ optional = true
 sqlalchemy = "^2.0.31"
 alembic = "^1.13.2"
 psycopg2-binary = "^2.9.9"
-pydantic = "^2.7.4"
+pydantic = "^2.8.0"
 
 
 [build-system]
