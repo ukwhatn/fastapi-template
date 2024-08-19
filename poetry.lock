@@ -941,13 +941,13 @@ files = [
 
 [[package]]
 name = "py-cord"
-version = "2.5.0"
+version = "2.6.0"
 description = "A Python wrapper for the Discord API"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "py-cord-2.5.0.tar.gz", hash = "sha256:faf08af5da5eac2ed3d1c8a43d8307d5a1e3f01602def283330c9d2cde0b1162"},
-    {file = "py_cord-2.5.0-py3-none-any.whl", hash = "sha256:9e5fc79feec5a48f53aa4c066b57dd75fe67d29021b042d12f378a513d308bbc"},
+    {file = "py_cord-2.6.0-py3-none-any.whl", hash = "sha256:906cc077904a4d478af0264ae4374b0412ed9f9ab950d0162c4f31239a906d26"},
+    {file = "py_cord-2.6.0.tar.gz", hash = "sha256:bbc0349542965d05e4b18cc4424136206430a8cc911fda12a0a57df6fdf9cd9c"},
 ]
 
 [package.dependencies]
@@ -1732,4 +1732,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "4f9da6110a420215b3d6de8c0207e59eb5be54fee051342ec228bd96a5e600fd"
+content-hash = "c4ecaf6ec918d72679886827c179e950e07af5910c1860eaf1b4c699af7bcd2b"
