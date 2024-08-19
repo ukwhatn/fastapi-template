@@ -20,7 +20,7 @@ optional = true
 fastapi = "^0.112.1"
 uvicorn = { extras = ["standard"], version = "^0.30.6" }
 websockets = "^12.0"
-redis = "^5.0.7"
+redis = "^5.0.8"
 
 [tool.poetry.group.dev]
 optional = true
