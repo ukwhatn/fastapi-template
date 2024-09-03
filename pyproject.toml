@@ -33,7 +33,7 @@ black = "^24.8.0"
 [tool.poetry.group.db]
 optional = true
 [tool.poetry.group.db.dependencies]
-sqlalchemy = "^2.0.32"
+sqlalchemy = "^2.0.33"
 alembic = "^1.13.2"
 psycopg2-binary = "^2.9.9"
 pydantic = "^2.8.2"
