@@ -17,7 +17,7 @@ py-cord = "2.6.0"
 [tool.poetry.group.server]
 optional = true
 [tool.poetry.group.server.dependencies]
-fastapi = "^0.112.1"
+fastapi = "^0.113.0"
 uvicorn = { extras = ["standard"], version = "^0.30.6" }
 websockets = "^13.0"
 redis = "^5.0.8"
