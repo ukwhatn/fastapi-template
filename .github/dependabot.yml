@@ -20,6 +20,7 @@ updates:
     schedule:
       interval: "daily"
     target-branch: "develop"
+    versioning-strategy: increase-if-necessary
     commit-message:
       prefix: "chore(deps:pip)"
     labels:
