@@ -1,44 +1,11 @@
 services:
-  nginx:
-    image: nginx:latest
-    environment:
-      - TZ=Asia/Tokyo
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
-      - ./nginx/conf.d/server.prod.conf:/etc/nginx/conf.d/server.conf
-      - ./nginx/log:/var/log/nginx
-      - front_dist:/www/dist
-    ports:
-      - "127.0.0.1:59980:80"
-    restart: always
-    networks:
-      - nginx
-    depends_on:
-      - front
-      - server
-
-  front:
-    build:
-      context: .
-      dockerfile: ./front/Dockerfile
-    command: [ "/bin/sh", "-c", "yarn build" ]
-    environment:
-      NODE_ENV: production
-      LANG: C.UTF-8
-      TZ: Asia/Tokyo
-    volumes:
-      - ./front:/app
-      - node_modules:/app/node_modules
-      - front_dist:/usr/build/dist
-    restart: on-failure
-    networks:
-      - nginx
-
   server:
     build:
       context: .
       dockerfile: ./server/Dockerfile
     command: [ "/bin/sh", "-c", "fastapi run main.py --host 0.0.0.0 --port 80 --proxy-headers" ]
+    ports:
+      - "127.0.0.1:8000:80"
     volumes:
       - ./server:/app
       - ./db:/app/db
@@ -48,27 +15,35 @@ services:
       - ./envs/server.env
     environment:
       - ENV_MODE=production
-    restart: always
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/system/healthcheck/" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
+      db-migrator:
+        condition: service_completed_successfully
     networks:
       - db
       - redis
-      - nginx
 
   db:
-    image: postgres:16.1
+    image: postgres:17
     env_file:
       - ./envs/db.env
+    environment:
+      POSTGRES_DB: main
     volumes:
       - pg_data:/var/lib/postgresql/data
-      - ./db/init:/docker-entrypoint-initdb.d
-    restart: always
+    restart: unless-stopped
     healthcheck:
-      test: pg_isready -U postgres
+      test: pg_isready -U user -d main
       interval: 2s
       timeout: 5s
       retries: 30
@@ -76,37 +51,16 @@ services:
       - db
 
   redis:
-    image: redis:7.2.4
+    image: redis:7.4.1
     volumes:
       - redis_data:/data
+    restart: unless-stopped
     healthcheck:
       test: redis-cli ping
       interval: 2s
       timeout: 5s
       retries: 30
     networks:
-      - redis
-
-  discord:
-    build:
-      context: .
-      dockerfile: discord/Dockerfile
-    volumes:
-      - ./discord:/app
-      - ./db:/app/db
-      - ./redis:/app/redis_crud
-    env_file:
-      - ./envs/discord.env
-      - ./envs/db.env
-      - ./envs/sentry.env
-    restart: always
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    networks:
-      - db
       - redis
 
   db-migrator:
@@ -118,6 +72,7 @@ services:
       - ./db:/app
     env_file:
       - ./envs/db.env
+    restart: no
     depends_on:
       db:
         condition: service_healthy
@@ -127,13 +82,8 @@ services:
 volumes:
   pg_data:
   redis_data:
-  node_modules:
-  front_dist:
-
 
 networks:
-  nginx:
-    driver: bridge
   db:
     driver: bridge
   redis:

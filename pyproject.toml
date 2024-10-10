@@ -1,6 +1,6 @@
 [tool.poetry]
-name = "application-template"
-version = "0.1.0"
+name = "fastapi-template"
+version = "1.0.0"
 description = "A template for creating a new application"
 authors = ["Yuki Watanabe <ukwhatn@gmail.com>"]
 package-mode = false
@@ -8,19 +8,11 @@ package-mode = false
 [tool.poetry.dependencies]
 python = "^3.10"
 
-[tool.poetry.group.discord]
-optional = true
-[tool.poetry.group.discord.dependencies]
-sentry-sdk = "2.13.0"
-py-cord = "2.6.0"
-
 [tool.poetry.group.server]
 optional = true
 [tool.poetry.group.server.dependencies]
-fastapi = "^0.112.1"
-uvicorn = { extras = ["standard"], version = "^0.30.6" }
-websockets = "^13.1"
 redis = "^5.0.8"
+fastapi = {extras = ["standard"], version = "^0.115.0"}
 
 [tool.poetry.group.dev]
 optional = true

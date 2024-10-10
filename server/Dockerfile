@@ -5,7 +5,7 @@ WORKDIR /app
 
 RUN apt update && \
     apt upgrade -y && \
-    apt install -y libpq-dev gcc make && \
+    apt install -y libpq-dev gcc make curl && \
     pip install --upgrade pip poetry
 
 # install requirements

@@ -1,0 +1,53 @@
+name: Check services healthy
+
+on:
+  pull_request:
+
+jobs:
+  check_healthy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup environment
+      run: |
+        make envs:setup
+
+    - name: Build and start services
+      run: make up
+
+    - name: Wait for services to be ready
+      run: |
+        max_retries=10
+        retry_interval=10
+        
+        for i in $(seq 1 $max_retries)
+        do
+          if ! make ps | grep -q "health: starting"; then
+            echo "All services have finished starting!"
+            break
+          else
+            echo "Waiting for services to finish starting... (Attempt $i/$max_retries)"
+            sleep $retry_interval
+          fi
+          
+          if [ $i -eq $max_retries ]; then
+            echo "Services did not finish starting within the allocated time."
+            make logs:once
+            exit 1
+          fi
+        done
+        
+        if make ps | grep -q "unhealthy"; then
+          echo "Some services are unhealthy:"
+          make ps
+          make logs:once
+          exit 1
+        else
+          echo "All services are healthy!"
+          make ps
+        fi
+
+    - name: Clean up
+      run: make down

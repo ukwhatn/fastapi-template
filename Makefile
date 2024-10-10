@@ -1,5 +1,5 @@
 ENV ?= "dev"
-POETRY_GROUPS = "server,discord,db,dev"
+POETRY_GROUPS = "server,db,dev"
 
 ifeq ($(ENV), prod)
 	COMPOSE_YML := compose.prod.yml
@@ -72,10 +72,8 @@ db\:migrate:
 	docker compose -f $(COMPOSE_YML) build db-migrator
 	docker compose -f $(COMPOSE_YML) run --rm db-migrator /bin/bash -c "alembic upgrade head"
 
-envs\:init:
-	cp envs/discord.env.example envs/discord.env
+envs\:setup:
 	cp envs/db.env.example envs/db.env
-	cp envs/sentry.env.example envs/sentry.env
 	cp envs/server.env.example envs/server.env
 
-PHONY: build up down logs ps pr\:create deploy\:prod poetry\:install poetry\:add poetry\:lock poetry\:update poetry\:reset dev\:setup db\:revision\:create db\:migrate envs\:init
+PHONY: build up down logs ps pr\:create deploy\:prod poetry\:install poetry\:add poetry\:lock poetry\:update poetry\:reset dev\:setup db\:revision\:create db\:migrate envs\:setup

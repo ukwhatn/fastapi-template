@@ -6,6 +6,7 @@ from fastapi import FastAPI, Request, Response, Depends
 from db.package.session import get_db
 from redis_crud import SessionCrud
 from redis_crud.schemas import SessionSchema
+from routers.system import main as system_router
 from routers.v1 import main as v1_router
 from util.env import get_env
 
@@ -20,9 +21,6 @@ logger = logging.getLogger("uvicorn")
 app_params = {}
 if env_mode == "development":
     logger.setLevel(level=logging.DEBUG)
-    app_params["docs_url"] = "/api/docs"
-    app_params["redoc_url"] = "/api/redoc"
-    app_params["openapi_url"] = "/api/openapi.json"
 elif env_mode == "production":
     logger.setLevel(level=logging.INFO)
     app_params["docs_url"] = None
@@ -83,5 +81,10 @@ async def session_creator(request: Request, call_next):
 # add routers
 app.include_router(
     v1_router.router,
-    prefix="/api/v1"
+    prefix="/v1"
+)
+
+app.include_router(
+    system_router.router,
+    prefix="/system"
 )
