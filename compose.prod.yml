@@ -17,7 +17,7 @@ services:
       - ENV_MODE=production
     restart: unless-stopped
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8000/system/healthcheck/" ]
+      test: [ "CMD", "curl", "-f", "http://localhost:80/system/healthcheck/" ]
       interval: 5s
       timeout: 5s
       retries: 10
