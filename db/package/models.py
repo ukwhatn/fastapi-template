@@ -1,15 +1,25 @@
-from datetime import datetime, UTC
+from datetime import datetime
 
-from sqlalchemy import Column, Integer, String, DateTime
+from sqlalchemy import Integer, DateTime
+from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.sql import text
 
 from .connection import Base
 
 
-class TemplateModel(Base):
-    __tablename__ = "templates"
+class TemplateTable(Base):
+    __tablename__ = "template_tables"
 
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, unique=True, index=True)
-    created_at = Column(DateTime, default=datetime.now(UTC))
-    updated_at = Column(DateTime, default=datetime.now(UTC))
-    deleted_at = Column(DateTime, nullable=True)
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=text("now()")
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=text("now()"),
+        onupdate=text("now()")
+    )

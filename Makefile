@@ -30,6 +30,9 @@ reset:
 logs:
 	docker compose -f $(COMPOSE_YML) logs -f
 
+logs\:once:
+	docker compose -f $(COMPOSE_YML) logs
+
 ps:
 	docker compose -f $(COMPOSE_YML) ps
 

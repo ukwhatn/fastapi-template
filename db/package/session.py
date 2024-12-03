@@ -3,7 +3,7 @@ from contextlib import contextmanager
 from .connection import SessionLocal
 
 
-def db_context():
+def db_session():
     db = SessionLocal()
     try:
         yield db
@@ -11,4 +11,4 @@ def db_context():
         db.close()
 
 
-get_db = contextmanager(db_context)
+db_context = contextmanager(db_session)
