@@ -1,9 +1,8 @@
 import json
 import logging
 
-from fastapi import FastAPI, Request, Response, Depends
+from fastapi import FastAPI, Request, Response
 
-from db.package.session import get_db
 from redis_crud import SessionCrud
 from redis_crud.schemas import SessionSchema
 from routers.system import main as system_router
@@ -16,6 +15,15 @@ env_mode = get_env("ENV_MODE", "production")
 # logger config
 logging.basicConfig(level=logging.WARN)
 logger = logging.getLogger("uvicorn")
+
+
+# /system/healthcheckのログを表示しない
+class HealthCheckFilter(logging.Filter):
+    def filter(self, record):
+        return "/system/healthcheck" not in record.getMessage()
+
+
+logging.getLogger("uvicorn.access").addFilter(HealthCheckFilter())
 
 # production時，docsを表示しない
 app_params = {}
@@ -51,12 +59,6 @@ def error_response(request: Request, call_next):
     except Exception as e:
         logger.error(e)
     return response
-
-
-@app.middleware("http")
-async def db_opener(request: Request, call_next, db=Depends(get_db)):
-    request.state.db = db
-    return await call_next(request)
 
 
 @app.middleware("http")
