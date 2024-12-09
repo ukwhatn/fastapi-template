@@ -100,24 +100,6 @@ services:
     networks:
       - db
 
-  db-dumper:
-    build:
-      context: .
-      dockerfile: db/dumper.Dockerfile
-    env_file:
-      - ./envs/db.env
-      - ./envs/sentry.env
-    environment:
-      - POSTGRES_HOST=db
-      - POSTGRES_DB=main
-    restart:
-      unless-stopped
-    depends_on:
-      db:
-        condition: service_healthy
-    networks:
-      - db
-
 volumes:
   pg_data:
   redis_data:
