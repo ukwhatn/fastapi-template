@@ -39,7 +39,7 @@ jobs:
           fi
         done
         
-        if make ps | grep -q "unhealthy"; then
+        if make ps ENV=stg | grep -q "unhealthy"; then
           echo "Some services are unhealthy:"
           make ps ENV=stg
           make logs:once ENV=stg
