@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: ./server/Dockerfile
-    command: [ "/bin/sh", "-c", "NEW_RELIC_CONFIG_FILE=newrelic.ini NEW_RELIC_ENVIRONMENT=production newrelic-admin run-program fastapi run main.py --host 0.0.0.0 --port 80 --proxy-headers" ]
+    command: [ "/bin/sh", "-c", "NEW_RELIC_CONFIG_FILE=newrelic.ini NEW_RELIC_ENVIRONMENT=staging newrelic-admin run-program fastapi run main.py --host 0.0.0.0 --port 80 --proxy-headers" ]
     ports:
       - "127.0.0.1:8000:80"
     volumes:
@@ -13,7 +13,6 @@ services:
     env_file:
       - ./envs/db.env
       - ./envs/server.env
-      - ./envs/sentry.env
     environment:
       - ENV_MODE=production
     restart: unless-stopped
@@ -74,24 +73,6 @@ services:
     env_file:
       - ./envs/db.env
     restart: no
-    depends_on:
-      db:
-        condition: service_healthy
-    networks:
-      - db
-
-  db-dumper:
-    build:
-      context: .
-      dockerfile: db/dumper.Dockerfile
-    env_file:
-      - ./envs/db.env
-      - ./envs/sentry.env
-    environment:
-      - POSTGRES_HOST=db
-      - POSTGRES_DB=main
-    restart:
-      unless-stopped
     depends_on:
       db:
         condition: service_healthy
