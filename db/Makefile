@@ -12,6 +12,9 @@ poetry\:install:
 poetry\:install\:dev:
 	poetry install --with db,dev
 
+poetry\:install\:dumper:
+	poetry install --with dumper
+
 build:
 	docker compose -f ../$(COMPOSE_YML) build db-migrator $(ARGS)
 
