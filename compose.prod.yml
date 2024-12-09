@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: ./server/Dockerfile
-    command: [ "/bin/sh", "-c", "fastapi run main.py --host 0.0.0.0 --port 80 --proxy-headers" ]
+    command: [ "/bin/sh", "-c", "NEW_RELIC_CONFIG_FILE=newrelic.ini NEW_RELIC_ENVIRONMENT=production newrelic-admin run-program fastapi run main.py --host 0.0.0.0 --port 80 --proxy-headers" ]
     ports:
       - "127.0.0.1:8000:80"
     volumes:
@@ -13,6 +13,7 @@ services:
     env_file:
       - ./envs/db.env
       - ./envs/server.env
+      - ./envs/sentry.env
     environment:
       - ENV_MODE=production
     restart: unless-stopped
