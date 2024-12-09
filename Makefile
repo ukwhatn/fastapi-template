@@ -3,6 +3,8 @@ POETRY_GROUPS = "server,db,dev"
 
 ifeq ($(ENV), prod)
 	COMPOSE_YML := compose.prod.yml
+else ifeq ($(ENV), stg)
+	COMPOSE_YML := compose.stg.yml
 else
 	COMPOSE_YML := compose.dev.yml
 endif
