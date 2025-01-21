@@ -8,46 +8,51 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Setup environment
-      run: |
-        make envs:setup
+      - name: Setup environment
+        run: |
+          make envs:setup
+          sed -i 's/S3_ACCESS_KEY=""/S3_ACCESS_KEY="${{ secrets.S3_ACCESS_KEY }}"/' envs/db.env
+          sed -i 's/S3_SECRET_KEY=""/S3_SECRET_KEY="${{ secrets.S3_SECRET_KEY }}"/' envs/db.env
 
-    - name: Build and start services
-      run: make up ENV=stg
+      - name: Build and start services
+        run: make up ENV=test
 
-    - name: Wait for services to be ready
-      run: |
-        max_retries=10
-        retry_interval=10
-        
-        for i in $(seq 1 $max_retries)
-        do
-          if ! make ps ENV=stg | grep -q "health: starting"; then
-            echo "All services have finished starting!"
-            break
-          else
-            echo "Waiting for services to finish starting... (Attempt $i/$max_retries)"
-            sleep $retry_interval
-          fi
+      - name: Wait for services to be ready
+        run: |
+          max_retries=10
+          retry_interval=10
           
-          if [ $i -eq $max_retries ]; then
-            echo "Services did not finish starting within the allocated time."
-            make logs:once ENV=stg
+          for i in $(seq 1 $max_retries)
+          do
+            if ! make ps ENV=test | grep -q "health: starting"; then
+              echo "All services have finished starting!"
+              break
+            else
+              echo "Waiting for services to finish starting... (Attempt $i/$max_retries)"
+              sleep $retry_interval
+            fi
+          
+            if [ $i -eq $max_retries ]; then
+              echo "Services did not finish starting within the allocated time."
+              make logs:once ENV=test
+              exit 1
+            fi
+          done
+          
+          if make ps ENV=test | grep -q "unhealthy"; then
+            echo "Some services are unhealthy:"
+            make ps ENV=test
+            make logs:once ENV=test
             exit 1
+          else
+            echo "All services are healthy!"
+            make ps ENV=test
           fi
-        done
-        
-        if make ps ENV=stg | grep -q "unhealthy"; then
-          echo "Some services are unhealthy:"
-          make ps ENV=stg
-          make logs:once ENV=stg
-          exit 1
-        else
-          echo "All services are healthy!"
-          make ps ENV=stg
-        fi
 
-    - name: Clean up
-      run: make down ENV=stg
+      - name: Check Dumper service
+        run: make db:backup:test ENV=test
+
+      - name: Clean up
+        run: make down ENV=test

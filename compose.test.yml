@@ -1,0 +1,109 @@
+services:
+  server:
+    build:
+      context: .
+      dockerfile: ./server/Dockerfile
+    command: [ "/bin/sh", "-c", "NEW_RELIC_CONFIG_FILE=newrelic.ini NEW_RELIC_ENVIRONMENT=test newrelic-admin run-program fastapi run main.py --host 0.0.0.0 --port 80 --proxy-headers" ]
+    ports:
+      - "127.0.0.1:8000:80"
+    volumes:
+      - ./server:/app
+      - ./db:/app/db
+      - ./redis:/app/redis_crud
+    env_file:
+      - ./envs/db.env
+      - ./envs/server.env
+      - ./envs/sentry.env
+    environment:
+      - ENV_MODE=production
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:80/system/healthcheck/" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      db-migrator:
+        condition: service_completed_successfully
+    networks:
+      - db
+      - redis
+
+  db:
+    image: postgres:17
+    env_file:
+      - ./envs/db.env
+    environment:
+      POSTGRES_DB: main
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: pg_isready -U user -d main
+      interval: 2s
+      timeout: 5s
+      retries: 30
+    networks:
+      - db
+
+  redis:
+    image: redis:7.4.1
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: redis-cli ping
+      interval: 2s
+      timeout: 5s
+      retries: 30
+    networks:
+      - redis
+
+  db-migrator:
+    build:
+      context: .
+      dockerfile: db/migrator.Dockerfile
+    tty: true
+    volumes:
+      - ./db:/app
+    env_file:
+      - ./envs/db.env
+    restart: no
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - db
+
+  db-dumper:
+    build:
+      context: .
+      dockerfile: db/dumper.Dockerfile
+    env_file:
+      - ./envs/db.env
+      - ./envs/sentry.env
+    environment:
+      - POSTGRES_HOST=db
+      - POSTGRES_DB=main
+    restart:
+      unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - db
+
+volumes:
+  pg_data:
+  redis_data:
+
+networks:
+  db:
+    driver: bridge
+  redis:
+    driver: bridge

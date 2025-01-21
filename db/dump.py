@@ -231,6 +231,9 @@ def create_backup():
         # 一時ファイルを削除
         os.remove(backup_file)
 
+        # filenameを返す
+        return s3_key
+
     except Exception as e:
         sentry_sdk.capture_exception(e)
         LOGGER.error(f'Backup failed: {str(e)}')
@@ -308,6 +311,7 @@ def main():
 
     # 第1引数取得
     arg1 = sys.argv[1] if len(sys.argv) > 1 else None
+    arg2 = sys.argv[2] if len(sys.argv) > 2 else None
 
     if arg1 == "oneshot":
         LOGGER.info("Running oneshot backup")
@@ -319,6 +323,20 @@ def main():
             restore_backup(backup_file)
         else:
             LOGGER.error("No backup file selected")
+    elif arg1 == "test" and arg2 == "--confirm":
+        LOGGER.info("Running test backup")
+        filename = create_backup()
+        # リストアを試行
+        if filename:
+            restore_backup(filename)
+
+        # 削除
+        s3_client = get_s3_client()
+        s3_client.delete_object(Bucket=S3_BUCKET, Key=filename)
+        # 作成したディレクトリも削除
+        s3_client.delete_object(Bucket=S3_BUCKET, Key=f'{BACKUP_DIR}/')
+
+        LOGGER.info("Test completed")
     else:
         LOGGER.info(f"Retention period: {BACKUP_RETENTION_DAYS} days")
         LOGGER.info(f"Scheduled backup time: {BACKUP_TIME}")
