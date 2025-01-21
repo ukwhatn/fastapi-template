@@ -80,7 +80,7 @@ db\:migrate:
 envs\:setup:
 	cp envs/db.env.example envs/db.env
 	cp envs/server.env.example envs/server.env
-	cp env/sentry.env.example envs/sentry.env
+	cp envs/sentry.env.example envs/sentry.env
 
 db\:backup:
 	docker compose -f $(COMPOSE_YML) exec db-dumper python dump.py oneshot
