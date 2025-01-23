@@ -34,7 +34,7 @@ jobs:
           
           for i in $(seq 1 $max_retries)
           do
-            if ! make ps ENV=test | grep -q "health: starting"; then
+            if ! make ps ENV=test | grep -qiE "(starting|restarting|unhealthy)"; then
               echo "All services have finished starting!"
               break
             else
