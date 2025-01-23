@@ -29,8 +29,8 @@ jobs:
 
       - name: Wait for services to be ready
         run: |
-          max_retries=10
-          retry_interval=10
+          max_retries=5
+          retry_interval=5
           
           for i in $(seq 1 $max_retries)
           do
