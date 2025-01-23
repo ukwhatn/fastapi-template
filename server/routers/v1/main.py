@@ -6,6 +6,4 @@ from .root import main as root_router
 router = APIRouter()
 
 # add routers
-router.include_router(
-    root_router.router
-)
+router.include_router(root_router.router)

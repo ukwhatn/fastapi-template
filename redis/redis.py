@@ -4,7 +4,7 @@ import pickle
 
 class RedisCrud:
     def __init__(self, db: int):
-        self.connect = redis.Redis(host='redis', port=6379, db=db)
+        self.connect = redis.Redis(host="redis", port=6379, db=db)
 
     def __enter__(self):
         return self
