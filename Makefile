@@ -91,20 +91,21 @@ db\:migrate:
 	docker compose -f $(COMPOSE_YML) build db-migrator
 	docker compose -f $(COMPOSE_YML) run --rm db-migrator /bin/bash -c "alembic upgrade head"
 
-envs\:setup:
-	cp envs/server.env.example envs/server.env
-	cp envs/db.env.example envs/db.env
-	cp envs/sentry.env.example envs/sentry.env
-
 db\:backup:
 	docker compose -f compose.prod.yml up -d --build db-dumper
 	docker compose -f compose.prod.yml exec db-dumper python dump.py oneshot
 
 db\:backup\:test:
-	docker compose -f $(COMPOSE_YML) exec db-dumper python dump.py test --confirm
+	docker compose -f compose.prod.yml up -d --build db-dumper
+	docker compose -f compose.prod.yml exec db-dumper python dump.py test --confirm
 
 db\:restore:
 	docker compose -f compose.prod.yml up -d --build db-dumper
 	docker compose -f compose.prod.yml exec db-dumper python dump.py restore
+
+envs\:setup:
+	cp envs/server.env.example envs/server.env
+	cp envs/db.env.example envs/db.env
+	cp envs/sentry.env.example envs/sentry.env
 
 PHONY: build up down logs ps pr\:create deploy\:prod poetry\:install poetry\:add poetry\:lock poetry\:update poetry\:reset dev\:setup db\:revision\:create db\:migrate envs\:setup
