@@ -61,6 +61,9 @@ poetry\:lock:
 poetry\:update:
 	poetry update --with $(group)
 
+poetry\:update\:all:
+	poetry update
+
 poetry\:reset:
 	poetry env remove $(which python)
 	poetry install
