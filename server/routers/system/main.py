@@ -8,5 +8,5 @@ router = APIRouter()
 # add routers
 router.include_router(
     healthcheck_router.router,
-    prefix='/healthcheck',
+    prefix="/healthcheck",
 )

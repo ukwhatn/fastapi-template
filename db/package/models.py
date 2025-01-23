@@ -10,16 +10,10 @@ from .connection import Base
 class TemplateTable(Base):
     __tablename__ = "template_tables"
 
-    id: Mapped[int] = mapped_column(
-        Integer,
-        primary_key=True
-    )
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        server_default=text("now()")
+        DateTime(timezone=True), server_default=text("now()")
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        server_default=text("now()"),
-        onupdate=text("now()")
+        DateTime(timezone=True), server_default=text("now()"), onupdate=text("now()")
     )

@@ -21,7 +21,9 @@ class SessionCrud:
         return self.crud.get(key)
 
     def _set(self, key, value):
-        data = self.crud.set(key, value, expire=int(os.environ.get("SESSION_EXPIRE", 60 * 60 * 24)))
+        data = self.crud.set(
+            key, value, expire=int(os.environ.get("SESSION_EXPIRE", 60 * 60 * 24))
+        )
         return data
 
     def _delete(self, key):

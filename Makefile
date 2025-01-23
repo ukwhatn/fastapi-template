@@ -68,6 +68,15 @@ poetry\:reset:
 dev\:setup:
 	poetry install --with $(POETRY_GROUPS)
 
+lint:
+	poetry run ruff check .
+
+lint\:fix:
+	poetry run ruff check --fix .
+
+format:
+	poetry run ruff format .
+
 db\:revision\:create:
 	docker compose -f $(COMPOSE_YML) build db-migrator
 	docker compose -f $(COMPOSE_YML) run --rm db-migrator /bin/bash -c "alembic revision --autogenerate -m '${NAME}'"

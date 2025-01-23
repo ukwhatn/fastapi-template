@@ -1,2 +1,2 @@
-from .redis import RedisCrud
-from .session import SessionCrud
+from .redis import RedisCrud as RedisCrud
+from .session import SessionCrud as SessionCrud
