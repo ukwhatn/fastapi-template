@@ -1,14 +1,22 @@
 name: Check services healthy
 
 on:
-  pull_request:
+  pull_request_target:
+    branches:
+      - main
+      - develop
 
 jobs:
   check_healthy:
     runs-on: ubuntu-latest
+    if: |
+      (github.event.pull_request.user.login == 'ukwhatn') ||
+      (github.event.pull_request.user.login == 'dependabot[bot]')
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Setup environment
         run: |
