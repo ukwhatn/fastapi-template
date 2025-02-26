@@ -32,7 +32,7 @@ pydantic = "^2.8.2"
 [tool.poetry.group.dumper]
 optional = true
 [tool.poetry.group.dumper.dependencies]
-boto3 = "1.35.*"
+boto3 = "1.37.*"
 schedule = "^1.2.2"
 sentry-sdk = "^2.19.2"
 pick = "^2.4.0"
