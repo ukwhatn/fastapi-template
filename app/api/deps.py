@@ -4,7 +4,7 @@ from fastapi import Depends, Request
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.utils import SessionCrud, SessionSchema
+from app.utils import SessionSchema
 
 
 def get_session(request: Request) -> SessionSchema:

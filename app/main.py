@@ -1,14 +1,12 @@
 import contextlib
 import json
 import logging
-from typing import Any, Dict, List
 
 import sentry_sdk
 from fastapi import FastAPI, Request, Response
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api import api_router
@@ -41,6 +39,22 @@ class HealthCheckFilter(logging.Filter):
 
 
 logging.getLogger("uvicorn.access").addFilter(HealthCheckFilter())
+
+
+# Lifespan context manager
+@contextlib.asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    アプリケーションのライフサイクル管理
+    """
+    # 起動時処理
+    logger.info(f"Application starting in {settings.ENV_MODE} mode")
+
+    yield  # アプリケーションの実行
+
+    # 終了時処理
+    logger.info("Application shutdown")
+
 
 # 環境に合わせたアプリケーション設定
 app_params = {
@@ -90,7 +104,7 @@ async def api_error_handler(request: Request, exc: APIError) -> Response:
 
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(
-    request: Request, exc: StarletteHTTPException
+        request: Request, exc: StarletteHTTPException
 ) -> Response:
     """HTTPException例外ハンドラ"""
     error = ErrorResponse(
@@ -106,7 +120,7 @@ async def http_exception_handler(
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(
-    request: Request, exc: RequestValidationError
+        request: Request, exc: RequestValidationError
 ) -> Response:
     """バリデーションエラーハンドラ"""
     error = ValidationError(
@@ -165,18 +179,3 @@ async def session_creator(request: Request, call_next):
 
 # ルーター登録
 app.include_router(api_router)
-
-
-# Lifespan context manager
-@contextlib.asynccontextmanager
-async def lifespan(app: FastAPI):
-    """
-    アプリケーションのライフサイクル管理
-    """
-    # 起動時処理
-    logger.info(f"Application starting in {settings.ENV_MODE} mode")
-
-    yield  # アプリケーションの実行
-
-    # 終了時処理
-    logger.info("Application shutdown")

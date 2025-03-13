@@ -66,7 +66,7 @@ def create_db_dump(output_file):
 
     try:
         logger.info(f"Creating database dump: {output_file}")
-        result = subprocess.run(cmd, env=env, check=True, capture_output=True)
+        subprocess.run(cmd, env=env, check=True, capture_output=True)
         logger.info("Database dump created successfully")
         return True
     except subprocess.CalledProcessError as e:
