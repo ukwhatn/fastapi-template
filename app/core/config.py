@@ -52,9 +52,9 @@ class Settings(BaseSettings):
         raise ValueError(v)
 
     # データベース設定
-    POSTGRES_USER: str
-    POSTGRES_PASSWORD: str
-    POSTGRES_DB: str
+    POSTGRES_USER: str = "user"
+    POSTGRES_PASSWORD: str = "password"
+    POSTGRES_DB: str = "main"
     POSTGRES_HOST: str = "db"
     POSTGRES_PORT: str = "5432"
     DATABASE_POOL_SIZE: int = 5
