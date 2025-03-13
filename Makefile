@@ -112,9 +112,14 @@ db\:history:
 	docker compose -f $(COMPOSE_YML) build db-migrator
 	docker compose -f $(COMPOSE_YML) run --rm db-migrator /bin/bash -c "alembic history"
 
+db\:dump:
+	docker compose -f $(COMPOSE_YML) build
+	docker compose -f $(COMPOSE_YML) run --rm --build --name db-dumper-interactive -e DB_TOOL_MODE=dumper -e DUMPER_MODE=interactive db-dumper
+
 envs\:setup:
 	cp envs/server.env.example envs/server.env
 	cp envs/db.env.example envs/db.env
 	cp envs/sentry.env.example envs/sentry.env
+	cp envs/aws-s3.env.example envs/aws-s3.env
 
-PHONY: build up down logs ps pr\:create deploy\:prod poetry\:install poetry\:add poetry\:lock poetry\:update poetry\:reset dev\:setup lint lint\:fix format test test\:cov db\:revision\:create db\:migrate db\:downgrade db\:current db\:history envs\:setup
+PHONY: build up down logs ps pr\:create deploy\:prod poetry\:install poetry\:add poetry\:lock poetry\:update poetry\:reset dev\:setup lint lint\:fix format test test\:cov db\:revision\:create db\:migrate db\:downgrade db\:current db\:history db\:dump envs\:setup

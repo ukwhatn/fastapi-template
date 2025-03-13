@@ -85,15 +85,41 @@ services:
   db-migrator:
     build:
       context: .
-      dockerfile: ./docker/migrator.Dockerfile
+      dockerfile: ./docker/db-tools.Dockerfile
+      args:
+        MODE: migrator
     env_file:
       - ./envs/db.env
+    environment:
+      - DB_TOOL_MODE=migrator
     restart: no
     depends_on:
       db:
         condition: service_healthy
     networks:
       - db
+      
+  # 開発環境では必要に応じてコメントを外して使用
+  # db-dumper:
+  #   build:
+  #     context: .
+  #     dockerfile: ./docker/db-tools.Dockerfile
+  #     args:
+  #       MODE: dumper
+  #   env_file:
+  #     - ./envs/db.env
+  #     - ./envs/sentry.env
+  #   environment:
+  #     - DB_TOOL_MODE=dumper
+  #     - DUMPER_MODE=interactive
+  #     - POSTGRES_HOST=db
+  #     - POSTGRES_DB=main
+  #   restart: "no"
+  #   depends_on:
+  #     db:
+  #       condition: service_healthy
+  #   networks:
+  #     - db
 
 volumes:
   pg_data:
