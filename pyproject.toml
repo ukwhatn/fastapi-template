@@ -15,6 +15,7 @@ redis = "^5.0.8"
 fastapi = {extras = ["standard"], version = "^0.115.0"}
 sentry-sdk = {extras = ["fastapi"], version = "^2.19.2"}
 newrelic = "^10.3.1"
+pydantic-settings = "^2.8.1"
 
 [tool.poetry.group.dev]
 optional = true
