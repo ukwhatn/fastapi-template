@@ -1,3 +1,4 @@
+import contextlib
 import json
 import logging
 from typing import Any, Dict, List
@@ -46,6 +47,7 @@ app_params = {
     "title": "FastAPI Template",
     "description": "FastAPIアプリケーションのテンプレート",
     "version": "0.1.0",
+    "lifespan": lifespan,
 }
 
 if settings.ENV_MODE == "development":
@@ -158,15 +160,16 @@ async def session_creator(request: Request, call_next):
 app.include_router(api_router)
 
 
-# アプリケーション起動イベント
-@app.on_event("startup")
-async def startup_event():
-    """アプリケーション起動時の処理"""
+# Lifespan context manager
+@contextlib.asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    アプリケーションのライフサイクル管理
+    """
+    # 起動時処理
     logger.info(f"Application starting in {settings.ENV_MODE} mode")
-
-
-# アプリケーション終了イベント
-@app.on_event("shutdown")
-async def shutdown_event():
-    """アプリケーション終了時の処理"""
+    
+    yield  # アプリケーションの実行
+    
+    # 終了時処理
     logger.info("Application shutdown")
