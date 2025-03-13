@@ -21,8 +21,10 @@ jobs:
       - name: Setup environment
         run: |
           make envs:setup
-          sed -i 's/S3_ACCESS_KEY=""/S3_ACCESS_KEY="${{ secrets.S3_ACCESS_KEY }}"/' envs/db.env
-          sed -i 's/S3_SECRET_KEY=""/S3_SECRET_KEY="${{ secrets.S3_SECRET_KEY }}"/' envs/db.env
+          # AWS S3環境変数の設定
+          sed -i 's/AWS_ACCESS_KEY_ID=your_access_key/AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}"/' envs/aws-s3.env
+          sed -i 's/AWS_SECRET_ACCESS_KEY=your_secret_key/AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}"/' envs/aws-s3.env
+          sed -i 's/S3_BUCKET=your-backup-bucket/S3_BUCKET="${{ secrets.S3_BUCKET }}"/' envs/aws-s3.env
 
       - name: Build and start services
         run: make up ENV=test
@@ -60,7 +62,7 @@ jobs:
           fi
 
       - name: Check Dumper service
-        run: make db:backup:test ENV=test
+        run: make db:dump ENV=test
 
       - name: Clean up
         run: make down ENV=test
