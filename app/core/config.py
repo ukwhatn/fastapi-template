@@ -42,8 +42,8 @@ class Settings(BaseSettings):
     RATE_LIMIT_REQUESTS: int = 100
     RATE_LIMIT_PERIOD_SECONDS: int = 60
 
-    @field_validator("BACKEND_CORS_ORIGINS")
     @classmethod
+    @field_validator("BACKEND_CORS_ORIGINS")
     def assemble_cors_origins(cls, v: Union[str, List[str]]) -> Union[List[str], str]:
         if isinstance(v, str) and not v.startswith("["):
             return [i.strip() for i in v.split(",")]
@@ -87,8 +87,8 @@ class Settings(BaseSettings):
     SENTRY_TRACES_SAMPLE_RATE: float = 1.0
     SENTRY_ENVIRONMENT: str = "development"
 
-    @field_validator("SENTRY_DSN")
     @classmethod
+    @field_validator("SENTRY_DSN")
     def sentry_dsn_can_be_blank(cls, v: Optional[str]) -> Optional[str]:
         if v is None or v == "":
             return None
