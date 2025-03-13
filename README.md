@@ -36,18 +36,28 @@ FastAPIアプリケーションのためのテンプレートリポジトリ。
 
 ## 始め方
 
-1. 環境ファイル設定:
-```bash
-make envs:setup
-```
+### 新規プロジェクトの作成
 
-2. 依存関係インストール:
+このテンプレートを元に新しいプロジェクトを作成する場合：
+
 ```bash
+# アプリケーション名を変更し、環境ファイルを設定
+make project:init NEW_NAME="my-app-name"
+
+# 依存関係をインストール
 make dev:setup
 ```
 
-3. コンテナ起動:
+### 既存プロジェクトの利用
+
 ```bash
+# 環境ファイル設定
+make envs:setup
+
+# 依存関係インストール
+make dev:setup
+
+# コンテナ起動
 make up
 ```
 
@@ -77,6 +87,12 @@ make up          # コンテナ起動
 make down        # コンテナ停止
 make logs        # ログ表示
 make reset       # 環境リセット
+```
+
+### プロジェクト管理
+```bash
+make app:rename NEW_NAME="my-app-name"  # アプリケーション名を変更
+make project:init NEW_NAME="my-app-name" # 新規プロジェクト初期化
 ```
 
 ## 環境設定
