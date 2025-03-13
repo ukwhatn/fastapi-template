@@ -33,7 +33,9 @@ if "SENTRY_DSN" in os.environ:
 # S3設定 (S3互換ストレージ対応)
 S3_ENDPOINT = os.environ.get("S3_ENDPOINT")
 S3_ACCESS_KEY = os.environ.get("S3_ACCESS_KEY") or os.environ.get("AWS_ACCESS_KEY_ID")
-S3_SECRET_KEY = os.environ.get("S3_SECRET_KEY") or os.environ.get("AWS_SECRET_ACCESS_KEY")
+S3_SECRET_KEY = os.environ.get("S3_SECRET_KEY") or os.environ.get(
+    "AWS_SECRET_ACCESS_KEY"
+)
 S3_BUCKET = os.environ.get("S3_BUCKET")
 BACKUP_DIR = os.environ.get("BACKUP_DIR", "default")
 
@@ -60,15 +62,15 @@ def get_s3_client():
         "aws_access_key_id": S3_ACCESS_KEY,
         "aws_secret_access_key": S3_SECRET_KEY,
     }
-    
+
     # S3互換ストレージの場合はendpoint_urlを設定
     if S3_ENDPOINT:
         client_kwargs["endpoint_url"] = S3_ENDPOINT
-    
+
     # AWS S3の場合はリージョンを設定（オプショナル）
     if AWS_REGION:
         client_kwargs["region_name"] = AWS_REGION
-    
+
     return boto3.client("s3", **client_kwargs)
 
 
@@ -229,7 +231,7 @@ def create_backup():
         try:
             env = os.environ.copy()
             env["PGPASSWORD"] = DB_PASSWORD
-            
+
             run = subprocess.run(
                 [
                     "pg_dump",
@@ -245,7 +247,9 @@ def create_backup():
                 capture_output=True,
                 text=True,
             )
-            logger.info(run.stdout if run.stdout else "Database dump created successfully")
+            logger.info(
+                run.stdout if run.stdout else "Database dump created successfully"
+            )
         except subprocess.CalledProcessError as e:
             if "SENTRY_DSN" in os.environ:
                 sentry_sdk.capture_exception(e)
@@ -298,7 +302,7 @@ def restore_backup(backup_file: str):
         try:
             env = os.environ.copy()
             env["PGPASSWORD"] = DB_PASSWORD
-            
+
             # まず既存の接続を切断
             disconnect_cmd = f"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '{DB_NAME}' AND pid <> pg_backend_pid();"
             subprocess.run(
@@ -393,11 +397,11 @@ def list_backups():
     if not all([S3_ACCESS_KEY, S3_SECRET_KEY, S3_BUCKET]):
         print("Storage credentials or bucket not configured, cannot list backups")
         return
-        
+
     s3_client = get_s3_client()
     try:
         response = s3_client.list_objects_v2(Bucket=S3_BUCKET, Prefix=f"{BACKUP_DIR}/")
-        
+
         if "Contents" in response:
             print("\nRecent backups:")
             for obj in sorted(
@@ -437,10 +441,10 @@ def run_interactive_mode():
     """対話モードでバックアップ操作を実行"""
     title = "DB Dumper - Choose an operation"
     options = ["Create backup now", "List recent backups", "Restore backup", "Exit"]
-    
+
     while True:
         option, _ = pick(options, title)
-        
+
         if option == "Create backup now":
             perform_backup()
         elif option == "List recent backups":
@@ -448,7 +452,9 @@ def run_interactive_mode():
         elif option == "Restore backup":
             backup_file = select_backup_file()
             if backup_file:
-                confirm_title = f"Restore {backup_file}? This will OVERWRITE the current database!"
+                confirm_title = (
+                    f"Restore {backup_file}? This will OVERWRITE the current database!"
+                )
                 confirm_options = ["Yes, proceed with restore", "No, cancel"]
                 confirm, _ = pick(confirm_options, confirm_title)
                 if confirm.startswith("Yes"):
@@ -495,7 +501,7 @@ def main():
     else:
         # 環境変数からモードを決定
         mode = os.environ.get("DUMPER_MODE", "scheduled")
-        
+
         if mode == "interactive":
             run_interactive_mode()
         else:
