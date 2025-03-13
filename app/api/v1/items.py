@@ -12,14 +12,14 @@ router = APIRouter()
 
 @router.get("/", response_model=List[Item])
 def read_items(
-    db: Session = Depends(deps.get_db),
+    db_session: deps.DBWithSession = Depends(deps.get_db_with_session),
     skip: int = 0,
     limit: int = 100,
 ) -> Any:
     """
     複数アイテム取得
     """
-    items = crud.item.get_multi(db, skip=skip, limit=limit)
+    items = crud.item.get_multi(db_session.db, skip=skip, limit=limit)
     return items
 
 

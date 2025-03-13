@@ -104,7 +104,7 @@ async def api_error_handler(request: Request, exc: APIError) -> Response:
 
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(
-        request: Request, exc: StarletteHTTPException
+    request: Request, exc: StarletteHTTPException
 ) -> Response:
     """HTTPException例外ハンドラ"""
     error = ErrorResponse(
@@ -120,7 +120,7 @@ async def http_exception_handler(
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(
-        request: Request, exc: RequestValidationError
+    request: Request, exc: RequestValidationError
 ) -> Response:
     """バリデーションエラーハンドラ"""
     error = ValidationError(

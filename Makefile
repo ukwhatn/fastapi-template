@@ -166,18 +166,9 @@ app\:rename:
 	@if [ -f envs/server.env ]; then \
 		sed -i.bak 's/NEW_RELIC_APP_NAME="FastAPI Template"/NEW_RELIC_APP_NAME="$(NEW_NAME)"/' envs/server.env && rm envs/server.env.bak; \
 	fi
-	@# GitHubのリポジトリ名を変更（もし.git設定があれば）
-	@if [ -d .git ]; then \
-		git_url=$$(git config --get remote.origin.url); \
-		if [ -n "$$git_url" ]; then \
-			new_url=$$(echo $$git_url | sed 's/fastapi-template/$(NEW_NAME)/g'); \
-			git remote set-url origin $$new_url; \
-			echo "Gitリモートを更新しました: $$new_url"; \
-		fi; \
-	fi
 	@echo "アプリケーション '$(NEW_NAME)' の設定が完了しました！"
 	@echo "注意: もし元のリポジトリから複製して使用する場合は、以下のコマンドを実行してください:"
-	@echo "  rm -rf .git && git init && git add . && git commit -m \"初期コミット: $(NEW_NAME)\""
+	@echo "  rm -rf .git && git init && git add . && git commit -m \"initial commit: $(NEW_NAME)\""
 
 # 新規プロジェクトセットアップのためのターゲット
 # 使用法: make project:init NEW_NAME="my-app-name"
@@ -189,7 +180,7 @@ project\:init: app\:rename envs\:setup
 	fi
 	@git init
 	@git add .
-	@git commit -m "初期コミット: $(NEW_NAME)"
+	@git commit -m "initial commit: $(NEW_NAME)"
 	@echo "プロジェクト '$(NEW_NAME)' の初期化が完了しました！"
 
 PHONY: build up down logs ps pr\:create deploy\:prod poetry\:install poetry\:add poetry\:lock poetry\:update poetry\:reset dev\:setup lint lint\:fix format test test\:cov db\:revision\:create db\:migrate db\:downgrade db\:current db\:history db\:dump db\:backup\:test db\:dump\:oneshot db\:dump\:list db\:dump\:restore db\:dump\:test envs\:setup app\:rename project\:init
