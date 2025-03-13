@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     """
     アプリケーション設定
     """
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
@@ -26,19 +27,21 @@ class Settings(BaseSettings):
     # セキュリティ設定
     SECRET_KEY: str = secrets.token_urlsafe(32)
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8  # 8 days
-    
+
     # CORS設定
     BACKEND_CORS_ORIGINS: List[AnyHttpUrl] = []
-    
+
     # セキュリティヘッダー設定
     SECURITY_HEADERS: bool = True
-    CSP_POLICY: str = "default-src 'self'; img-src 'self' data:; script-src 'self'; style-src 'self'"
-    
+    CSP_POLICY: str = (
+        "default-src 'self'; img-src 'self' data:; script-src 'self'; style-src 'self'"
+    )
+
     # レート制限設定
     RATE_LIMIT_ENABLED: bool = False
     RATE_LIMIT_REQUESTS: int = 100
     RATE_LIMIT_PERIOD_SECONDS: int = 60
-    
+
     @field_validator("BACKEND_CORS_ORIGINS")
     @classmethod
     def assemble_cors_origins(cls, v: Union[str, List[str]]) -> Union[List[str], str]:
@@ -90,21 +93,21 @@ class Settings(BaseSettings):
         if v is None or v == "":
             return None
         return v
-    
+
     # ロギング設定
     LOG_LEVEL: str = "INFO"
     LOG_FORMAT: str = "json"  # "json" or "text"
-    
+
     @property
     def is_development(self) -> bool:
         """開発環境かどうか"""
         return self.ENV_MODE == "development"
-    
+
     @property
     def is_production(self) -> bool:
         """本番環境かどうか"""
         return self.ENV_MODE == "production"
-    
+
     @property
     def is_test(self) -> bool:
         """テスト環境かどうか"""

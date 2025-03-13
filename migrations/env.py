@@ -26,26 +26,17 @@ target_metadata = Base.metadata
 # my_important_option = config.get_main_option("my_important_option")
 # ... etc.
 
+
 # 環境変数の読み込み
 def get_env(key, default=None):
     return os.environ.get(key, default)
 
 
-config.set_section_option(
-    "alembic", "POSTGRES_USER", get_env("POSTGRES_USER")
-)
-config.set_section_option(
-    "alembic", "POSTGRES_PASSWORD", get_env("POSTGRES_PASSWORD")
-)
-config.set_section_option(
-    "alembic", "POSTGRES_HOST", get_env("POSTGRES_HOST", "db")
-)
-config.set_section_option(
-    "alembic", "POSTGRES_PORT", get_env("POSTGRES_PORT", "5432")
-)
-config.set_section_option(
-    "alembic", "POSTGRES_DB", get_env("POSTGRES_DB", "main")
-)
+config.set_section_option("alembic", "POSTGRES_USER", get_env("POSTGRES_USER"))
+config.set_section_option("alembic", "POSTGRES_PASSWORD", get_env("POSTGRES_PASSWORD"))
+config.set_section_option("alembic", "POSTGRES_HOST", get_env("POSTGRES_HOST", "db"))
+config.set_section_option("alembic", "POSTGRES_PORT", get_env("POSTGRES_PORT", "5432"))
+config.set_section_option("alembic", "POSTGRES_DB", get_env("POSTGRES_DB", "main"))
 
 
 def run_migrations_offline():
@@ -86,9 +77,7 @@ def run_migrations_online():
     )
 
     with connectable.connect() as connection:
-        context.configure(
-            connection=connection, target_metadata=target_metadata
-        )
+        context.configure(connection=connection, target_metadata=target_metadata)
 
         with context.begin_transaction():
             context.run_migrations()

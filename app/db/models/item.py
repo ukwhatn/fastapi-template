@@ -8,6 +8,7 @@ class Item(BaseModel):
     """
     アイテムモデル（サンプル）
     """
+
     __tablename__ = "items"
 
     title: Mapped[str] = mapped_column(String(100), index=True)

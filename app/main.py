@@ -89,7 +89,9 @@ async def api_error_handler(request: Request, exc: APIError) -> Response:
 
 
 @app.exception_handler(StarletteHTTPException)
-async def http_exception_handler(request: Request, exc: StarletteHTTPException) -> Response:
+async def http_exception_handler(
+    request: Request, exc: StarletteHTTPException
+) -> Response:
     """HTTPException例外ハンドラ"""
     error = ErrorResponse(
         code="http_error",
@@ -103,11 +105,16 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException) 
 
 
 @app.exception_handler(RequestValidationError)
-async def validation_exception_handler(request: Request, exc: RequestValidationError) -> Response:
+async def validation_exception_handler(
+    request: Request, exc: RequestValidationError
+) -> Response:
     """バリデーションエラーハンドラ"""
     error = ValidationError(
         message="入力値が不正です",
-        details=[{"loc": err["loc"], "msg": err["msg"], "type": err["type"]} for err in exc.errors()],
+        details=[
+            {"loc": err["loc"], "msg": err["msg"], "type": err["type"]}
+            for err in exc.errors()
+        ],
     )
     return Response(
         content=json.dumps(jsonable_encoder(error.to_response())),
@@ -124,7 +131,7 @@ async def error_response(request: Request, call_next):
     except Exception as e:
         sentry_sdk.capture_exception(e)
         logger.error(f"Unhandled exception: {str(e)}", exc_info=e)
-        
+
         error = ErrorResponse(
             code="internal_server_error",
             message="内部サーバーエラーが発生しました",
@@ -168,8 +175,8 @@ async def lifespan(app: FastAPI):
     """
     # 起動時処理
     logger.info(f"Application starting in {settings.ENV_MODE} mode")
-    
+
     yield  # アプリケーションの実行
-    
+
     # 終了時処理
     logger.info("Application shutdown")

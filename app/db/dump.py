@@ -14,7 +14,7 @@ from pick import pick
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[logging.StreamHandler()]
+    handlers=[logging.StreamHandler()],
 )
 logger = logging.getLogger("db-dumper")
 
@@ -58,7 +58,7 @@ def create_db_dump(output_file):
         f"--username={DB_USER}",
         f"--dbname={DB_NAME}",
         "--format=custom",
-        f"--file={output_file}"
+        f"--file={output_file}",
     ]
 
     env = os.environ.copy()
@@ -81,16 +81,18 @@ def create_db_dump(output_file):
 def upload_to_s3(file_path, s3_key):
     """Upload file to S3"""
     if not all([AWS_ACCESS_KEY, AWS_SECRET_KEY, S3_BUCKET]):
-        logger.warning("AWS credentials or S3 bucket not configured, skipping S3 upload")
+        logger.warning(
+            "AWS credentials or S3 bucket not configured, skipping S3 upload"
+        )
         return True
 
     try:
         logger.info(f"Uploading {file_path} to S3 bucket {S3_BUCKET}/{s3_key}")
         s3 = boto3.client(
-            's3',
+            "s3",
             aws_access_key_id=AWS_ACCESS_KEY,
             aws_secret_access_key=AWS_SECRET_KEY,
-            region_name=AWS_REGION
+            region_name=AWS_REGION,
         )
         s3.upload_file(file_path, S3_BUCKET, s3_key)
         logger.info("Upload to S3 completed successfully")
@@ -111,10 +113,10 @@ def cleanup_old_backups():
     try:
         logger.info(f"Cleaning up backups older than {RETENTION_DAYS} days")
         s3 = boto3.client(
-            's3',
+            "s3",
             aws_access_key_id=AWS_ACCESS_KEY,
             aws_secret_access_key=AWS_SECRET_KEY,
-            region_name=AWS_REGION
+            region_name=AWS_REGION,
         )
 
         # Calculate cutoff date
@@ -122,15 +124,15 @@ def cleanup_old_backups():
         cutoff_timestamp = cutoff_date.timestamp()
 
         # List objects in the bucket with the prefix
-        paginator = s3.get_paginator('list_objects_v2')
+        paginator = s3.get_paginator("list_objects_v2")
         for page in paginator.paginate(Bucket=S3_BUCKET, Prefix=S3_PREFIX):
-            if 'Contents' not in page:
+            if "Contents" not in page:
                 continue
 
-            for obj in page['Contents']:
-                if obj['LastModified'].timestamp() < cutoff_timestamp:
+            for obj in page["Contents"]:
+                if obj["LastModified"].timestamp() < cutoff_timestamp:
                     logger.info(f"Deleting old backup: {obj['Key']}")
-                    s3.delete_object(Bucket=S3_BUCKET, Key=obj['Key'])
+                    s3.delete_object(Bucket=S3_BUCKET, Key=obj["Key"])
 
         logger.info("Cleanup completed")
     except ClientError as e:
@@ -179,30 +181,34 @@ def run_interactive_mode():
     """Run in interactive mode for manual backup operations"""
     title = "DB Dumper - Choose an operation"
     options = ["Create backup now", "List recent backups", "Exit"]
-    
+
     while True:
         option, _ = pick(options, title)
-        
+
         if option == "Create backup now":
             perform_backup()
         elif option == "List recent backups":
             if not all([AWS_ACCESS_KEY, AWS_SECRET_KEY, S3_BUCKET]):
-                print("AWS credentials or S3 bucket not configured, cannot list backups")
+                print(
+                    "AWS credentials or S3 bucket not configured, cannot list backups"
+                )
                 continue
-                
+
             s3 = boto3.client(
-                's3',
+                "s3",
                 aws_access_key_id=AWS_ACCESS_KEY,
                 aws_secret_access_key=AWS_SECRET_KEY,
-                region_name=AWS_REGION
+                region_name=AWS_REGION,
             )
-            
+
             response = s3.list_objects_v2(Bucket=S3_BUCKET, Prefix=S3_PREFIX)
-            
-            if 'Contents' in response:
+
+            if "Contents" in response:
                 print("\nRecent backups:")
-                for obj in sorted(response['Contents'], key=lambda x: x['LastModified'], reverse=True)[:10]:
-                    size_mb = obj['Size'] / (1024 * 1024)
+                for obj in sorted(
+                    response["Contents"], key=lambda x: x["LastModified"], reverse=True
+                )[:10]:
+                    size_mb = obj["Size"] / (1024 * 1024)
                     print(f"{obj['Key']} - {obj['LastModified']} - {size_mb:.2f} MB")
                 print()
             else:
@@ -214,7 +220,7 @@ def run_interactive_mode():
 if __name__ == "__main__":
     # Determine the mode based on environment variables
     mode = os.environ.get("DUMPER_MODE", "scheduled")
-    
+
     if mode == "interactive":
         run_interactive_mode()
     else:

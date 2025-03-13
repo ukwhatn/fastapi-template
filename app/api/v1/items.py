@@ -50,9 +50,9 @@ def update_item(
     item = crud.item.get(db=db, id=id)
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
-    
+
     # 所有者確認などのロジックをここに追加
-    
+
     item = crud.item.update(db=db, db_obj=item, obj_in=item_in)
     return item
 
@@ -84,8 +84,8 @@ def delete_item(
     item = crud.item.get(db=db, id=id)
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
-    
+
     # 所有者確認などのロジックをここに追加
-    
+
     item = crud.item.remove(db=db, id=id)
     return item

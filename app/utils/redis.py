@@ -11,14 +11,13 @@ class RedisCrud:
     """
     Redis基本操作クラス
     """
+
     def __init__(self, db: int = 0):
         """
         Redisインスタンス初期化
         """
         self.connect = redis.Redis(
-            host=settings.REDIS_HOST,
-            port=settings.REDIS_PORT,
-            db=db
+            host=settings.REDIS_HOST, port=settings.REDIS_PORT, db=db
         )
 
     def __enter__(self):

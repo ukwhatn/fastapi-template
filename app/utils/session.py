@@ -14,6 +14,7 @@ class SessionCrud:
     """
     セッション管理クラス
     """
+
     def __init__(self):
         """
         初期化
@@ -46,7 +47,9 @@ class SessionCrud:
         """
         return self.crud.delete(key)
 
-    def create(self, response: Response, data: SessionSchema) -> Optional[SessionSchema]:
+    def create(
+        self, response: Response, data: SessionSchema
+    ) -> Optional[SessionSchema]:
         """
         新規セッション作成
         """

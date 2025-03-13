@@ -9,6 +9,7 @@ class CRUDItem(CRUDBase[Item, ItemCreate, ItemUpdate]):
     """
     アイテムのCRUD操作
     """
+
     def create_with_owner(
         self, db: Session, *, obj_in: ItemCreate, owner_id: int
     ) -> Item:
