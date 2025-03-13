@@ -83,6 +83,12 @@ lint\:fix:
 format:
 	poetry run ruff format .
 
+test:
+	poetry run pytest
+
+test\:cov:
+	poetry run pytest --cov=app --cov-report=term-missing
+
 db\:revision\:create:
 	docker compose -f $(COMPOSE_YML) build db-migrator
 	docker compose -f $(COMPOSE_YML) run --rm db-migrator /bin/bash -c "alembic revision --autogenerate -m '${NAME}'"
@@ -91,21 +97,21 @@ db\:migrate:
 	docker compose -f $(COMPOSE_YML) build db-migrator
 	docker compose -f $(COMPOSE_YML) run --rm db-migrator /bin/bash -c "alembic upgrade head"
 
-db\:backup:
-	docker compose -f compose.prod.yml up -d --build db-dumper
-	docker compose -f compose.prod.yml exec db-dumper python dump.py oneshot
+db\:downgrade:
+	docker compose -f $(COMPOSE_YML) build db-migrator
+	docker compose -f $(COMPOSE_YML) run --rm db-migrator /bin/bash -c "alembic downgrade $(REV)"
 
-db\:backup\:test:
-	docker compose -f compose.prod.yml up -d --build db-dumper
-	docker compose -f compose.prod.yml exec db-dumper python dump.py test --confirm
+db\:current:
+	docker compose -f $(COMPOSE_YML) build db-migrator
+	docker compose -f $(COMPOSE_YML) run --rm db-migrator /bin/bash -c "alembic current"
 
-db\:restore:
-	docker compose -f compose.prod.yml up -d --build db-dumper
-	docker compose -f compose.prod.yml exec db-dumper python dump.py restore
+db\:history:
+	docker compose -f $(COMPOSE_YML) build db-migrator
+	docker compose -f $(COMPOSE_YML) run --rm db-migrator /bin/bash -c "alembic history"
 
 envs\:setup:
 	cp envs/server.env.example envs/server.env
 	cp envs/db.env.example envs/db.env
 	cp envs/sentry.env.example envs/sentry.env
 
-PHONY: build up down logs ps pr\:create deploy\:prod poetry\:install poetry\:add poetry\:lock poetry\:update poetry\:reset dev\:setup db\:revision\:create db\:migrate envs\:setup
+PHONY: build up down logs ps pr\:create deploy\:prod poetry\:install poetry\:add poetry\:lock poetry\:update poetry\:reset dev\:setup lint lint\:fix format test test\:cov db\:revision\:create db\:migrate db\:downgrade db\:current db\:history envs\:setup
