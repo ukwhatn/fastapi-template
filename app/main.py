@@ -1,13 +1,18 @@
 import json
 import logging
+from typing import Any, Dict, List
 
 import sentry_sdk
 from fastapi import FastAPI, Request, Response
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api import api_router
-from app.core import get_settings
+from app.core import APIError, ErrorResponse, ValidationError, get_settings
+from app.core.middleware import SecurityHeadersMiddleware
 from app.utils import SessionCrud, SessionSchema
 
 # 設定読み込み
@@ -37,7 +42,12 @@ class HealthCheckFilter(logging.Filter):
 logging.getLogger("uvicorn.access").addFilter(HealthCheckFilter())
 
 # 環境に合わせたアプリケーション設定
-app_params = {}
+app_params = {
+    "title": "FastAPI Template",
+    "description": "FastAPIアプリケーションのテンプレート",
+    "version": "0.1.0",
+}
+
 if settings.ENV_MODE == "development":
     logger.setLevel(level=logging.DEBUG)
 else:
@@ -52,31 +62,76 @@ else:
 app = FastAPI(**app_params)
 
 # CORSミドルウェア設定
-# origins = [
-#     "http://example.com",
-# ]
-#
-# app.add_middleware(
-#     CORSMiddleware,
-#     allow_origins=origins,
-#     allow_credentials=True,
-#     allow_methods=["*"],
-#     allow_headers=["*"],
-# )
+if settings.BACKEND_CORS_ORIGINS:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[str(origin) for origin in settings.BACKEND_CORS_ORIGINS],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+# セキュリティヘッダーミドルウェア追加
+app.add_middleware(SecurityHeadersMiddleware)
+
+
+# カスタムエラーハンドラ
+@app.exception_handler(APIError)
+async def api_error_handler(request: Request, exc: APIError) -> Response:
+    """APIError例外ハンドラ"""
+    return Response(
+        content=json.dumps(jsonable_encoder(exc.to_response())),
+        status_code=exc.status_code,
+        media_type="application/json",
+    )
+
+
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request: Request, exc: StarletteHTTPException) -> Response:
+    """HTTPException例外ハンドラ"""
+    error = ErrorResponse(
+        code="http_error",
+        message=str(exc.detail),
+    )
+    return Response(
+        content=json.dumps(jsonable_encoder(error)),
+        status_code=exc.status_code,
+        media_type="application/json",
+    )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError) -> Response:
+    """バリデーションエラーハンドラ"""
+    error = ValidationError(
+        message="入力値が不正です",
+        details=[{"loc": err["loc"], "msg": err["msg"], "type": err["type"]} for err in exc.errors()],
+    )
+    return Response(
+        content=json.dumps(jsonable_encoder(error.to_response())),
+        status_code=error.status_code,
+        media_type="application/json",
+    )
 
 
 # エラーハンドリングミドルウェア
 @app.middleware("http")
-def error_response(request: Request, call_next):
-    response = Response(
-        json.dumps({"status": "internal server error"}), status_code=500
-    )
+async def error_response(request: Request, call_next):
     try:
-        response = call_next(request)
+        return await call_next(request)
     except Exception as e:
         sentry_sdk.capture_exception(e)
-        logger.error(e)
-    return response
+        logger.error(f"Unhandled exception: {str(e)}", exc_info=e)
+        
+        error = ErrorResponse(
+            code="internal_server_error",
+            message="内部サーバーエラーが発生しました",
+        )
+        return Response(
+            content=json.dumps(jsonable_encoder(error)),
+            status_code=500,
+            media_type="application/json",
+        )
 
 
 # セッション管理ミドルウェア
@@ -101,3 +156,17 @@ async def session_creator(request: Request, call_next):
 
 # ルーター登録
 app.include_router(api_router)
+
+
+# アプリケーション起動イベント
+@app.on_event("startup")
+async def startup_event():
+    """アプリケーション起動時の処理"""
+    logger.info(f"Application starting in {settings.ENV_MODE} mode")
+
+
+# アプリケーション終了イベント
+@app.on_event("shutdown")
+async def shutdown_event():
+    """アプリケーション終了時の処理"""
+    logger.info("Application shutdown")
