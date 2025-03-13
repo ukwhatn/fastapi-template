@@ -4,15 +4,14 @@ services:
     build:
       context: .
       dockerfile: docker/server.Dockerfile
-    command: [ "/bin/sh", "-c", "NEW_RELIC_CONFIG_FILE=newrelic.ini NEW_RELIC_ENVIRONMENT=development newrelic-admin run-program uvicorn app.main:app --reload --host 0.0.0.0 --port 80 --proxy-headers" ]
+    command: [ "/bin/sh", "-c", "NEW_RELIC_CONFIG_FILE=newrelic.ini NEW_RELIC_ENVIRONMENT=development newrelic-admin run-program fastapi dev main.py --host 0.0.0.0 --port 80 --proxy-headers" ]
     ports:
       - "127.0.0.1:8000:80"
     volumes:
-      - .:/app
+      - ./app:/app
     env_file:
       - ./envs/db.env
       - ./envs/server.env
-      - ./envs/sentry.env
     environment:
       - ENV_MODE=development
     restart: unless-stopped
@@ -58,7 +57,7 @@ services:
       - ./pgadmin/config/servers.json:/pgadmin4/servers.json
     environment:
       PGADMIN_DEFAULT_EMAIL: user@example.com
-      PGADMIN_DEFAULT_PASSWORD: password
+      PGADMIN_DEFAULT_PASSWORD: pwd
       PGADMIN_CONFIG_SERVER_MODE: "False"
       PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
     ports:
@@ -103,28 +102,30 @@ services:
         condition: service_healthy
     networks:
       - db
-      
+
   # 開発環境では必要に応じてコメントを外して使用
-  # db-dumper:
-  #   build:
-  #     context: .
-  #     dockerfile: ./docker/db-tools.Dockerfile
-  #     args:
-  #       MODE: dumper
-  #   env_file:
-  #     - ./envs/db.env
-  #     - ./envs/sentry.env
-  #   environment:
-  #     - DB_TOOL_MODE=dumper
-  #     - DUMPER_MODE=interactive
-  #     - POSTGRES_HOST=db
-  #     - POSTGRES_DB=main
-  #   restart: "no"
-  #   depends_on:
-  #     db:
-  #       condition: service_healthy
-  #   networks:
-  #     - db
+#  db-dumper:
+#    container_name: fastapi-template-db-dumper
+#    build:
+#      context: .
+#      dockerfile: ./docker/db-tools.Dockerfile
+#      args:
+#        MODE: dumper
+#    env_file:
+#      - ./envs/db.env
+#      - ./envs/sentry.env
+#      - ./envs/aws-s3.env
+#    environment:
+#      - DB_TOOL_MODE=dumper
+#      - DUMPER_MODE=stop
+#      - POSTGRES_HOST=db
+#      - POSTGRES_DB=main
+#    restart: unless-stopped
+#    depends_on:
+#      db:
+#        condition: service_healthy
+#    networks:
+#      - db
 
 volumes:
   pg_data:

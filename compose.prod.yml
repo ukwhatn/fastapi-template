@@ -4,13 +4,11 @@ services:
     build:
       context: .
       dockerfile: docker/server.Dockerfile
-    command: [ "/bin/sh", "-c", "NEW_RELIC_CONFIG_FILE=newrelic.ini NEW_RELIC_ENVIRONMENT=production newrelic-admin run-program uvicorn app.main:app --host 0.0.0.0 --port 80 --proxy-headers" ]
+    command: [ "/bin/sh", "-c", "NEW_RELIC_CONFIG_FILE=newrelic.ini NEW_RELIC_ENVIRONMENT=production newrelic-admin run-program fastapi run main.py --host 0.0.0.0 --port 80 --proxy-headers" ]
     ports:
-      - "127.0.0.1:8000:80"
+      - "127.0.0.1:59999:80"
     volumes:
-      - ./app:/app/app
-      - ./migrations:/app/migrations
-      - ./alembic.ini:/app/alembic.ini
+      - ./app:/app
     env_file:
       - ./envs/db.env
       - ./envs/server.env
@@ -95,8 +93,10 @@ services:
     env_file:
       - ./envs/db.env
       - ./envs/sentry.env
+      - ./envs/aws-s3.env
     environment:
       - DB_TOOL_MODE=dumper
+      - DUMPER_MODE=scheduled
       - POSTGRES_HOST=db
       - POSTGRES_DB=main
     restart: unless-stopped

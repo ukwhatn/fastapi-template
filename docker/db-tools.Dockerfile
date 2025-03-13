@@ -3,11 +3,17 @@ FROM python:3.13.2-slim
 # 作業ディレクトリ設定
 WORKDIR /app
 
-# システム依存パッケージインストール
-RUN apt update && \
-    apt upgrade -y && \
-    apt install -y libpq-dev gcc make && \
-    pip install --upgrade pip poetry
+# 環境変数設定
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+# システム依存パッケージインストールと不要なキャッシュの削除
+RUN apt-get update && \
+    apt-get upgrade -y && \
+    apt-get install -y --no-install-recommends libpq-dev gcc make && \
+    pip install --no-cache-dir --upgrade pip poetry && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
 # Poetryの設定
 RUN poetry config virtualenvs.create false
@@ -15,29 +21,19 @@ RUN poetry config virtualenvs.create false
 # 依存関係ファイルをコピー
 COPY pyproject.toml poetry.lock ./
 
-# 引数からモードを取得（migrator または dumper）
-ARG MODE=migrator
-
 # モードに基づいて依存関係をインストール
-RUN if [ "$MODE" = "migrator" ]; then \
-      poetry install --with db; \
-    elif [ "$MODE" = "dumper" ]; then \
-      poetry install --with db,dumper; \
-    fi
+RUN poetry install --no-interaction --with db,dumper
 
-# マイグレーションファイルをコピー（migrator の場合）
-COPY migrations ./migrations
+# マイグレーションファイルとダンプスクリプトをコピー
 COPY alembic.ini ./
-
-# ダンプスクリプトをコピー（dumper の場合）
+COPY migrations ./migrations
 COPY app/db/dump.py ./
 
 # エントリポイントスクリプト
 COPY docker/db-tools-entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-# 環境変数でモードを設定
+ARG MODE=migrator
 ENV DB_TOOL_MODE=$MODE
-
 # エントリポイントスクリプトを実行
 ENTRYPOINT ["/entrypoint.sh"]

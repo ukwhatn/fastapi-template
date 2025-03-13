@@ -487,6 +487,8 @@ def main():
 
         if mode == "interactive":
             run_interactive_mode()
+        elif mode == "stop":
+            pass
         else:
             run_scheduled_backups()
 

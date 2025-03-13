@@ -17,9 +17,3 @@ COPY pyproject.toml poetry.lock ./
 
 # 依存関係インストール
 RUN poetry install --with server,db
-
-# アプリケーションファイルをコピー
-COPY . .
-
-# 実行コマンド
-CMD ["newrelic-admin", "run-program", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "80", "--proxy-headers"]
