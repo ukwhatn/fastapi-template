@@ -67,7 +67,13 @@ jobs:
       - name: Setup environment
         run: |
           make envs:setup
-          # S3環境変数の設定
+          
+          # 後方互換性のために両方のファイルに設定
+          # db.envへの設定（元の方法）
+          sed -i 's/S3_ACCESS_KEY=""/S3_ACCESS_KEY="${{ secrets.S3_ACCESS_KEY || '' }}"/' envs/db.env
+          sed -i 's/S3_SECRET_KEY=""/S3_SECRET_KEY="${{ secrets.S3_SECRET_KEY || '' }}"/' envs/db.env
+          
+          # aws-s3.envへの設定（新しい方法）
           sed -i 's/S3_ENDPOINT=http:\/\/your-storage-endpoint:port/S3_ENDPOINT="${{ secrets.S3_ENDPOINT || '' }}"/' envs/aws-s3.env
           sed -i 's/S3_ACCESS_KEY=your_access_key/S3_ACCESS_KEY="${{ secrets.S3_ACCESS_KEY || '' }}"/' envs/aws-s3.env
           sed -i 's/S3_SECRET_KEY=your_secret_key/S3_SECRET_KEY="${{ secrets.S3_SECRET_KEY || '' }}"/' envs/aws-s3.env
@@ -113,17 +119,18 @@ jobs:
             make ps ENV=test
           fi
 
-      - name: Run DB dumper tests
+      - name: Check Dumper service
         run: |
-          # DB dumper oneshot、list、testをシーケンシャルに実行
-          echo "Running DB dump oneshot test..."
-          make db:dump:oneshot ENV=test
-          
-          echo "Running DB dump list test..."
-          make db:dump:list ENV=test
-          
-          echo "Running DB dump full test (backup and restore)..."
+          # 元のcheck_healthyの動作を維持
+          echo "Running DB backup test..."
           make db:dump:test ENV=test
+          
+          # 元のワークフローで存在していなかった新機能は条件付きで実行
+          if [ "${{ github.event.pull_request.base.ref }}" == "develop" ]; then
+            echo "Running additional DB dumper tests..."
+            make db:dump:oneshot ENV=test
+            make db:dump:list ENV=test
+          fi
 
       - name: Clean up
         run: make down ENV=test

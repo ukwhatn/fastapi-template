@@ -117,6 +117,10 @@ db\:dump:
 	docker compose -f $(COMPOSE_YML) build
 	docker compose -f $(COMPOSE_YML) run --rm --build --name db-dumper-interactive -e DB_TOOL_MODE=dumper -e DUMPER_MODE=interactive db-dumper
 
+# 後方互換性のためにエイリアスを提供
+db\:backup\:test:
+	make db:dump:test
+
 db\:dump\:oneshot:
 	docker compose -f $(COMPOSE_YML) build
 	docker compose -f $(COMPOSE_YML) run --rm db-dumper python -m app.db.dump oneshot
@@ -188,4 +192,4 @@ project\:init: app\:rename envs\:setup
 	@git commit -m "初期コミット: $(NEW_NAME)"
 	@echo "プロジェクト '$(NEW_NAME)' の初期化が完了しました！"
 
-PHONY: build up down logs ps pr\:create deploy\:prod poetry\:install poetry\:add poetry\:lock poetry\:update poetry\:reset dev\:setup lint lint\:fix format test test\:cov db\:revision\:create db\:migrate db\:downgrade db\:current db\:history db\:dump db\:dump\:oneshot db\:dump\:list db\:dump\:restore db\:dump\:test envs\:setup app\:rename project\:init
+PHONY: build up down logs ps pr\:create deploy\:prod poetry\:install poetry\:add poetry\:lock poetry\:update poetry\:reset dev\:setup lint lint\:fix format test test\:cov db\:revision\:create db\:migrate db\:downgrade db\:current db\:history db\:dump db\:backup\:test db\:dump\:oneshot db\:dump\:list db\:dump\:restore db\:dump\:test envs\:setup app\:rename project\:init
