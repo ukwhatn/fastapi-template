@@ -2,14 +2,12 @@ services:
   server:
     build:
       context: .
-      dockerfile: ./server/Dockerfile
-    command: [ "/bin/sh", "-c", "NEW_RELIC_CONFIG_FILE=newrelic.ini NEW_RELIC_ENVIRONMENT=development newrelic-admin run-program fastapi dev main.py --host 0.0.0.0 --port 80 --proxy-headers" ]
+      dockerfile: ./docker/Dockerfile
+    command: [ "/bin/sh", "-c", "NEW_RELIC_CONFIG_FILE=newrelic.ini NEW_RELIC_ENVIRONMENT=development newrelic-admin run-program uvicorn app.main:app --reload --host 0.0.0.0 --port 80 --proxy-headers" ]
     ports:
       - "127.0.0.1:8000:80"
     volumes:
-      - ./server:/app
-      - ./db:/app/db
-      - ./redis:/app/redis_crud
+      - .:/app
     env_file:
       - ./envs/db.env
       - ./envs/server.env
@@ -87,10 +85,7 @@ services:
   db-migrator:
     build:
       context: .
-      dockerfile: db/migrator.Dockerfile
-    tty: true
-    volumes:
-      - ./db:/app
+      dockerfile: ./docker/migrator.Dockerfile
     env_file:
       - ./envs/db.env
     restart: no
