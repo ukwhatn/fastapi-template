@@ -1,5 +1,5 @@
 ENV ?= "dev"
-POETRY_GROUPS = "server,db,dev,dumper"
+POETRY_GROUPS = "server,db,dev,dumper,test"
 
 ifeq ($(ENV), prod)
 	COMPOSE_YML := compose.prod.yml
@@ -59,7 +59,7 @@ poetry\:add:
 	make poetry:lock
 
 poetry\:lock:
-	poetry lock --no-update
+	poetry lock
 
 poetry\:update:
 	poetry update --with $(group)
@@ -83,10 +83,13 @@ lint\:fix:
 format:
 	poetry run ruff format .
 
-test:
+test\:setup:
+	poetry install --with test
+
+test: test\:setup
 	poetry run pytest
 
-test\:cov:
+test\:cov: test\:setup
 	poetry run pytest --cov=app --cov-report=term-missing
 
 db\:revision\:create:
