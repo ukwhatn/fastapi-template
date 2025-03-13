@@ -61,8 +61,8 @@ jobs:
             make ps ENV=test
           fi
 
-      - name: Check Dumper service
-        run: make db:dump ENV=test
+      - name: Test Dumper service
+        run: make db:dump:test ENV=test
 
       - name: Clean up
         run: make down ENV=test

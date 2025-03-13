@@ -75,9 +75,16 @@ make format      # フォーマット実行
 
 ### データベース
 ```bash
+# マイグレーション関連
 make db:revision:create NAME="変更内容"  # マイグレーション作成
 make db:migrate                        # マイグレーション実行
-make db:dump                           # データベースバックアップ (開発環境)
+
+# バックアップ関連
+make db:dump                           # 対話モードでバックアップ操作
+make db:dump:oneshot                   # 1回のみバックアップ実行
+make db:dump:list                      # バックアップ一覧表示
+make db:dump:restore FILE=path/to/file # 指定したファイルからリストア
+make db:dump:test                      # バックアップとリストアのテスト実行
 ```
 
 ### Docker

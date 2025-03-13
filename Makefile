@@ -112,9 +112,26 @@ db\:history:
 	docker compose -f $(COMPOSE_YML) build db-migrator
 	docker compose -f $(COMPOSE_YML) run --rm db-migrator /bin/bash -c "alembic history"
 
+# データベースダンプ関連コマンド
 db\:dump:
 	docker compose -f $(COMPOSE_YML) build
 	docker compose -f $(COMPOSE_YML) run --rm --build --name db-dumper-interactive -e DB_TOOL_MODE=dumper -e DUMPER_MODE=interactive db-dumper
+
+db\:dump\:oneshot:
+	docker compose -f $(COMPOSE_YML) build
+	docker compose -f $(COMPOSE_YML) run --rm db-dumper python -m app.db.dump oneshot
+
+db\:dump\:list:
+	docker compose -f $(COMPOSE_YML) build
+	docker compose -f $(COMPOSE_YML) run --rm db-dumper python -m app.db.dump list
+
+db\:dump\:restore:
+	docker compose -f $(COMPOSE_YML) build
+	docker compose -f $(COMPOSE_YML) run --rm db-dumper python -m app.db.dump restore $(FILE)
+
+db\:dump\:test:
+	docker compose -f $(COMPOSE_YML) build
+	docker compose -f $(COMPOSE_YML) run --rm db-dumper python -m app.db.dump test --confirm
 
 envs\:setup:
 	cp envs/server.env.example envs/server.env
@@ -171,4 +188,4 @@ project\:init: app\:rename envs\:setup
 	@git commit -m "初期コミット: $(NEW_NAME)"
 	@echo "プロジェクト '$(NEW_NAME)' の初期化が完了しました！"
 
-PHONY: build up down logs ps pr\:create deploy\:prod poetry\:install poetry\:add poetry\:lock poetry\:update poetry\:reset dev\:setup lint lint\:fix format test test\:cov db\:revision\:create db\:migrate db\:downgrade db\:current db\:history db\:dump envs\:setup app\:rename project\:init
+PHONY: build up down logs ps pr\:create deploy\:prod poetry\:install poetry\:add poetry\:lock poetry\:update poetry\:reset dev\:setup lint lint\:fix format test test\:cov db\:revision\:create db\:migrate db\:downgrade db\:current db\:history db\:dump db\:dump\:oneshot db\:dump\:list db\:dump\:restore db\:dump\:test envs\:setup app\:rename project\:init
