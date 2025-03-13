@@ -67,12 +67,13 @@ services:
   db-migrator:
     build:
       context: .
-      dockerfile: db/migrator.Dockerfile
-    tty: true
-    volumes:
-      - ./db:/app
+      dockerfile: ./docker/db-tools.Dockerfile
+      args:
+        MODE: migrator
     env_file:
       - ./envs/db.env
+    environment:
+      - DB_TOOL_MODE=migrator
     restart: no
     depends_on:
       db:
@@ -83,15 +84,19 @@ services:
   db-dumper:
     build:
       context: .
-      dockerfile: db/dumper.Dockerfile
+      dockerfile: ./docker/db-tools.Dockerfile
+      args:
+        MODE: dumper
     env_file:
       - ./envs/db.env
       - ./envs/sentry.env
+      - ./envs/aws-s3.env
     environment:
+      - DB_TOOL_MODE=dumper
       - POSTGRES_HOST=db
       - POSTGRES_DB=main
-    restart:
-      unless-stopped
+      - DUMPER_MODE=interactive
+    restart: "no"
     depends_on:
       db:
         condition: service_healthy
