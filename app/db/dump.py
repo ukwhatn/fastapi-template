@@ -1,13 +1,16 @@
 #!/usr/bin/env python
-import os
-import time
-import datetime
-import subprocess
-import schedule
 import logging
+import os
+import subprocess
+import sys
+import time
+from datetime import datetime, timedelta
+from typing import List, Optional
+
 import boto3
-from botocore.exceptions import ClientError
+import schedule
 import sentry_sdk
+from botocore.exceptions import ClientError
 from pick import pick
 
 # Configure logging
@@ -27,201 +30,477 @@ if "SENTRY_DSN" in os.environ:
     )
     logger.info("Sentry initialized")
 
-# Database connection parameters from environment variables
+# S3設定 (S3互換ストレージ対応)
+S3_ENDPOINT = os.environ.get("S3_ENDPOINT")
+S3_ACCESS_KEY = os.environ.get("S3_ACCESS_KEY") or os.environ.get("AWS_ACCESS_KEY_ID")
+S3_SECRET_KEY = os.environ.get("S3_SECRET_KEY") or os.environ.get("AWS_SECRET_ACCESS_KEY")
+S3_BUCKET = os.environ.get("S3_BUCKET")
+BACKUP_DIR = os.environ.get("BACKUP_DIR", "default")
+
+# AWS特有の設定（オプション）
+AWS_REGION = os.environ.get("AWS_REGION")
+
+# ライフサイクル設定
+BACKUP_RETENTION_DAYS = int(os.environ.get("BACKUP_RETENTION_DAYS", "30"))
+BACKUP_TIME = os.environ.get("BACKUP_TIME", "03:00")
+BACKUP_HOUR = int(os.environ.get("BACKUP_HOUR", BACKUP_TIME.split(":")[0]))
+BACKUP_MINUTE = int(os.environ.get("BACKUP_MINUTE", BACKUP_TIME.split(":")[1]))
+
+# データベース設定
 DB_HOST = os.environ.get("POSTGRES_HOST", "localhost")
-DB_PORT = os.environ.get("POSTGRES_PORT", "5432")
 DB_NAME = os.environ.get("POSTGRES_DB", "main")
 DB_USER = os.environ.get("POSTGRES_USER", "user")
 DB_PASSWORD = os.environ.get("POSTGRES_PASSWORD", "password")
-
-# AWS S3 configuration
-AWS_ACCESS_KEY = os.environ.get("AWS_ACCESS_KEY_ID")
-AWS_SECRET_KEY = os.environ.get("AWS_SECRET_ACCESS_KEY")
-AWS_REGION = os.environ.get("AWS_REGION", "ap-northeast-1")
-S3_BUCKET = os.environ.get("S3_BUCKET")
-S3_PREFIX = os.environ.get("S3_PREFIX", "db-backups")
-
-# Backup schedule (default: daily at 03:00)
-BACKUP_HOUR = int(os.environ.get("BACKUP_HOUR", "3"))
-BACKUP_MINUTE = int(os.environ.get("BACKUP_MINUTE", "0"))
-
-# Retention settings (default: keep 7 days of backups)
-RETENTION_DAYS = int(os.environ.get("RETENTION_DAYS", "7"))
+DB_PORT = os.environ.get("POSTGRES_PORT", "5432")
 
 
-def create_db_dump(output_file):
-    """Create a PostgreSQL database dump"""
-    cmd = [
-        "pg_dump",
-        f"--host={DB_HOST}",
-        f"--port={DB_PORT}",
-        f"--username={DB_USER}",
-        f"--dbname={DB_NAME}",
-        "--format=custom",
-        f"--file={output_file}",
-    ]
+def get_s3_client():
+    """S3クライアントを取得（S3互換ストレージにも対応）"""
+    client_kwargs = {
+        "aws_access_key_id": S3_ACCESS_KEY,
+        "aws_secret_access_key": S3_SECRET_KEY,
+    }
+    
+    # S3互換ストレージの場合はendpoint_urlを設定
+    if S3_ENDPOINT:
+        client_kwargs["endpoint_url"] = S3_ENDPOINT
+    
+    # AWS S3の場合はリージョンを設定（オプショナル）
+    if AWS_REGION:
+        client_kwargs["region_name"] = AWS_REGION
+    
+    return boto3.client("s3", **client_kwargs)
 
-    env = os.environ.copy()
-    env["PGPASSWORD"] = DB_PASSWORD
 
+def ensure_backup_directory(s3_client):
+    """バックアップディレクトリの存在確認と作成"""
     try:
-        logger.info(f"Creating database dump: {output_file}")
-        subprocess.run(cmd, env=env, check=True, capture_output=True)
-        logger.info("Database dump created successfully")
-        return True
-    except subprocess.CalledProcessError as e:
-        logger.error(f"Failed to create database dump: {e}")
-        logger.error(f"stdout: {e.stdout.decode()}")
-        logger.error(f"stderr: {e.stderr.decode()}")
-        if "SENTRY_DSN" in os.environ:
-            sentry_sdk.capture_exception(e)
-        return False
-
-
-def upload_to_s3(file_path, s3_key):
-    """Upload file to S3"""
-    if not all([AWS_ACCESS_KEY, AWS_SECRET_KEY, S3_BUCKET]):
-        logger.warning(
-            "AWS credentials or S3 bucket not configured, skipping S3 upload"
-        )
-        return True
-
-    try:
-        logger.info(f"Uploading {file_path} to S3 bucket {S3_BUCKET}/{s3_key}")
-        s3 = boto3.client(
-            "s3",
-            aws_access_key_id=AWS_ACCESS_KEY,
-            aws_secret_access_key=AWS_SECRET_KEY,
-            region_name=AWS_REGION,
-        )
-        s3.upload_file(file_path, S3_BUCKET, s3_key)
-        logger.info("Upload to S3 completed successfully")
-        return True
+        # ディレクトリの存在確認
+        s3_client.head_object(Bucket=S3_BUCKET, Key=f"{BACKUP_DIR}/")
     except ClientError as e:
-        logger.error(f"Failed to upload to S3: {e}")
-        if "SENTRY_DSN" in os.environ:
-            sentry_sdk.capture_exception(e)
-        return False
+        if e.response["Error"]["Code"] == "404":
+            # ディレクトリが存在しない場合、空のオブジェクトを作成してディレクトリとする
+            try:
+                s3_client.put_object(Bucket=S3_BUCKET, Key=f"{BACKUP_DIR}/")
+                logger.info(f"Created backup directory: {BACKUP_DIR}/")
+            except Exception as create_error:
+                if "SENTRY_DSN" in os.environ:
+                    sentry_sdk.capture_exception(create_error)
+                logger.error(f"Error creating backup directory: {str(create_error)}")
+                raise
+        else:
+            if "SENTRY_DSN" in os.environ:
+                sentry_sdk.capture_exception(e)
+            logger.error(f"Error checking backup directory: {str(e)}")
+            raise
 
 
-def cleanup_old_backups():
-    """Clean up backups older than RETENTION_DAYS"""
-    if not all([AWS_ACCESS_KEY, AWS_SECRET_KEY, S3_BUCKET]):
-        logger.warning("AWS credentials or S3 bucket not configured, skipping cleanup")
-        return
-
+def list_backup_files(s3_client) -> List[str]:
+    """バックアップファイルの一覧を取得"""
+    backup_files = []
     try:
-        logger.info(f"Cleaning up backups older than {RETENTION_DAYS} days")
-        s3 = boto3.client(
-            "s3",
-            aws_access_key_id=AWS_ACCESS_KEY,
-            aws_secret_access_key=AWS_SECRET_KEY,
-            region_name=AWS_REGION,
-        )
-
-        # Calculate cutoff date
-        cutoff_date = datetime.datetime.now() - datetime.timedelta(days=RETENTION_DAYS)
-        cutoff_timestamp = cutoff_date.timestamp()
-
-        # List objects in the bucket with the prefix
-        paginator = s3.get_paginator("list_objects_v2")
-        for page in paginator.paginate(Bucket=S3_BUCKET, Prefix=S3_PREFIX):
+        paginator = s3_client.get_paginator("list_objects_v2")
+        for page in paginator.paginate(
+            Bucket=S3_BUCKET, Prefix=f"{BACKUP_DIR}/backup_"
+        ):
             if "Contents" not in page:
                 continue
 
             for obj in page["Contents"]:
-                if obj["LastModified"].timestamp() < cutoff_timestamp:
-                    logger.info(f"Deleting old backup: {obj['Key']}")
-                    s3.delete_object(Bucket=S3_BUCKET, Key=obj["Key"])
+                filename = obj["Key"]
+                if filename.startswith(f"{BACKUP_DIR}/backup_") and filename.endswith(
+                    ".sql"
+                ):
+                    backup_files.append(filename)
 
-        logger.info("Cleanup completed")
-    except ClientError as e:
-        logger.error(f"Failed to cleanup old backups: {e}")
+        # 日付順に並び替え（新しい順）
+        backup_files.sort(reverse=True)
+    except Exception as e:
         if "SENTRY_DSN" in os.environ:
             sentry_sdk.capture_exception(e)
+        logger.error(f"Error listing backup files: {str(e)}")
+        raise
+
+    return backup_files
+
+
+def list_old_backups(s3_client) -> List[str]:
+    """指定した日数より古いバックアップを一覧取得"""
+    cutoff_date = datetime.now() - timedelta(days=BACKUP_RETENTION_DAYS)
+    old_backups = []
+
+    try:
+        # 指定されたディレクトリ内のオブジェクトを取得
+        paginator = s3_client.get_paginator("list_objects_v2")
+        for page in paginator.paginate(
+            Bucket=S3_BUCKET, Prefix=f"{BACKUP_DIR}/backup_"
+        ):
+            if "Contents" not in page:
+                continue
+
+            for obj in page["Contents"]:
+                filename = ""
+                try:
+                    filename = obj["Key"]
+                    # バックアップファイルのみを対象とする
+                    if not filename.startswith(f"{BACKUP_DIR}/backup_"):
+                        continue
+
+                    date_str = filename.split("_")[1]
+                    file_date = datetime.strptime(date_str, "%Y%m%d")
+
+                    if file_date < cutoff_date:
+                        old_backups.append(filename)
+                except (IndexError, ValueError) as e:
+                    if "SENTRY_DSN" in os.environ:
+                        sentry_sdk.capture_exception(e)
+                    logger.error(
+                        f"Warning: Could not parse date from filename: {filename}"
+                    )
+                    continue
+
+    except Exception as e:
+        if "SENTRY_DSN" in os.environ:
+            sentry_sdk.capture_exception(e)
+        logger.error(f"Error listing old backups: {str(e)}")
+
+    return old_backups
+
+
+def delete_old_backups(s3_client, old_backups: List[str]):
+    """古いバックアップを削除"""
+    if not old_backups:
+        return
+
+    try:
+        objects_to_delete = [{"Key": key} for key in old_backups]
+        s3_client.delete_objects(
+            Bucket=S3_BUCKET, Delete={"Objects": objects_to_delete}
+        )
+        logger.info(f"Deleted {len(old_backups)} old backup(s) from {BACKUP_DIR}/")
+    except Exception as e:
+        if "SENTRY_DSN" in os.environ:
+            sentry_sdk.capture_exception(e)
+        logger.error(f"Error deleting old backups: {str(e)}")
+
+
+def select_backup_file() -> Optional[str]:
+    """バックアップファイルを選択"""
+    try:
+        s3_client = get_s3_client()
+        backup_files = list_backup_files(s3_client)
+
+        if not backup_files:
+            logger.error("No backup files found")
+            return None
+
+        # ファイル名から日時部分を抽出して表示用の文字列を作成
+        display_options = []
+        for filename in backup_files:
+            try:
+                # backup_YYYYMMDD_HHMMSS.sql の形式から日時を抽出
+                date_str = filename.split("_")[1]
+                time_str = filename.split("_")[2].split(".")[0]
+                display_date = f"{date_str[:4]}/{date_str[4:6]}/{date_str[6:]} {time_str[:2]}:{time_str[2:4]}:{time_str[4:]}"
+                display_options.append(f"{display_date} - {filename}")
+            except IndexError:
+                display_options.append(filename)
+
+        title = "Please select a backup file to restore (↑↓ to move, Enter to select):"
+        selected_option, _ = pick(display_options, title)
+
+        # 選択された表示用文字列からファイル名を抽出
+        return selected_option.split(" - ")[-1]
+
+    except Exception as e:
+        if "SENTRY_DSN" in os.environ:
+            sentry_sdk.capture_exception(e)
+        logger.error(f"Error selecting backup file: {str(e)}")
+        return None
+
+
+def create_backup():
+    """バックアップを作成してS3にアップロード"""
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    backup_file = f"/tmp/backup_{timestamp}.sql"
+
+    try:
+        # pg_dumpを実行
+        try:
+            env = os.environ.copy()
+            env["PGPASSWORD"] = DB_PASSWORD
+            
+            run = subprocess.run(
+                [
+                    "pg_dump",
+                    f"--host={DB_HOST}",
+                    f"--port={DB_PORT}",
+                    f"--dbname={DB_NAME}",
+                    f"--username={DB_USER}",
+                    "--format=plain",
+                    f"--file={backup_file}",
+                ],
+                env=env,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            logger.info(run.stdout if run.stdout else "Database dump created successfully")
+        except subprocess.CalledProcessError as e:
+            if "SENTRY_DSN" in os.environ:
+                sentry_sdk.capture_exception(e)
+            logger.error(f"Error running pg_dump: {e.stderr}")
+            logger.error(f"pg_dump output: {e.stdout}")
+            raise e
+
+        # S3クライアントの初期化
+        s3_client = get_s3_client()
+
+        # バックアップディレクトリの確認/作成
+        ensure_backup_directory(s3_client)
+
+        # S3にアップロード
+        s3_key = f"{BACKUP_DIR}/backup_{timestamp}.sql"
+        s3_client.upload_file(backup_file, S3_BUCKET, s3_key)
+
+        logger.info(f"Backup completed successfully: {s3_key}")
+
+        # 古いバックアップの削除
+        old_backups = list_old_backups(s3_client)
+        if old_backups:
+            delete_old_backups(s3_client, old_backups)
+
+        # 一時ファイルを削除
+        os.remove(backup_file)
+
+        # filenameを返す
+        return s3_key
+
+    except Exception as e:
+        if "SENTRY_DSN" in os.environ:
+            sentry_sdk.capture_exception(e)
+        logger.error(f"Backup failed: {str(e)}")
+
+
+def restore_backup(backup_file: str):
+    """バックアップをリストア"""
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    local_file = f"/tmp/restore_{timestamp}.sql"
+
+    try:
+        # S3からファイルをダウンロード
+        s3_client = get_s3_client()
+        logger.info(f"Downloading backup file: {backup_file}")
+        s3_client.download_file(S3_BUCKET, backup_file, local_file)
+
+        # データベースに接続してリストアを実行
+        logger.info("Starting database restore...")
+        try:
+            env = os.environ.copy()
+            env["PGPASSWORD"] = DB_PASSWORD
+            
+            # まず既存の接続を切断
+            disconnect_cmd = f"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '{DB_NAME}' AND pid <> pg_backend_pid();"
+            subprocess.run(
+                [
+                    "psql",
+                    f"--host={DB_HOST}",
+                    f"--port={DB_PORT}",
+                    f"--dbname={DB_NAME}",
+                    f"--username={DB_USER}",
+                    "-c",
+                    disconnect_cmd,
+                ],
+                env=env,
+                check=True,
+                capture_output=True,
+            )
+
+            # データベースを再作成
+            subprocess.run(
+                [
+                    "psql",
+                    f"--host={DB_HOST}",
+                    f"--port={DB_PORT}",
+                    "--dbname=postgres",
+                    f"--username={DB_USER}",
+                    "-c",
+                    f"DROP DATABASE IF EXISTS {DB_NAME};",
+                ],
+                env=env,
+                check=True,
+                capture_output=True,
+            )
+
+            subprocess.run(
+                [
+                    "psql",
+                    f"--host={DB_HOST}",
+                    f"--port={DB_PORT}",
+                    "--dbname=postgres",
+                    f"--username={DB_USER}",
+                    "-c",
+                    f"CREATE DATABASE {DB_NAME};",
+                ],
+                env=env,
+                check=True,
+                capture_output=True,
+            )
+
+            # バックアップを復元
+            subprocess.run(
+                [
+                    "psql",
+                    f"--host={DB_HOST}",
+                    f"--port={DB_PORT}",
+                    f"--dbname={DB_NAME}",
+                    f"--username={DB_USER}",
+                    "-f",
+                    local_file,
+                ],
+                env=env,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+
+            logger.info("Database restore completed successfully")
+
+        except subprocess.CalledProcessError as e:
+            if "SENTRY_DSN" in os.environ:
+                sentry_sdk.capture_exception(e)
+            logger.error(f"Error during database restore: {e.stderr}")
+            raise
+
+    except Exception as e:
+        if "SENTRY_DSN" in os.environ:
+            sentry_sdk.capture_exception(e)
+        logger.error(f"Restore failed: {str(e)}")
+        raise
+    finally:
+        # 一時ファイルを削除
+        if os.path.exists(local_file):
+            os.remove(local_file)
 
 
 def perform_backup():
-    """Perform a full database backup"""
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    dump_filename = f"{DB_NAME}_{timestamp}.dump"
-    local_path = f"/tmp/{dump_filename}"
+    """バックアップを実行して古いファイルをクリーンアップ"""
+    create_backup()
 
-    # Create the database dump
-    if not create_db_dump(local_path):
+
+def list_backups():
+    """最近のバックアップを表示"""
+    if not all([S3_ACCESS_KEY, S3_SECRET_KEY, S3_BUCKET]):
+        print("Storage credentials or bucket not configured, cannot list backups")
         return
-
-    # Upload to S3
-    s3_key = f"{S3_PREFIX}/{dump_filename}"
-    if upload_to_s3(local_path, s3_key):
-        # Clean up local file
-        os.remove(local_path)
-        logger.info(f"Local file {local_path} removed")
-
-    # Clean up old backups
-    cleanup_old_backups()
+        
+    s3_client = get_s3_client()
+    try:
+        response = s3_client.list_objects_v2(Bucket=S3_BUCKET, Prefix=f"{BACKUP_DIR}/")
+        
+        if "Contents" in response:
+            print("\nRecent backups:")
+            for obj in sorted(
+                response["Contents"], key=lambda x: x["LastModified"], reverse=True
+            )[:10]:
+                size_mb = obj["Size"] / (1024 * 1024)
+                print(f"{obj['Key']} - {obj['LastModified']} - {size_mb:.2f} MB")
+            print()
+        else:
+            print("No backups found\n")
+    except Exception as e:
+        if "SENTRY_DSN" in os.environ:
+            sentry_sdk.capture_exception(e)
+        print(f"Error listing backups: {str(e)}")
 
 
 def run_scheduled_backups():
-    """Run scheduled backups"""
-    logger.info(f"Scheduling daily backup at {BACKUP_HOUR:02d}:{BACKUP_MINUTE:02d}")
+    """スケジュールに従ってバックアップを実行"""
+    logger.info(f"Starting backup service for directory: {BACKUP_DIR}/")
+    logger.info(f"Retention period: {BACKUP_RETENTION_DAYS} days")
+    logger.info(f"Scheduled backup time: {BACKUP_HOUR:02d}:{BACKUP_MINUTE:02d}")
+
+    # 指定された時刻にバックアップを実行
     schedule.every().day.at(f"{BACKUP_HOUR:02d}:{BACKUP_MINUTE:02d}").do(perform_backup)
 
-    # Run an immediate backup
+    # 起動時に即時バックアップを実行
     logger.info("Running immediate backup")
     perform_backup()
 
-    # Keep the script running
+    # スケジュールを監視し続ける
     while True:
         schedule.run_pending()
         time.sleep(60)
 
 
 def run_interactive_mode():
-    """Run in interactive mode for manual backup operations"""
+    """対話モードでバックアップ操作を実行"""
     title = "DB Dumper - Choose an operation"
-    options = ["Create backup now", "List recent backups", "Exit"]
-
+    options = ["Create backup now", "List recent backups", "Restore backup", "Exit"]
+    
     while True:
         option, _ = pick(options, title)
-
+        
         if option == "Create backup now":
             perform_backup()
         elif option == "List recent backups":
-            if not all([AWS_ACCESS_KEY, AWS_SECRET_KEY, S3_BUCKET]):
-                print(
-                    "AWS credentials or S3 bucket not configured, cannot list backups"
-                )
-                continue
-
-            s3 = boto3.client(
-                "s3",
-                aws_access_key_id=AWS_ACCESS_KEY,
-                aws_secret_access_key=AWS_SECRET_KEY,
-                region_name=AWS_REGION,
-            )
-
-            response = s3.list_objects_v2(Bucket=S3_BUCKET, Prefix=S3_PREFIX)
-
-            if "Contents" in response:
-                print("\nRecent backups:")
-                for obj in sorted(
-                    response["Contents"], key=lambda x: x["LastModified"], reverse=True
-                )[:10]:
-                    size_mb = obj["Size"] / (1024 * 1024)
-                    print(f"{obj['Key']} - {obj['LastModified']} - {size_mb:.2f} MB")
-                print()
+            list_backups()
+        elif option == "Restore backup":
+            backup_file = select_backup_file()
+            if backup_file:
+                confirm_title = f"Restore {backup_file}? This will OVERWRITE the current database!"
+                confirm_options = ["Yes, proceed with restore", "No, cancel"]
+                confirm, _ = pick(confirm_options, confirm_title)
+                if confirm.startswith("Yes"):
+                    restore_backup(backup_file)
             else:
-                print("No backups found\n")
+                print("No backup file selected or no backups found")
         else:
             break
 
 
-if __name__ == "__main__":
-    # Determine the mode based on environment variables
-    mode = os.environ.get("DUMPER_MODE", "scheduled")
+def main():
+    """メイン関数"""
+    # 第1引数取得
+    arg1 = sys.argv[1] if len(sys.argv) > 1 else None
+    arg2 = sys.argv[2] if len(sys.argv) > 2 else None
 
-    if mode == "interactive":
-        run_interactive_mode()
+    if arg1 == "oneshot":
+        logger.info("Running oneshot backup")
+        create_backup()
+    elif arg1 == "restore":
+        logger.info("Starting restore process")
+        if arg2:
+            restore_backup(arg2)
+        else:
+            backup_file = select_backup_file()
+            if backup_file:
+                restore_backup(backup_file)
+            else:
+                logger.error("No backup file selected")
+    elif arg1 == "list":
+        list_backups()
+    elif arg1 == "test" and arg2 == "--confirm":
+        logger.info("Running test backup")
+        filename = create_backup()
+        # リストアを試行
+        if filename:
+            restore_backup(filename)
+            # 削除
+            s3_client = get_s3_client()
+            s3_client.delete_object(Bucket=S3_BUCKET, Key=filename)
+            # 作成したディレクトリも削除
+            s3_client.delete_object(Bucket=S3_BUCKET, Key=f"{BACKUP_DIR}/")
+        logger.info("Test completed")
     else:
-        run_scheduled_backups()
+        # 環境変数からモードを決定
+        mode = os.environ.get("DUMPER_MODE", "scheduled")
+        
+        if mode == "interactive":
+            run_interactive_mode()
+        else:
+            run_scheduled_backups()
+
+
+if __name__ == "__main__":
+    main()
