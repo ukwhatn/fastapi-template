@@ -13,7 +13,7 @@ import sentry_sdk
 from botocore.exceptions import ClientError
 from pick import pick
 
-# Configure logging
+# ロガー初期化
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
@@ -21,7 +21,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger("db-dumper")
 
-# Configure Sentry if SENTRY_DSN is provided
+# Sentry初期化
 if "SENTRY_DSN" in os.environ:
     sentry_sdk.init(
         dsn=os.environ.get("SENTRY_DSN"),
@@ -30,23 +30,18 @@ if "SENTRY_DSN" in os.environ:
     )
     logger.info("Sentry initialized")
 
-# S3設定 (S3互換ストレージ対応)
+# S3設定
 S3_ENDPOINT = os.environ.get("S3_ENDPOINT")
-S3_ACCESS_KEY = os.environ.get("S3_ACCESS_KEY") or os.environ.get("AWS_ACCESS_KEY_ID")
-S3_SECRET_KEY = os.environ.get("S3_SECRET_KEY") or os.environ.get(
-    "AWS_SECRET_ACCESS_KEY"
-)
-S3_BUCKET = os.environ.get("S3_BUCKET")
+S3_ACCESS_KEY = os.environ.get("S3_ACCESS_KEY")
+S3_SECRET_KEY = os.environ.get("S3_SECRET_KEY")
+S3_BUCKET = os.environ.get("S3_BUCKET", "test-bucket")
 BACKUP_DIR = os.environ.get("BACKUP_DIR", "default")
-
-# AWS特有の設定（オプション）
-AWS_REGION = os.environ.get("AWS_REGION")
 
 # ライフサイクル設定
 BACKUP_RETENTION_DAYS = int(os.environ.get("BACKUP_RETENTION_DAYS", "30"))
 BACKUP_TIME = os.environ.get("BACKUP_TIME", "03:00")
-BACKUP_HOUR = int(os.environ.get("BACKUP_HOUR", BACKUP_TIME.split(":")[0]))
-BACKUP_MINUTE = int(os.environ.get("BACKUP_MINUTE", BACKUP_TIME.split(":")[1]))
+BACKUP_HOUR = int(BACKUP_TIME.split(":")[0])
+BACKUP_MINUTE = int(BACKUP_TIME.split(":")[1])
 
 # データベース設定
 DB_HOST = os.environ.get("POSTGRES_HOST", "localhost")
@@ -58,20 +53,12 @@ DB_PORT = os.environ.get("POSTGRES_PORT", "5432")
 
 def get_s3_client():
     """S3クライアントを取得（S3互換ストレージにも対応）"""
-    client_kwargs = {
-        "aws_access_key_id": S3_ACCESS_KEY,
-        "aws_secret_access_key": S3_SECRET_KEY,
-    }
-
-    # S3互換ストレージの場合はendpoint_urlを設定
-    if S3_ENDPOINT:
-        client_kwargs["endpoint_url"] = S3_ENDPOINT
-
-    # AWS S3の場合はリージョンを設定（オプショナル）
-    if AWS_REGION:
-        client_kwargs["region_name"] = AWS_REGION
-
-    return boto3.client("s3", **client_kwargs)
+    return boto3.client(
+        "s3",
+        endpoint_url=S3_ENDPOINT,
+        aws_access_key_id=S3_ACCESS_KEY,
+        aws_secret_access_key=S3_SECRET_KEY,
+    )
 
 
 def ensure_backup_directory(s3_client):
@@ -103,7 +90,7 @@ def list_backup_files(s3_client) -> List[str]:
     try:
         paginator = s3_client.get_paginator("list_objects_v2")
         for page in paginator.paginate(
-            Bucket=S3_BUCKET, Prefix=f"{BACKUP_DIR}/backup_"
+                Bucket=S3_BUCKET, Prefix=f"{BACKUP_DIR}/backup_"
         ):
             if "Contents" not in page:
                 continue
@@ -111,7 +98,7 @@ def list_backup_files(s3_client) -> List[str]:
             for obj in page["Contents"]:
                 filename = obj["Key"]
                 if filename.startswith(f"{BACKUP_DIR}/backup_") and filename.endswith(
-                    ".sql"
+                        ".sql"
                 ):
                     backup_files.append(filename)
 
@@ -135,7 +122,7 @@ def list_old_backups(s3_client) -> List[str]:
         # 指定されたディレクトリ内のオブジェクトを取得
         paginator = s3_client.get_paginator("list_objects_v2")
         for page in paginator.paginate(
-            Bucket=S3_BUCKET, Prefix=f"{BACKUP_DIR}/backup_"
+                Bucket=S3_BUCKET, Prefix=f"{BACKUP_DIR}/backup_"
         ):
             if "Contents" not in page:
                 continue
@@ -405,7 +392,7 @@ def list_backups():
         if "Contents" in response:
             print("\nRecent backups:")
             for obj in sorted(
-                response["Contents"], key=lambda x: x["LastModified"], reverse=True
+                    response["Contents"], key=lambda x: x["LastModified"], reverse=True
             )[:10]:
                 size_mb = obj["Size"] / (1024 * 1024)
                 print(f"{obj['Key']} - {obj['LastModified']} - {size_mb:.2f} MB")
@@ -426,10 +413,6 @@ def run_scheduled_backups():
 
     # 指定された時刻にバックアップを実行
     schedule.every().day.at(f"{BACKUP_HOUR:02d}:{BACKUP_MINUTE:02d}").do(perform_backup)
-
-    # 起動時に即時バックアップを実行
-    logger.info("Running immediate backup")
-    perform_backup()
 
     # スケジュールを監視し続ける
     while True:
