@@ -1,5 +1,6 @@
 services:
   server:
+    container_name: fastapi-template-server
     build:
       context: .
       dockerfile: ./docker/Dockerfile
@@ -35,6 +36,7 @@ services:
       - redis
 
   db:
+    container_name: fastapi-template-db
     image: postgres:17
     env_file:
       - ./envs/db.env
@@ -52,6 +54,7 @@ services:
       - db
 
   redis:
+    container_name: fastapi-template-redis
     image: redis:7.4.1
     volumes:
       - redis_data:/data
@@ -65,6 +68,7 @@ services:
       - redis
 
   db-migrator:
+    container_name: fastapi-template-db-migrator
     build:
       context: .
       dockerfile: ./docker/db-tools.Dockerfile
@@ -82,6 +86,7 @@ services:
       - db
 
   db-dumper:
+    container_name: fastapi-template-db-dumper
     build:
       context: .
       dockerfile: ./docker/db-tools.Dockerfile

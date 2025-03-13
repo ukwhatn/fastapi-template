@@ -122,4 +122,53 @@ envs\:setup:
 	cp envs/sentry.env.example envs/sentry.env
 	cp envs/aws-s3.env.example envs/aws-s3.env
 
-PHONY: build up down logs ps pr\:create deploy\:prod poetry\:install poetry\:add poetry\:lock poetry\:update poetry\:reset dev\:setup lint lint\:fix format test test\:cov db\:revision\:create db\:migrate db\:downgrade db\:current db\:history db\:dump envs\:setup
+# アプリケーション名を変更するターゲット
+# 使用法: make app:rename NEW_NAME="my-app-name"
+app\:rename:
+	@if [ -z "$(NEW_NAME)" ]; then \
+		echo "エラー: アプリケーション名が指定されていません"; \
+		echo "使用法: make app:rename NEW_NAME=\"my-app-name\""; \
+		exit 1; \
+	fi
+	@echo "アプリケーション名を 'fastapi-template' から '$(NEW_NAME)' に変更しています..."
+	@# pyproject.tomlの名前を変更
+	@sed -i.bak 's/name = "fastapi-template"/name = "$(NEW_NAME)"/' pyproject.toml && rm pyproject.toml.bak
+	@# READMEのタイトルと説明を変更
+	@sed -i.bak '1s/# FastAPI Template/# $(NEW_NAME)/' README.md && rm README.md.bak
+	@sed -i.bak 's/FastAPIアプリケーションのためのテンプレートリポジトリ。/$(NEW_NAME)アプリケーション/' README.md && rm README.md.bak
+	@# docker-composeのコンテナプレフィックスを変更
+	@for file in compose.*.yml; do \
+		sed -i.bak "s/container_name: fastapi-template-/container_name: $(NEW_NAME)-/g" $$file && rm $$file.bak; \
+	done
+	@# NewRelicのアプリケーション名を変更
+	@sed -i.bak 's/NEW_RELIC_APP_NAME="FastAPI Template"/NEW_RELIC_APP_NAME="$(NEW_NAME)"/' envs/server.env.example && rm envs/server.env.example.bak
+	@if [ -f envs/server.env ]; then \
+		sed -i.bak 's/NEW_RELIC_APP_NAME="FastAPI Template"/NEW_RELIC_APP_NAME="$(NEW_NAME)"/' envs/server.env && rm envs/server.env.bak; \
+	fi
+	@# GitHubのリポジトリ名を変更（もし.git設定があれば）
+	@if [ -d .git ]; then \
+		git_url=$$(git config --get remote.origin.url); \
+		if [ -n "$$git_url" ]; then \
+			new_url=$$(echo $$git_url | sed 's/fastapi-template/$(NEW_NAME)/g'); \
+			git remote set-url origin $$new_url; \
+			echo "Gitリモートを更新しました: $$new_url"; \
+		fi; \
+	fi
+	@echo "アプリケーション '$(NEW_NAME)' の設定が完了しました！"
+	@echo "注意: もし元のリポジトリから複製して使用する場合は、以下のコマンドを実行してください:"
+	@echo "  rm -rf .git && git init && git add . && git commit -m \"初期コミット: $(NEW_NAME)\""
+
+# 新規プロジェクトセットアップのためのターゲット
+# 使用法: make project:init NEW_NAME="my-app-name"
+project\:init: app\:rename envs\:setup
+	@echo "プロジェクト '$(NEW_NAME)' を初期化しています..."
+	@if [ -d .git ]; then \
+		echo "既存のGitリポジトリを削除しています..."; \
+		rm -rf .git; \
+	fi
+	@git init
+	@git add .
+	@git commit -m "初期コミット: $(NEW_NAME)"
+	@echo "プロジェクト '$(NEW_NAME)' の初期化が完了しました！"
+
+PHONY: build up down logs ps pr\:create deploy\:prod poetry\:install poetry\:add poetry\:lock poetry\:update poetry\:reset dev\:setup lint lint\:fix format test test\:cov db\:revision\:create db\:migrate db\:downgrade db\:current db\:history db\:dump envs\:setup app\:rename project\:init
