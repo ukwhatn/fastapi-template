@@ -5,28 +5,122 @@ on:
     branches:
       - main
       - develop
+  workflow_dispatch:
 
 jobs:
-  lint:
+  setup:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
           cache: 'pip'
+      
+      - name: Install dependencies
+        id: install
+        run: |
+          python -m pip install --upgrade pip
+          pip install poetry
+          poetry config virtualenvs.create false
+          poetry install --with dev,server,db,dumper
+      
+      - name: Setup environment
+        run: |
+          make envs:setup
+      
+      - name: Build Docker images
+        run: |
+          make build ENV=test
+    
+  code-quality:
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: 'pip'
+      
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install poetry
           poetry config virtualenvs.create false
           poetry install --with dev
+      
       - name: Lint with ruff
         run: |
           make lint
+  
+  security-scan:
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install poetry
+          poetry config virtualenvs.create false
+          poetry install --with dev
+      
+      - name: Run comprehensive security scans
+        run: |
+          # 情報収集のためのスキャン (エラーがあってもビルド失敗しない)
+          echo "Running Bandit code security scan..."
+          poetry run bandit -r app/ -x tests/,app/db/dump.py -f txt || true
+          
+          echo "Running Semgrep SAST scan..."
+          poetry run semgrep scan --config=p/python --config=p/security-audit --config=p/owasp-top-ten --error || true
+      
+      - name: Check for critical vulnerabilities
+        run: |
+          echo "Checking for critical code security issues..."
+          poetry run bandit -r app/ -x tests/,app/db/dump.py -ll || exit 1
+          
+          echo "Checking for critical SAST findings..."
+          poetry run semgrep scan --config=p/python --config=p/security-audit --config=p/owasp-top-ten --severity ERROR --error
+  
+  container-scan:
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup environment
+        run: |
+          make envs:setup
+      
+      - name: Install Trivy Scanner
+        run: |
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin v0.46.1
+      
+      - name: Scan container images
+        run: |
+          # すべてのイメージを一度にスキャン
+          echo "Scanning all container images for informational purposes..."
+          trivy image --exit-code 0 --severity HIGH,CRITICAL fastapi-template-server:latest
+          trivy image --exit-code 0 --severity HIGH,CRITICAL fastapi-template-db-tools:latest
+          
+          echo "Checking for critical vulnerabilities in container images..."
+          trivy image --exit-code 1 --severity CRITICAL fastapi-template-server:latest
+          trivy image --exit-code 1 --severity CRITICAL fastapi-template-db-tools:latest
 
   check_healthy:
+    needs: setup
     runs-on: ubuntu-latest
     if: |
       (github.event.pull_request.user.login == 'ukwhatn') ||

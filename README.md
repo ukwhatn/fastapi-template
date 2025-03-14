@@ -19,6 +19,11 @@
 - `make lint:fix` - 自動修正を適用しながらRuffリンターを実行
 - `make format` - Ruffフォーマッターでコードを整形
 
+### セキュリティ
+- `make security:scan` - すべてのセキュリティスキャンを実行
+- `make security:scan:code` - Banditによるコードの静的セキュリティ分析
+- `make security:scan:sast` - Semgrepによる高度な静的アプリケーションセキュリティテスト
+
 ### データベース操作
 - `make db:revision:create NAME="メッセージ"` - 新規マイグレーションを作成
 - `make db:migrate` - データベースマイグレーションを実行
