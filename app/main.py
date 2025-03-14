@@ -9,10 +9,10 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.api import api_router
-from app.core import APIError, ErrorResponse, ValidationError, get_settings
-from app.core.middleware import SecurityHeadersMiddleware
-from app.utils import SessionCrud, SessionSchema
+from api import api_router
+from core import APIError, ErrorResponse, ValidationError, get_settings
+from core.middleware import SecurityHeadersMiddleware
+from utils import SessionCrud, SessionSchema
 
 # 設定読み込み
 settings = get_settings()

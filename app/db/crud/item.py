@@ -1,8 +1,8 @@
 from sqlalchemy.orm import Session
 
-from app.db.crud.base import CRUDBase
-from app.db.models.item import Item
-from app.db.schemas.item import ItemCreate, ItemUpdate
+from db.crud.base import CRUDBase
+from db.models.item import Item
+from db.schemas.item import ItemCreate, ItemUpdate
 
 
 class CRUDItem(CRUDBase[Item, ItemCreate, ItemUpdate]):

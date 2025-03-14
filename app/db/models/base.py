@@ -4,7 +4,7 @@ from sqlalchemy import DateTime, Integer
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import text
 
-from app.db.connection import Base
+from db.connection import Base
 
 
 class TimeStampMixin:

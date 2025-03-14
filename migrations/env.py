@@ -16,8 +16,8 @@ fileConfig(config.config_file_name)
 
 # add your model's MetaData object here
 # for 'autogenerate' support
-from app.db import Base  # noqa
-from app.db.models import *  # noqa
+from db import Base  # noqa
+from db.models import *  # noqa
 
 target_metadata = Base.metadata
 

@@ -3,9 +3,9 @@ from typing import Optional
 
 from fastapi import Request, Response
 
-from app.core import get_settings
-from app.utils.redis import RedisCrud
-from app.utils.schemas import SessionSchema
+from core import get_settings
+from utils.redis import RedisCrud
+from utils.schemas import SessionSchema
 
 settings = get_settings()
 

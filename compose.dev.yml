@@ -92,6 +92,9 @@ services:
       dockerfile: ./docker/db-tools.Dockerfile
       args:
         MODE: migrator
+    volumes:
+      - ./app/db:/app/db
+      - ./app/core/config.py:/app/core/config.py
     env_file:
       - ./envs/db.env
     environment:

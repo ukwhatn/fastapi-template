@@ -4,8 +4,8 @@ from typing import Generator
 from fastapi import Depends, Request
 from sqlalchemy.orm import Session
 
-from app.db import get_db
-from app.utils import SessionSchema
+from db import get_db
+from utils import SessionSchema
 
 
 @dataclass

@@ -2,7 +2,7 @@ import pickle
 
 import redis
 
-from app.core import get_settings
+from core import get_settings
 
 settings = get_settings()
 

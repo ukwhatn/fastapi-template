@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 
-from app.api import v1, system
-from app.core import get_settings
+from api import v1, system
+from core import get_settings
 
 settings = get_settings()
 
