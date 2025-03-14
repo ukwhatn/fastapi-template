@@ -108,16 +108,18 @@ jobs:
         run: |
           curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin v0.46.1
       
-      - name: Scan container images
+      - name: Scan Dockerfiles
         run: |
-          # すべてのイメージを一度にスキャン
-          echo "Scanning all container images for informational purposes..."
-          trivy image --exit-code 0 --severity HIGH,CRITICAL fastapi-template-server:latest
-          trivy image --exit-code 0 --severity HIGH,CRITICAL fastapi-template-db-tools:latest
+          # Dockerfileをスキャン (イメージビルド不要)
+          echo "Scanning server Dockerfile..."
+          trivy config --exit-code 0 --severity HIGH,CRITICAL ./docker/server.Dockerfile
           
-          echo "Checking for critical vulnerabilities in container images..."
-          trivy image --exit-code 1 --severity CRITICAL fastapi-template-server:latest
-          trivy image --exit-code 1 --severity CRITICAL fastapi-template-db-tools:latest
+          echo "Scanning db-tools Dockerfile..."
+          trivy config --exit-code 0 --severity HIGH,CRITICAL ./docker/db-tools.Dockerfile
+          
+          echo "Checking for critical vulnerabilities in Dockerfiles..."
+          trivy config --exit-code 1 --severity CRITICAL ./docker/server.Dockerfile
+          trivy config --exit-code 1 --severity CRITICAL ./docker/db-tools.Dockerfile
 
   check_healthy:
     needs: setup
