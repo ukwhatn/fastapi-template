@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     ENV_MODE: Literal["development", "production", "test"] = "development"
 
     # CORS設定
-    BACKEND_CORS_ORIGINS: List[AnyHttpUrl] = []
+    BACKEND_CORS_ORIGINS: List[str] = []
 
     @classmethod
     @field_validator("BACKEND_CORS_ORIGINS")
