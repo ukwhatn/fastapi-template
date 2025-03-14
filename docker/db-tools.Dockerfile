@@ -10,7 +10,11 @@ ENV PYTHONUNBUFFERED=1
 # システム依存パッケージインストールと不要なキャッシュの削除
 RUN apt-get update && \
     apt-get upgrade -y && \
-    apt-get install -y --no-install-recommends libpq-dev gcc make postgresql-client && \
+    apt-get install -y --no-install-recommends libpq-dev gcc make curl gnupg lsb-release && \
+    curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor -o /usr/share/keyrings/postgresql-keyring.gpg && \
+    echo "deb [signed-by=/usr/share/keyrings/postgresql-keyring.gpg] http://apt.postgresql.org/pub/repos/apt/ $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends postgresql-client-17 && \
     pip install --no-cache-dir --upgrade pip poetry && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
