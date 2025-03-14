@@ -22,17 +22,7 @@ updates:
       - "ukwhatn"
 
   - package-ecosystem: "docker"
-    directory: "/db"
-    schedule:
-      interval: "daily"
-    target-branch: "develop"
-    assignees:
-      - "ukwhatn"
-    reviewers:
-      - "ukwhatn"
-
-  - package-ecosystem: "docker"
-    directory: "/server"
+    directory: "/docker"
     schedule:
       interval: "daily"
     target-branch: "develop"

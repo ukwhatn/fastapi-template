@@ -1,5 +1,5 @@
 ENV ?= "dev"
-POETRY_GROUPS = "server,db,dev,dumper"
+POETRY_GROUPS = "server,db,dev,dumper,test"
 
 ifeq ($(ENV), prod)
 	COMPOSE_YML := compose.prod.yml
@@ -59,7 +59,7 @@ poetry\:add:
 	make poetry:lock
 
 poetry\:lock:
-	poetry lock --no-update
+	poetry lock
 
 poetry\:update:
 	poetry update --with $(group)
@@ -85,27 +85,67 @@ format:
 
 db\:revision\:create:
 	docker compose -f $(COMPOSE_YML) build db-migrator
-	docker compose -f $(COMPOSE_YML) run --rm db-migrator /bin/bash -c "alembic revision --autogenerate -m '${NAME}'"
+	docker compose -f $(COMPOSE_YML) run --rm db-migrator custom alembic revision --autogenerate -m '${NAME}'
 
 db\:migrate:
 	docker compose -f $(COMPOSE_YML) build db-migrator
-	docker compose -f $(COMPOSE_YML) run --rm db-migrator /bin/bash -c "alembic upgrade head"
+	docker compose -f $(COMPOSE_YML) run --rm db-migrator custom alembic upgrade head
 
-db\:backup:
-	docker compose -f compose.prod.yml up -d --build db-dumper
-	docker compose -f compose.prod.yml exec db-dumper python dump.py oneshot
+db\:downgrade:
+	docker compose -f $(COMPOSE_YML) build db-migrator
+	docker compose -f $(COMPOSE_YML) run --rm db-migrator custom alembic downgrade $(REV)
 
-db\:backup\:test:
-	docker compose -f compose.prod.yml up -d --build db-dumper
-	docker compose -f compose.prod.yml exec db-dumper python dump.py test --confirm
+db\:current:
+	docker compose -f $(COMPOSE_YML) build db-migrator
+	docker compose -f $(COMPOSE_YML) run --rm db-migrator custom alembic current
 
-db\:restore:
-	docker compose -f compose.prod.yml up -d --build db-dumper
-	docker compose -f compose.prod.yml exec db-dumper python dump.py restore
+db\:history:
+	docker compose -f $(COMPOSE_YML) build db-migrator
+	docker compose -f $(COMPOSE_YML) run --rm db-migrator custom alembic history
+
+# データベースダンプ関連コマンド
+db\:dump:
+	docker compose -f $(COMPOSE_YML) build
+	docker compose -f $(COMPOSE_YML) run --rm --build -e DB_TOOL_MODE=dumper -e DUMPER_MODE=interactive db-dumper custom python dump.py
+
+db\:dump\:oneshot:
+	docker compose -f $(COMPOSE_YML) build
+	docker compose -f $(COMPOSE_YML) run --rm db-dumper custom python dump.py oneshot
+
+db\:dump\:list:
+	docker compose -f $(COMPOSE_YML) build
+	docker compose -f $(COMPOSE_YML) run --rm db-dumper custom python dump.py list
+
+db\:dump\:restore:
+	docker compose -f $(COMPOSE_YML) build
+	docker compose -f $(COMPOSE_YML) run --rm db-dumper custom python dump.py restore $(FILE)
+
+db\:dump\:test:
+	docker compose -f $(COMPOSE_YML) build
+	docker compose -f $(COMPOSE_YML) run --rm db-dumper custom python dump.py test --confirm
+
+db\:backup\:test: # 後方互換性のためにエイリアスを提供
+	make db:dump:test
 
 envs\:setup:
 	cp envs/server.env.example envs/server.env
 	cp envs/db.env.example envs/db.env
 	cp envs/sentry.env.example envs/sentry.env
+	cp envs/aws-s3.env.example envs/aws-s3.env
 
-PHONY: build up down logs ps pr\:create deploy\:prod poetry\:install poetry\:add poetry\:lock poetry\:update poetry\:reset dev\:setup db\:revision\:create db\:migrate envs\:setup
+project\:init:
+	@if [ -z "$(NAME)" ]; then \
+		echo "Error: NAME is required"; \
+		echo "Usage: make project:init NAME=\"Your Project Name\""; \
+		exit 1; \
+	fi
+	@UNIX_NAME=$$(echo "$(NAME)" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g' | sed -E 's/^-|-$$//g'); \
+	echo "Initializing project with name: $(NAME) (unix name: $$UNIX_NAME)"; \
+	find . -type f -not -path "*/\.*" -not -path "*/node_modules/*" -not -path "*/venv/*" -exec grep -l "fastapi-template" {} \; | xargs -I{} sed -i '' 's/fastapi-template/'$$UNIX_NAME'/g' {}; \
+	find . -type f -not -path "*/\.*" -not -path "*/node_modules/*" -not -path "*/venv/*" -exec grep -l "FastAPI Template" {} \; | xargs -I{} sed -i '' 's/FastAPI Template/$(NAME)/g' {}
+
+	git add .
+	git commit -m "chore: initialize project with name: $(NAME)"
+	git switch -c develop
+
+.PHONY: build up down logs ps pr\:create deploy\:prod poetry\:install poetry\:add poetry\:lock poetry\:update poetry\:reset dev\:setup lint lint\:fix format test test\:cov test\:setup db\:revision\:create db\:migrate db\:downgrade db\:current db\:history db\:dump db\:backup\:test db\:dump\:oneshot db\:dump\:list db\:dump\:restore db\:dump\:test envs\:setup project\:init

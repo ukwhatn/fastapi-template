@@ -1,19 +1,17 @@
 services:
   server:
+    container_name: fastapi-template-server
     build:
       context: .
-      dockerfile: ./server/Dockerfile
-    command: [ "/bin/sh", "-c", "NEW_RELIC_CONFIG_FILE=newrelic.ini NEW_RELIC_ENVIRONMENT=development newrelic-admin run-program fastapi dev main.py --host 0.0.0.0 --port 80 --proxy-headers" ]
+      dockerfile: docker/server.Dockerfile
+    command: [ "/bin/sh", "-c", "fastapi dev main.py --host 0.0.0.0 --port 80 --proxy-headers" ]
     ports:
       - "127.0.0.1:8000:80"
     volumes:
-      - ./server:/app
-      - ./db:/app/db
-      - ./redis:/app/redis_crud
+      - ./app:/app
     env_file:
       - ./envs/db.env
       - ./envs/server.env
-      - ./envs/sentry.env
     environment:
       - ENV_MODE=development
     restart: unless-stopped
@@ -35,6 +33,7 @@ services:
       - redis
 
   db:
+    container_name: fastapi-template-db
     image: postgres:17
     env_file:
       - ./envs/db.env
@@ -52,12 +51,13 @@ services:
       - db
 
   pgadmin:
+    container_name: fastapi-template-pgadmin
     image: dpage/pgadmin4:latest
     volumes:
       - ./pgadmin/config/servers.json:/pgadmin4/servers.json
     environment:
       PGADMIN_DEFAULT_EMAIL: user@example.com
-      PGADMIN_DEFAULT_PASSWORD: password
+      PGADMIN_DEFAULT_PASSWORD: pwd
       PGADMIN_CONFIG_SERVER_MODE: "False"
       PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
     ports:
@@ -72,6 +72,7 @@ services:
       - db
 
   redis:
+    container_name: fastapi-template-redis
     image: redis:7.4.1
     volumes:
       - redis_data:/data
@@ -85,20 +86,50 @@ services:
       - redis
 
   db-migrator:
+    container_name: fastapi-template-db-migrator
     build:
       context: .
-      dockerfile: db/migrator.Dockerfile
-    tty: true
+      dockerfile: ./docker/db-tools.Dockerfile
+      args:
+        MODE: migrator
     volumes:
-      - ./db:/app
+      - ./app/db:/app/db
+      - ./app/core/config.py:/app/core/config.py
+      - ./migrations:/app/migrations
     env_file:
       - ./envs/db.env
+    environment:
+      - DB_TOOL_MODE=migrator
     restart: no
     depends_on:
       db:
         condition: service_healthy
     networks:
       - db
+
+  # 開発環境では必要に応じてコメントを外して使用
+#  db-dumper:
+#    container_name: fastapi-template-db-dumper
+#    build:
+#      context: .
+#      dockerfile: ./docker/db-tools.Dockerfile
+#      args:
+#        MODE: dumper
+#    env_file:
+#      - ./envs/db.env
+#      - ./envs/sentry.env
+#      - ./envs/aws-s3.env
+#    environment:
+#      - DB_TOOL_MODE=dumper
+#      - DUMPER_MODE=stop
+#      - POSTGRES_HOST=db
+#      - POSTGRES_DB=main
+#    restart: unless-stopped
+#    depends_on:
+#      db:
+#        condition: service_healthy
+#    networks:
+#      - db
 
 volumes:
   pg_data:
