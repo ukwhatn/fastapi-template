@@ -1,5 +1,5 @@
 import json
-from typing import Any, Optional, Union
+from typing import Any, Optional
 
 import redis
 
@@ -36,10 +36,10 @@ class RedisCrud:
         data = self.connect.get(key)
         if data is None:
             return None
-        
+
         try:
             # デコードしてJSON解析
-            return json.loads(data.decode('utf-8'))
+            return json.loads(data.decode("utf-8"))
         except (json.JSONDecodeError, UnicodeDecodeError) as e:
             # エラーログを出力し、Noneを返す
             print(f"Error decoding Redis data for key {key}: {str(e)}")
@@ -53,11 +53,11 @@ class RedisCrud:
         """
         try:
             # JSON文字列に変換してバイト列としてエンコード
-            json_data = json.dumps(value).encode('utf-8')
-            
+            json_data = json.dumps(value).encode("utf-8")
+
             if expire is not None:
                 return self.connect.set(key, json_data, ex=expire)
-            
+
             return self.connect.set(key, json_data)
         except (TypeError, ValueError) as e:
             # シリアル化できないオブジェクトの場合はエラーログを出力
