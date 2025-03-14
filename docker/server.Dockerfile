@@ -17,3 +17,10 @@ COPY pyproject.toml poetry.lock ./
 
 # 依存関係インストール
 RUN poetry install --with server,db
+
+# 非rootユーザーを作成
+RUN adduser --disabled-password --gecos "" nonroot
+RUN chown -R nonroot:nonroot /app
+
+# 非rootユーザーに切り替え
+USER nonroot
