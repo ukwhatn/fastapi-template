@@ -83,6 +83,19 @@ lint\:fix:
 format:
 	poetry run ruff format .
 
+security\:scan:
+	poetry run bandit -r app/ -x tests/
+	poetry run safety check --full-report
+
+security\:scan\:code:
+	poetry run bandit -r app/ -x tests/
+
+security\:scan\:deps:
+	poetry run safety check --full-report
+
+security\:scan\:sast:
+	poetry run semgrep scan --config=p/python --config=p/security-audit --config=p/owasp-top-ten
+
 db\:revision\:create:
 	docker compose -f $(COMPOSE_YML) build db-migrator
 	docker compose -f $(COMPOSE_YML) run --rm db-migrator custom alembic revision --autogenerate -m '${NAME}'
@@ -148,4 +161,4 @@ project\:init:
 	git commit -m "chore: initialize project with name: $(NAME)"
 	git switch -c develop
 
-.PHONY: build up down logs ps pr\:create deploy\:prod poetry\:install poetry\:add poetry\:lock poetry\:update poetry\:reset dev\:setup lint lint\:fix format test test\:cov test\:setup db\:revision\:create db\:migrate db\:downgrade db\:current db\:history db\:dump db\:backup\:test db\:dump\:oneshot db\:dump\:list db\:dump\:restore db\:dump\:test envs\:setup project\:init
+.PHONY: build up down logs ps pr\:create deploy\:prod poetry\:install poetry\:add poetry\:lock poetry\:update poetry\:reset dev\:setup lint lint\:fix format security\:scan security\:scan\:code security\:scan\:deps security\:scan\:sast test test\:cov test\:setup db\:revision\:create db\:migrate db\:downgrade db\:current db\:history db\:dump db\:backup\:test db\:dump\:oneshot db\:dump\:list db\:dump\:restore db\:dump\:test envs\:setup project\:init
