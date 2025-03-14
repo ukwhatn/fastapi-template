@@ -296,8 +296,8 @@ def restore_backup(backup_file: str):
             env = os.environ.copy()
             env["PGPASSWORD"] = DB_PASSWORD
 
-            # まず既存の接続を切断 (パラメータ化されたコマンドを使用)
-            # SQLインジェクション防止のため、コマンドを分解して安全に実行
+            # まず既存の接続を切断
+            disconnect_cmd = f"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '{DB_NAME}' AND pid <> pg_backend_pid();"
             subprocess.run(
                 [
                     "psql",
@@ -306,9 +306,7 @@ def restore_backup(backup_file: str):
                     f"--dbname={DB_NAME}",
                     f"--username={DB_USER}",
                     "-c",
-                    "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = $1 AND pid <> pg_backend_pid();",
-                    "-v",
-                    f"db_name={DB_NAME}",
+                    disconnect_cmd,
                 ],
                 env=env,
                 check=True,
