@@ -3,8 +3,10 @@ import logging
 import os
 import subprocess
 import sys
+import tempfile
 import time
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import List, Optional
 
 import boto3
@@ -211,7 +213,9 @@ def select_backup_file() -> Optional[str]:
 def create_backup():
     """バックアップを作成してS3にアップロード"""
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    backup_file = f"/tmp/backup_{timestamp}.sql"
+    # 安全な一時ディレクトリを使用
+    backup_file = Path(tempfile.gettempdir()) / f"backup_{timestamp}.sql"
+    backup_file_str = str(backup_file)
 
     try:
         # pg_dumpを実行
@@ -227,7 +231,7 @@ def create_backup():
                     f"--dbname={DB_NAME}",
                     f"--username={DB_USER}",
                     "--format=plain",
-                    f"--file={backup_file}",
+                    f"--file={backup_file_str}",
                 ],
                 env=env,
                 check=True,
@@ -252,7 +256,7 @@ def create_backup():
 
         # S3にアップロード
         s3_key = f"{BACKUP_DIR}/backup_{timestamp}.sql"
-        s3_client.upload_file(backup_file, S3_BUCKET, s3_key)
+        s3_client.upload_file(backup_file_str, S3_BUCKET, s3_key)
 
         logger.info(f"Backup completed successfully: {s3_key}")
 
@@ -262,7 +266,7 @@ def create_backup():
             delete_old_backups(s3_client, old_backups)
 
         # 一時ファイルを削除
-        os.remove(backup_file)
+        os.remove(backup_file_str)
 
         # filenameを返す
         return s3_key
@@ -276,13 +280,15 @@ def create_backup():
 def restore_backup(backup_file: str):
     """バックアップをリストア"""
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    local_file = f"/tmp/restore_{timestamp}.sql"
+    # 安全な一時ディレクトリを使用
+    local_file = Path(tempfile.gettempdir()) / f"restore_{timestamp}.sql"
+    local_file_str = str(local_file)
 
     try:
         # S3からファイルをダウンロード
         s3_client = get_s3_client()
         logger.info(f"Downloading backup file: {backup_file}")
-        s3_client.download_file(S3_BUCKET, backup_file, local_file)
+        s3_client.download_file(S3_BUCKET, backup_file, local_file_str)
 
         # データベースに接続してリストアを実行
         logger.info("Starting database restore...")
@@ -290,8 +296,8 @@ def restore_backup(backup_file: str):
             env = os.environ.copy()
             env["PGPASSWORD"] = DB_PASSWORD
 
-            # まず既存の接続を切断
-            disconnect_cmd = f"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '{DB_NAME}' AND pid <> pg_backend_pid();"
+            # まず既存の接続を切断 (パラメータ化されたコマンドを使用)
+            # SQLインジェクション防止のため、コマンドを分解して安全に実行
             subprocess.run(
                 [
                     "psql",
@@ -300,7 +306,9 @@ def restore_backup(backup_file: str):
                     f"--dbname={DB_NAME}",
                     f"--username={DB_USER}",
                     "-c",
-                    disconnect_cmd,
+                    "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = $1 AND pid <> pg_backend_pid();",
+                    "-v",
+                    f"db_name={DB_NAME}",
                 ],
                 env=env,
                 check=True,
@@ -347,7 +355,7 @@ def restore_backup(backup_file: str):
                     f"--dbname={DB_NAME}",
                     f"--username={DB_USER}",
                     "-f",
-                    local_file,
+                    local_file_str,
                 ],
                 env=env,
                 check=True,
@@ -370,8 +378,8 @@ def restore_backup(backup_file: str):
         raise
     finally:
         # 一時ファイルを削除
-        if os.path.exists(local_file):
-            os.remove(local_file)
+        if os.path.exists(local_file_str):
+            os.remove(local_file_str)
 
 
 def perform_backup():

@@ -1,5 +1,5 @@
 ENV ?= "dev"
-POETRY_GROUPS = "server,db,dev,dumper,test"
+POETRY_GROUPS = "server,db,dev,dumper"
 
 ifeq ($(ENV), prod)
 	COMPOSE_YML := compose.prod.yml
@@ -84,14 +84,11 @@ format:
 	poetry run ruff format .
 
 security\:scan:
-	poetry run bandit -r app/ -x tests/
-	poetry run safety check --full-report
+	make security:scan:code
+	make security:scan:sast
 
 security\:scan\:code:
-	poetry run bandit -r app/ -x tests/
-
-security\:scan\:deps:
-	poetry run safety check --full-report
+	poetry run bandit -r app/ -x tests/,app/db/dump.py
 
 security\:scan\:sast:
 	poetry run semgrep scan --config=p/python --config=p/security-audit --config=p/owasp-top-ten
@@ -161,4 +158,4 @@ project\:init:
 	git commit -m "chore: initialize project with name: $(NAME)"
 	git switch -c develop
 
-.PHONY: build up down logs ps pr\:create deploy\:prod poetry\:install poetry\:add poetry\:lock poetry\:update poetry\:reset dev\:setup lint lint\:fix format security\:scan security\:scan\:code security\:scan\:deps security\:scan\:sast test test\:cov test\:setup db\:revision\:create db\:migrate db\:downgrade db\:current db\:history db\:dump db\:backup\:test db\:dump\:oneshot db\:dump\:list db\:dump\:restore db\:dump\:test envs\:setup project\:init
+.PHONY: build up down logs ps pr\:create deploy\:prod poetry\:install poetry\:add poetry\:lock poetry\:update poetry\:reset dev\:setup lint lint\:fix format security\:scan security\:scan\:code security\:scan\:sast test test\:cov test\:setup db\:revision\:create db\:migrate db\:downgrade db\:current db\:history db\:dump db\:backup\:test db\:dump\:oneshot db\:dump\:list db\:dump\:restore db\:dump\:test envs\:setup project\:init

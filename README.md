@@ -22,7 +22,6 @@
 ### セキュリティ
 - `make security:scan` - すべてのセキュリティスキャンを実行
 - `make security:scan:code` - Banditによるコードの静的セキュリティ分析
-- `make security:scan:deps` - Safetyによる依存パッケージの脆弱性スキャン
 - `make security:scan:sast` - Semgrepによる高度な静的アプリケーションセキュリティテスト
 
 ### データベース操作
