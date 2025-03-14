@@ -98,7 +98,7 @@ app_params["lifespan"] = lifespan
 app = FastAPI(**app_params)
 
 # CORSミドルウェア設定
-if settings.BACKEND_CORS_ORIGINS:
+if len(settings.BACKEND_CORS_ORIGINS) > 0:
     app.add_middleware(
         CORSMiddleware,
         allow_origins=[str(origin) for origin in settings.BACKEND_CORS_ORIGINS],

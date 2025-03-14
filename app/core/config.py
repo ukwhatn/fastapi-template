@@ -1,4 +1,3 @@
-import secrets
 from functools import lru_cache
 from typing import List, Literal, Optional, Union
 
@@ -20,16 +19,25 @@ class Settings(BaseSettings):
     # 環境設定
     ENV_MODE: Literal["development", "production", "test"] = "development"
 
-    # APIパス設定
-    API_V1_STR: str = "/v1"
-    SYSTEM_STR: str = "/system"
-
-    # セキュリティ設定
-    SECRET_KEY: str = secrets.token_urlsafe(32)
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8  # 8 days
-
     # CORS設定
     BACKEND_CORS_ORIGINS: List[AnyHttpUrl] = []
+
+    @classmethod
+    @field_validator("BACKEND_CORS_ORIGINS")
+    def assemble_cors_origins(cls, v: Union[str, List[str]]) -> Union[List[str], str]:
+        # 設定されていない場合は空リストを返す
+        if v == "":
+            return []
+        # "*"が設定されている場合は全てのオリジンを許可
+        if v == "*":
+            return ["*"]
+        # カンマ区切りの文字列をリストに変換
+        if isinstance(v, str) and not v.startswith("["):
+            return [i.strip() for i in v.split(",")]
+        # リストの場合はそのまま返す
+        if isinstance(v, (list, str)):
+            return v
+        raise ValueError(v)
 
     # セキュリティヘッダー設定
     SECURITY_HEADERS: bool = True
@@ -37,29 +45,12 @@ class Settings(BaseSettings):
         "default-src 'self'; img-src 'self' data:; script-src 'self'; style-src 'self'"
     )
 
-    # レート制限設定
-    RATE_LIMIT_ENABLED: bool = False
-    RATE_LIMIT_REQUESTS: int = 100
-    RATE_LIMIT_PERIOD_SECONDS: int = 60
-
-    @classmethod
-    @field_validator("BACKEND_CORS_ORIGINS")
-    def assemble_cors_origins(cls, v: Union[str, List[str]]) -> Union[List[str], str]:
-        if isinstance(v, str) and not v.startswith("["):
-            return [i.strip() for i in v.split(",")]
-        elif isinstance(v, (list, str)):
-            return v
-        raise ValueError(v)
-
     # データベース設定
     POSTGRES_USER: str = "user"
     POSTGRES_PASSWORD: str = "password"
     POSTGRES_DB: str = "main"
     POSTGRES_HOST: str = "db"
     POSTGRES_PORT: str = "5432"
-    DATABASE_POOL_SIZE: int = 5
-    DATABASE_MAX_OVERFLOW: int = 10
-    DATABASE_POOL_RECYCLE: int = 3600
 
     @property
     def DATABASE_URI(self) -> str:
@@ -74,18 +65,13 @@ class Settings(BaseSettings):
     # Redis設定
     REDIS_HOST: str = "redis"
     REDIS_PORT: int = 6379
-    REDIS_PASSWORD: Optional[str] = None
-    REDIS_USE_SSL: bool = False
+
     SESSION_COOKIE_NAME: str = "session_id"
     SESSION_EXPIRE: int = 60 * 60 * 24  # 1 day
-    SESSION_SECURE: bool = False
-    SESSION_HTTPONLY: bool = True
-    SESSION_SAMESITE: str = "lax"
 
     # Sentry設定
     SENTRY_DSN: Optional[str] = None
     SENTRY_TRACES_SAMPLE_RATE: float = 1.0
-    SENTRY_ENVIRONMENT: str = "development"
 
     @classmethod
     @field_validator("SENTRY_DSN")
@@ -99,10 +85,6 @@ class Settings(BaseSettings):
     NEW_RELIC_APP_NAME: str = "FastAPI Template"
     NEW_RELIC_HIGH_SECURITY: bool = False
     NEW_RELIC_MONITOR_MODE: bool = True
-
-    # ロギング設定
-    LOG_LEVEL: str = "INFO"
-    LOG_FORMAT: str = "json"  # "json" or "text"
 
     @property
     def is_development(self) -> bool:
