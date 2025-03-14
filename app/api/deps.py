@@ -38,7 +38,9 @@ def get_db_with_session(
 
 
 # API認証用のヘッダーハンドラーを作成
-api_key_header = APIKeyHeader(name="Authorization", scheme_name="Bearer", auto_error=False)
+api_key_header = APIKeyHeader(
+    name="Authorization", scheme_name="Bearer", auto_error=False
+)
 
 
 def get_api_key(
@@ -47,27 +49,25 @@ def get_api_key(
     """
     APIキー認証のdependency
     Authorizationヘッダーに'Bearer {api_key}'形式で指定されたAPIキーを検証
-    
+
     - Authorization: Bearer your-api-key-here
     """
     settings = get_settings()
-    
+
     if not api_key_header:
         raise HTTPException(
             status_code=HTTP_403_FORBIDDEN, detail="Authorization header missing"
         )
-        
+
     # Bearerプレフィックスの処理
     scheme, _, api_key = api_key_header.partition(" ")
     if scheme.lower() != "bearer":
         raise HTTPException(
-            status_code=HTTP_403_FORBIDDEN, 
-            detail="Authorization header must start with 'Bearer'"
+            status_code=HTTP_403_FORBIDDEN,
+            detail="Authorization header must start with 'Bearer'",
         )
-    
+
     if not api_key or api_key != settings.API_KEY:
-        raise HTTPException(
-            status_code=HTTP_403_FORBIDDEN, detail="Invalid API key"
-        )
-        
+        raise HTTPException(status_code=HTTP_403_FORBIDDEN, detail="Invalid API key")
+
     return api_key
