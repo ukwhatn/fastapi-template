@@ -115,23 +115,23 @@ db\:history:
 # データベースダンプ関連コマンド
 db\:dump:
 	docker compose -f $(COMPOSE_YML) build
-	docker compose -f $(COMPOSE_YML) run --rm --build --name db-dumper-interactive -e DB_TOOL_MODE=dumper -e DUMPER_MODE=interactive db-dumper
+	docker compose -f $(COMPOSE_YML) run --rm --build -e DB_TOOL_MODE=dumper -e DUMPER_MODE=interactive db-dumper custom python dump.py
 
 db\:dump\:oneshot:
 	docker compose -f $(COMPOSE_YML) build
-	docker compose -f $(COMPOSE_YML) run --rm db-dumper python -m app.db.dump oneshot
+	docker compose -f $(COMPOSE_YML) run --rm db-dumper custom python dump.py oneshot
 
 db\:dump\:list:
 	docker compose -f $(COMPOSE_YML) build
-	docker compose -f $(COMPOSE_YML) run --rm db-dumper python -m app.db.dump list
+	docker compose -f $(COMPOSE_YML) run --rm db-dumper custom python dump.py list
 
 db\:dump\:restore:
 	docker compose -f $(COMPOSE_YML) build
-	docker compose -f $(COMPOSE_YML) run --rm db-dumper python -m app.db.dump restore $(FILE)
+	docker compose -f $(COMPOSE_YML) run --rm db-dumper custom python dump.py restore $(FILE)
 
 db\:dump\:test:
 	docker compose -f $(COMPOSE_YML) build
-	docker compose -f $(COMPOSE_YML) run --rm db-dumper python -m app.db.dump test --confirm
+	docker compose -f $(COMPOSE_YML) run --rm db-dumper custom python dump.py test --confirm
 
 db\:backup\:test: # 後方互換性のためにエイリアスを提供
 	make db:dump:test

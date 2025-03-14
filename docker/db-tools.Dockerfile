@@ -10,7 +10,7 @@ ENV PYTHONUNBUFFERED=1
 # システム依存パッケージインストールと不要なキャッシュの削除
 RUN apt-get update && \
     apt-get upgrade -y && \
-    apt-get install -y --no-install-recommends libpq-dev gcc make && \
+    apt-get install -y --no-install-recommends libpq-dev gcc make postgresql-client && \
     pip install --no-cache-dir --upgrade pip poetry && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
