@@ -1,7 +1,7 @@
 from functools import lru_cache
 from typing import List, Literal, Optional, Union
 
-from pydantic import AnyHttpUrl, field_validator
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     ENV_MODE: Literal["development", "production", "test"] = "development"
 
     # CORS設定
-    BACKEND_CORS_ORIGINS: List[str] = []
+    BACKEND_CORS_ORIGINS: Union[str, List[str]] = []
 
     @classmethod
     @field_validator("BACKEND_CORS_ORIGINS")
@@ -44,7 +44,7 @@ class Settings(BaseSettings):
     CSP_POLICY: str = (
         "default-src 'self'; img-src 'self' data:; script-src 'self'; style-src 'self'"
     )
-    
+
     # APIキー設定
     API_KEY: str = "default_api_key_change_me_in_production"
 
