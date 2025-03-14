@@ -83,15 +83,6 @@ lint\:fix:
 format:
 	poetry run ruff format .
 
-test\:setup:
-	poetry install --with test
-
-test: test\:setup
-	poetry run pytest
-
-test\:cov: test\:setup
-	poetry run pytest --cov=app --cov-report=term-missing
-
 db\:revision\:create:
 	docker compose -f $(COMPOSE_YML) build db-migrator
 	docker compose -f $(COMPOSE_YML) run --rm db-migrator custom alembic revision --autogenerate -m '${NAME}'
