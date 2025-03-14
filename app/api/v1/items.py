@@ -29,9 +29,10 @@ def create_item(
     db: Session = Depends(deps.get_db),
     item_in: ItemCreate,
     owner_id: int = 1,  # 仮のowner_id
+    _: str = Depends(deps.get_api_key),  # APIキー認証
 ) -> Any:
     """
-    アイテム作成
+    アイテム作成（APIキー認証必須）
     """
     item = crud.item.create_with_owner(db=db, obj_in=item_in, owner_id=owner_id)
     return item
@@ -43,9 +44,10 @@ def update_item(
     db: Session = Depends(deps.get_db),
     id: int,
     item_in: ItemUpdate,
+    _: str = Depends(deps.get_api_key),  # APIキー認証
 ) -> Any:
     """
-    アイテム更新
+    アイテム更新（APIキー認証必須）
     """
     item = crud.item.get(db=db, id=id)
     if not item:
@@ -77,9 +79,10 @@ def delete_item(
     *,
     db: Session = Depends(deps.get_db),
     id: int,
+    _: str = Depends(deps.get_api_key),  # APIキー認証
 ) -> Any:
     """
-    アイテム削除
+    アイテム削除（APIキー認証必須）
     """
     item = crud.item.get(db=db, id=id)
     if not item:

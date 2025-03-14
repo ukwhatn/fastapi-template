@@ -44,6 +44,9 @@ class Settings(BaseSettings):
     CSP_POLICY: str = (
         "default-src 'self'; img-src 'self' data:; script-src 'self'; style-src 'self'"
     )
+    
+    # APIキー設定
+    API_KEY: str = "default_api_key_change_me_in_production"
 
     # データベース設定
     POSTGRES_USER: str = "user"
