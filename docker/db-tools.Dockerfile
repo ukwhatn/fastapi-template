@@ -37,7 +37,16 @@ COPY app/db/dump.py ./
 COPY docker/db-tools-entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
+# 非rootユーザーを作成
+RUN adduser --disabled-password --gecos "" nonroot
+RUN chown -R nonroot:nonroot /app
+RUN chown nonroot:nonroot /entrypoint.sh
+
 ARG MODE=migrator
 ENV DB_TOOL_MODE=$MODE
+
+# 非rootユーザーに切り替え
+USER nonroot
+
 # エントリポイントスクリプトを実行
 ENTRYPOINT ["/entrypoint.sh"]
