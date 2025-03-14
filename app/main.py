@@ -22,7 +22,7 @@ settings = get_settings()
 app_params = {
     "title": "FastAPI Template",
     "description": "FastAPIアプリケーションのテンプレート",
-    "version": "0.1.0"
+    "version": "0.1.0",
 }
 
 # ロガー設定
@@ -58,10 +58,13 @@ if settings.is_production and settings.NEW_RELIC_LICENSE_KEY:
     newrelic.agent.initialize(
         config_file="/etc/newrelic.ini", environment=settings.ENV_MODE
     )
-    logger.info(f"New Relic is enabled")
+    logger.info("New Relic is enabled")
 else:
     logger.info(
-        f"New Relic is disabled on {settings.ENV_MODE} mode" if not settings.is_production else "New Relic license key is not set")
+        f"New Relic is disabled on {settings.ENV_MODE} mode"
+        if not settings.is_production
+        else "New Relic license key is not set"
+    )
 
 # Sentry設定
 if settings.SENTRY_DSN:
@@ -124,7 +127,7 @@ async def api_error_handler(request: Request, exc: APIError) -> Response:
 
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(
-        request: Request, exc: StarletteHTTPException
+    request: Request, exc: StarletteHTTPException
 ) -> Response:
     """HTTPException例外ハンドラ"""
     error = ErrorResponse(
@@ -140,7 +143,7 @@ async def http_exception_handler(
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(
-        request: Request, exc: RequestValidationError
+    request: Request, exc: RequestValidationError
 ) -> Response:
     """バリデーションエラーハンドラ"""
     error = ValidationError(

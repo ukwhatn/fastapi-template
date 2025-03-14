@@ -28,10 +28,18 @@ target_metadata = Base.metadata
 
 
 config.set_section_option("alembic", "POSTGRES_USER", os.environ.get("POSTGRES_USER"))
-config.set_section_option("alembic", "POSTGRES_PASSWORD", os.environ.get("POSTGRES_PASSWORD"))
-config.set_section_option("alembic", "POSTGRES_HOST", os.environ.get("POSTGRES_HOST", "db"))
-config.set_section_option("alembic", "POSTGRES_PORT", os.environ.get("POSTGRES_PORT", "5432"))
-config.set_section_option("alembic", "POSTGRES_DB", os.environ.get("POSTGRES_DB", "main"))
+config.set_section_option(
+    "alembic", "POSTGRES_PASSWORD", os.environ.get("POSTGRES_PASSWORD")
+)
+config.set_section_option(
+    "alembic", "POSTGRES_HOST", os.environ.get("POSTGRES_HOST", "db")
+)
+config.set_section_option(
+    "alembic", "POSTGRES_PORT", os.environ.get("POSTGRES_PORT", "5432")
+)
+config.set_section_option(
+    "alembic", "POSTGRES_DB", os.environ.get("POSTGRES_DB", "main")
+)
 
 
 def run_migrations_offline():
