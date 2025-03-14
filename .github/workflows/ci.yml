@@ -121,7 +121,7 @@ jobs:
           trivy config --exit-code 1 --severity CRITICAL ./docker/server.Dockerfile
           trivy config --exit-code 1 --severity CRITICAL ./docker/db-tools.Dockerfile
 
-  check_healthy:
+  check-healthy:
     needs: setup
     runs-on: ubuntu-latest
     if: |
