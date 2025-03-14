@@ -94,23 +94,23 @@ test\:cov: test\:setup
 
 db\:revision\:create:
 	docker compose -f $(COMPOSE_YML) build db-migrator
-	docker compose -f $(COMPOSE_YML) run --rm db-migrator /bin/bash -c "alembic revision --autogenerate -m '${NAME}'"
+	docker compose -f $(COMPOSE_YML) run --rm db-migrator custom alembic revision --autogenerate -m '${NAME}'
 
 db\:migrate:
 	docker compose -f $(COMPOSE_YML) build db-migrator
-	docker compose -f $(COMPOSE_YML) run --rm db-migrator /bin/bash -c "alembic upgrade head"
+	docker compose -f $(COMPOSE_YML) run --rm db-migrator custom alembic upgrade head
 
 db\:downgrade:
 	docker compose -f $(COMPOSE_YML) build db-migrator
-	docker compose -f $(COMPOSE_YML) run --rm db-migrator /bin/bash -c "alembic downgrade $(REV)"
+	docker compose -f $(COMPOSE_YML) run --rm db-migrator custom alembic downgrade $(REV)
 
 db\:current:
 	docker compose -f $(COMPOSE_YML) build db-migrator
-	docker compose -f $(COMPOSE_YML) run --rm db-migrator /bin/bash -c "alembic current"
+	docker compose -f $(COMPOSE_YML) run --rm db-migrator custom alembic current
 
 db\:history:
 	docker compose -f $(COMPOSE_YML) build db-migrator
-	docker compose -f $(COMPOSE_YML) run --rm db-migrator /bin/bash -c "alembic history"
+	docker compose -f $(COMPOSE_YML) run --rm db-migrator custom alembic history
 
 # データベースダンプ関連コマンド
 db\:dump:

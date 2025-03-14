@@ -1,6 +1,7 @@
 import contextlib
 import json
 import logging
+import os
 
 import sentry_sdk
 from fastapi import FastAPI, Request, Response
@@ -17,9 +18,50 @@ from utils import SessionCrud, SessionSchema
 # 設定読み込み
 settings = get_settings()
 
+# アプリケーション設定
+app_params = {
+    "title": "FastAPI Template",
+    "description": "FastAPIアプリケーションのテンプレート",
+    "version": "0.1.0"
+}
+
 # ロガー設定
 logging.basicConfig(level=logging.WARN)
 logger = logging.getLogger("uvicorn")
+
+if settings.is_development:
+    logger.setLevel(level=logging.DEBUG)
+else:
+    logger.setLevel(level=logging.INFO)
+    # 本番環境ではドキュメントを無効化
+    if settings.is_production:
+        app_params["docs_url"] = None
+        app_params["redoc_url"] = None
+        app_params["openapi_url"] = None
+
+# New Relic設定
+if settings.is_production and settings.NEW_RELIC_LICENSE_KEY:
+    print("New Relic!")
+    import newrelic.agent
+
+    # 環境変数のオーバーライド
+    os.environ["NEW_RELIC_LICENSE_KEY"] = settings.NEW_RELIC_LICENSE_KEY
+    os.environ["NEW_RELIC_APP_NAME"] = settings.NEW_RELIC_APP_NAME
+
+    # 設定オブジェクトの作成
+    newrelic_config = newrelic.agent.global_settings()
+    newrelic_config.high_security = settings.NEW_RELIC_HIGH_SECURITY
+    newrelic_config.monitor_mode = settings.NEW_RELIC_MONITOR_MODE
+    newrelic_config.app_name = settings.NEW_RELIC_APP_NAME
+
+    # New Relic初期化
+    newrelic.agent.initialize(
+        config_file="/etc/newrelic.ini", environment=settings.ENV_MODE
+    )
+    logger.info(f"New Relic is enabled")
+else:
+    logger.info(
+        f"New Relic is disabled on {settings.ENV_MODE} mode" if not settings.is_production else "New Relic license key is not set")
 
 # Sentry設定
 if settings.SENTRY_DSN:
@@ -41,38 +83,16 @@ class HealthCheckFilter(logging.Filter):
 logging.getLogger("uvicorn.access").addFilter(HealthCheckFilter())
 
 
-# Lifespan context manager
 @contextlib.asynccontextmanager
 async def lifespan(app: FastAPI):
     """
     アプリケーションのライフサイクル管理
     """
-    # 起動時処理
-    logger.info(f"Application starting in {settings.ENV_MODE} mode")
 
     yield  # アプリケーションの実行
 
-    # 終了時処理
-    logger.info("Application shutdown")
 
-
-# 環境に合わせたアプリケーション設定
-app_params = {
-    "title": "FastAPI Template",
-    "description": "FastAPIアプリケーションのテンプレート",
-    "version": "0.1.0",
-    "lifespan": lifespan,
-}
-
-if settings.ENV_MODE == "development":
-    logger.setLevel(level=logging.DEBUG)
-else:
-    logger.setLevel(level=logging.INFO)
-    # 本番環境ではドキュメントを無効化
-    if settings.ENV_MODE == "production":
-        app_params["docs_url"] = None
-        app_params["redoc_url"] = None
-        app_params["openapi_url"] = None
+app_params["lifespan"] = lifespan
 
 # アプリケーション作成
 app = FastAPI(**app_params)
@@ -104,7 +124,7 @@ async def api_error_handler(request: Request, exc: APIError) -> Response:
 
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(
-    request: Request, exc: StarletteHTTPException
+        request: Request, exc: StarletteHTTPException
 ) -> Response:
     """HTTPException例外ハンドラ"""
     error = ErrorResponse(
@@ -120,7 +140,7 @@ async def http_exception_handler(
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(
-    request: Request, exc: RequestValidationError
+        request: Request, exc: RequestValidationError
 ) -> Response:
     """バリデーションエラーハンドラ"""
     error = ValidationError(

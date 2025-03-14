@@ -27,16 +27,11 @@ target_metadata = Base.metadata
 # ... etc.
 
 
-# 環境変数の読み込み
-def get_env(key, default=None):
-    return os.environ.get(key, default)
-
-
-config.set_section_option("alembic", "POSTGRES_USER", get_env("POSTGRES_USER"))
-config.set_section_option("alembic", "POSTGRES_PASSWORD", get_env("POSTGRES_PASSWORD"))
-config.set_section_option("alembic", "POSTGRES_HOST", get_env("POSTGRES_HOST", "db"))
-config.set_section_option("alembic", "POSTGRES_PORT", get_env("POSTGRES_PORT", "5432"))
-config.set_section_option("alembic", "POSTGRES_DB", get_env("POSTGRES_DB", "main"))
+config.set_section_option("alembic", "POSTGRES_USER", os.environ.get("POSTGRES_USER"))
+config.set_section_option("alembic", "POSTGRES_PASSWORD", os.environ.get("POSTGRES_PASSWORD"))
+config.set_section_option("alembic", "POSTGRES_HOST", os.environ.get("POSTGRES_HOST", "db"))
+config.set_section_option("alembic", "POSTGRES_PORT", os.environ.get("POSTGRES_PORT", "5432"))
+config.set_section_option("alembic", "POSTGRES_DB", os.environ.get("POSTGRES_DB", "main"))
 
 
 def run_migrations_offline():

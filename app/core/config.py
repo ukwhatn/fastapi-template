@@ -94,6 +94,12 @@ class Settings(BaseSettings):
             return None
         return v
 
+    # New Relic設定
+    NEW_RELIC_LICENSE_KEY: Optional[str] = None
+    NEW_RELIC_APP_NAME: str = "FastAPI Template"
+    NEW_RELIC_HIGH_SECURITY: bool = False
+    NEW_RELIC_MONITOR_MODE: bool = True
+
     # ロギング設定
     LOG_LEVEL: str = "INFO"
     LOG_FORMAT: str = "json"  # "json" or "text"

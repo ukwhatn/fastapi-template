@@ -3,7 +3,12 @@ set -e
 
 if [ "$DB_TOOL_MODE" = "migrator" ]; then
   echo "Running migrator mode..."
-  exec alembic upgrade head
+  if [ "$1" = "custom" ]; then
+    echo "Running custom command: ${@:2}"
+    exec "${@:2}"
+  else
+    exec alembic upgrade head
+  fi
 elif [ "$DB_TOOL_MODE" = "dumper" ]; then
   echo "Running dumper mode..."
   exec python dump.py

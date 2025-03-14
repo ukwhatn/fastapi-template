@@ -4,7 +4,7 @@ services:
     build:
       context: .
       dockerfile: docker/server.Dockerfile
-    command: [ "/bin/sh", "-c", "NEW_RELIC_CONFIG_FILE=newrelic.ini NEW_RELIC_ENVIRONMENT=staging newrelic-admin run-program fastapi run main.py --host 0.0.0.0 --port 80 --proxy-headers" ]
+    command: [ "/bin/sh", "-c", "fastapi run main.py --host 0.0.0.0 --port 80 --proxy-headers" ]
     ports:
       - "127.0.0.1:8000:80"
     volumes:
@@ -72,8 +72,9 @@ services:
       args:
         MODE: migrator
     volumes:
-      - ./app/db:/app/app/db
-      - ./app/core/config.py:/app/app/core/config.py
+      - ./app/db:/app/db
+      - ./app/core/config.py:/app/core/config.py
+      - ./migrations:/app/migrations
     env_file:
       - ./envs/db.env
     environment:
