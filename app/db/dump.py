@@ -90,7 +90,7 @@ def list_backup_files(s3_client) -> List[str]:
     try:
         paginator = s3_client.get_paginator("list_objects_v2")
         for page in paginator.paginate(
-                Bucket=S3_BUCKET, Prefix=f"{BACKUP_DIR}/backup_"
+            Bucket=S3_BUCKET, Prefix=f"{BACKUP_DIR}/backup_"
         ):
             if "Contents" not in page:
                 continue
@@ -98,7 +98,7 @@ def list_backup_files(s3_client) -> List[str]:
             for obj in page["Contents"]:
                 filename = obj["Key"]
                 if filename.startswith(f"{BACKUP_DIR}/backup_") and filename.endswith(
-                        ".sql"
+                    ".sql"
                 ):
                     backup_files.append(filename)
 
@@ -122,7 +122,7 @@ def list_old_backups(s3_client) -> List[str]:
         # 指定されたディレクトリ内のオブジェクトを取得
         paginator = s3_client.get_paginator("list_objects_v2")
         for page in paginator.paginate(
-                Bucket=S3_BUCKET, Prefix=f"{BACKUP_DIR}/backup_"
+            Bucket=S3_BUCKET, Prefix=f"{BACKUP_DIR}/backup_"
         ):
             if "Contents" not in page:
                 continue
@@ -392,7 +392,7 @@ def list_backups():
         if "Contents" in response:
             print("\nRecent backups:")
             for obj in sorted(
-                    response["Contents"], key=lambda x: x["LastModified"], reverse=True
+                response["Contents"], key=lambda x: x["LastModified"], reverse=True
             )[:10]:
                 size_mb = obj["Size"] / (1024 * 1024)
                 print(f"{obj['Key']} - {obj['LastModified']} - {size_mb:.2f} MB")
