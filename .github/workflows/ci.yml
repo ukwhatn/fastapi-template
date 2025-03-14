@@ -10,15 +10,28 @@ on:
 jobs:
   setup:
     runs-on: ubuntu-latest
+    outputs:
+      cache-key: ${{ steps.cache-key.outputs.key }}
     steps:
       - uses: actions/checkout@v4
-      
+
+      - name: Generate cache key
+        id: cache-key
+        run: echo "key=${{ github.sha }}-${{ hashFiles('**/poetry.lock') }}" >> $GITHUB_OUTPUT
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
           cache: 'pip'
-      
+
+      - name: Cache poetry dependencies
+        uses: actions/cache@v4
+        id: poetry-cache
+        with:
+          path: ~/.cache/pypoetry
+          key: ${{ runner.os }}-poetry-${{ hashFiles('**/poetry.lock') }}
+
       - name: Install dependencies
         id: install
         run: |
@@ -26,112 +39,100 @@ jobs:
           pip install poetry
           poetry config virtualenvs.create false
           poetry install --with dev,server,db,dumper
-      
+
       - name: Setup environment
         run: |
           make envs:setup
-      
+
+      - name: Cache Docker images
+        uses: actions/cache@v4
+        with:
+          path: /tmp/docker-cache
+          key: ${{ runner.os }}-docker-${{ github.sha }}
+
       - name: Build Docker images
         run: |
+          mkdir -p /tmp/docker-cache
           make build ENV=test
-    
-  code-quality:
+          docker save $(docker images -q) -o /tmp/docker-cache/images.tar
+
+  quality-and-security:
     needs: setup
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
           cache: 'pip'
-      
+
+      - name: Cache poetry dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pypoetry
+          key: ${{ runner.os }}-poetry-${{ hashFiles('**/poetry.lock') }}
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install poetry
           poetry config virtualenvs.create false
           poetry install --with dev
-      
+
       - name: Lint with ruff
         run: |
           make lint
-  
-  security-scan:
-    needs: setup
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.13'
-          cache: 'pip'
-      
-      - name: Install dependencies
+
+      - name: Run security scans
         run: |
-          python -m pip install --upgrade pip
-          pip install poetry
-          poetry config virtualenvs.create false
-          poetry install --with dev
-      
-      - name: Run comprehensive security scans
-        run: |
-          # 情報収集のためのスキャン (エラーがあってもビルド失敗しない)
-          echo "Running Bandit code security scan..."
-          poetry run bandit -r app/ -x tests/,app/db/dump.py -f txt || true
-          
-          echo "Running Semgrep SAST scan..."
-          poetry run semgrep scan --config=p/python --config=p/security-audit --config=p/owasp-top-ten --error || true
-      
-      - name: Check for critical vulnerabilities
-        run: |
-          echo "Checking for critical code security issues..."
+          # Bandit scan for critical issues only
+          echo "Running critical Bandit scan..."
           poetry run bandit -r app/ -x tests/,app/db/dump.py -ll || exit 1
           
-          echo "Checking for critical SAST findings..."
+          # Semgrep scan for critical issues only
+          echo "Running critical Semgrep scan..."
           poetry run semgrep scan --config=p/python --config=p/security-audit --config=p/owasp-top-ten --severity ERROR --error
-  
+
   container-scan:
     needs: setup
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
-      - name: Setup environment
-        run: |
-          make envs:setup
-      
+
       - name: Install Trivy Scanner
         run: |
           curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin v0.46.1
-      
+
       - name: Scan Dockerfiles
         run: |
-          # Dockerfileをスキャン (イメージビルド不要)
-          echo "Scanning server Dockerfile..."
-          trivy config --exit-code 0 --severity HIGH,CRITICAL ./docker/server.Dockerfile
-          
-          echo "Scanning db-tools Dockerfile..."
-          trivy config --exit-code 0 --severity HIGH,CRITICAL ./docker/db-tools.Dockerfile
-          
-          echo "Checking for critical vulnerabilities in Dockerfiles..."
+          # 重要な脆弱性のみチェック
           trivy config --exit-code 1 --severity CRITICAL ./docker/server.Dockerfile
           trivy config --exit-code 1 --severity CRITICAL ./docker/db-tools.Dockerfile
 
   check-healthy:
-    needs: setup
+    needs: [quality-and-security, container-scan]
     runs-on: ubuntu-latest
     if: |
       (github.event.pull_request.user.login == 'ukwhatn') ||
       (github.event.pull_request.user.login == 'dependabot[bot]')
-
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Cache Docker images
+        uses: actions/cache@v4
+        with:
+          path: /tmp/docker-cache
+          key: ${{ runner.os }}-docker-${{ github.sha }}
+
+      - name: Load Docker images
+        run: |
+          if [ -f /tmp/docker-cache/images.tar ]; then
+            docker load -i /tmp/docker-cache/images.tar
+          fi
 
       - name: Setup environment
         run: |
@@ -143,37 +144,37 @@ jobs:
       - name: Build and start services
         run: make up ENV=test
 
-      - name: Wait for services to be ready
+      - name: Health check with timeout
         run: |
-          max_retries=5
-          retry_interval=5
+          timeout=30
+          interval=5
+          elapsed=0
           
-          for i in $(seq 1 $max_retries)
-          do
+          while [ $elapsed -lt $timeout ]; do
             if ! make ps ENV=test | grep -qiE "(starting|restarting|unhealthy)"; then
-              echo "All services have finished starting!"
+              echo "✅ すべてのサービスが正常に起動しました！"
               break
-            else
-              echo "Waiting for services to finish starting... (Attempt $i/$max_retries)"
-              sleep $retry_interval
             fi
           
-            if [ $i -eq $max_retries ]; then
-              echo "Services did not finish starting within the allocated time."
-              make logs:once ENV=test
-              exit 1
-            fi
+            echo "🕒 サービス起動中... 経過時間: ${elapsed}秒/${timeout}秒"
+            sleep $interval
+            elapsed=$((elapsed + interval))
           done
           
+          if [ $elapsed -ge $timeout ]; then
+            echo "❌ タイムアウト: サービスが起動しませんでした"
+            make logs:once ENV=test
+            exit 1
+          fi
+          
           if make ps ENV=test | grep -q "unhealthy"; then
-            echo "Some services are unhealthy:"
+            echo "❌ 不健全なサービスがあります:"
             make ps ENV=test
             make logs:once ENV=test
             exit 1
-          else
-            echo "All services are healthy!"
-            make ps ENV=test
           fi
+          
+          make ps ENV=test
 
       - name: Check Dumper service
         run: make db:dump:test ENV=test
