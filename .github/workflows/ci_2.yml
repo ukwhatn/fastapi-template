@@ -1,0 +1,183 @@
+name: CI
+
+on:
+  pull_request_target:
+    branches:
+      - main
+      - develop
+  workflow_dispatch:
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      cache-key: ${{ steps.cache-key.outputs.key }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate cache key
+        id: cache-key
+        run: echo "key=${{ github.sha }}-${{ hashFiles('**/poetry.lock') }}" >> $GITHUB_OUTPUT
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: 'pip'
+
+      - name: Cache poetry dependencies
+        uses: actions/cache@v4
+        id: poetry-cache
+        with:
+          path: ~/.cache/pypoetry
+          key: ${{ runner.os }}-poetry-${{ hashFiles('**/poetry.lock') }}
+
+      - name: Install dependencies
+        id: install
+        run: |
+          python -m pip install --upgrade pip
+          pip install poetry
+          poetry config virtualenvs.create false
+          poetry install --with dev,server,db,dumper
+
+      - name: Setup environment
+        run: |
+          make envs:setup
+
+      - name: Cache Docker images
+        uses: actions/cache@v4
+        with:
+          path: /tmp/docker-cache
+          key: ${{ runner.os }}-docker-${{ github.sha }}
+
+      - name: Build Docker images
+        run: |
+          mkdir -p /tmp/docker-cache
+          make build ENV=test
+          docker save $(docker images -q) -o /tmp/docker-cache/images.tar
+
+  quality-and-security:
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: 'pip'
+
+      - name: Cache poetry dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pypoetry
+          key: ${{ runner.os }}-poetry-${{ hashFiles('**/poetry.lock') }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install poetry
+          poetry config virtualenvs.create false
+          poetry install --with dev
+
+      - name: Lint with ruff
+        run: |
+          make lint
+
+      - name: Run security scans
+        run: |
+          # Bandit scan for critical issues only
+          echo "Running critical Bandit scan..."
+          poetry run bandit -r app/ -x tests/,app/db/dump.py -ll || exit 1
+          
+          # Semgrep scan for critical issues only
+          echo "Running critical Semgrep scan..."
+          poetry run semgrep scan --config=p/python --config=p/security-audit --config=p/owasp-top-ten --severity ERROR --error
+
+  container-scan:
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Trivy Scanner
+        run: |
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin v0.46.1
+
+      - name: Scan Dockerfiles
+        run: |
+          # 重要な脆弱性のみチェック
+          trivy config --exit-code 1 --severity CRITICAL ./docker/server.Dockerfile
+          trivy config --exit-code 1 --severity CRITICAL ./docker/db-tools.Dockerfile
+
+  check-healthy:
+    needs: [quality-and-security, container-scan]
+    runs-on: ubuntu-latest
+    if: |
+      (github.event.pull_request.user.login == 'ukwhatn') ||
+      (github.event.pull_request.user.login == 'dependabot[bot]')
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Cache Docker images
+        uses: actions/cache@v4
+        with:
+          path: /tmp/docker-cache
+          key: ${{ runner.os }}-docker-${{ github.sha }}
+
+      - name: Load Docker images
+        run: |
+          if [ -f /tmp/docker-cache/images.tar ]; then
+            docker load -i /tmp/docker-cache/images.tar
+          fi
+
+      - name: Setup environment
+        run: |
+          make envs:setup
+          sed -i 's/S3_ENDPOINT=http:\/\/your-storage-endpoint:port/S3_ENDPOINT="${{ secrets.S3_ENDPOINT || '' }}"/' envs/aws-s3.env
+          sed -i 's/S3_ACCESS_KEY=your_access_key/S3_ACCESS_KEY="${{ secrets.S3_ACCESS_KEY || '' }}"/' envs/aws-s3.env
+          sed -i 's/S3_SECRET_KEY=your_secret_key/S3_SECRET_KEY="${{ secrets.S3_SECRET_KEY || '' }}"/' envs/aws-s3.env
+
+      - name: Build and start services
+        run: make up ENV=test
+
+      - name: Health check with timeout
+        run: |
+          timeout=30
+          interval=5
+          elapsed=0
+          
+          while [ $elapsed -lt $timeout ]; do
+            if ! make ps ENV=test | grep -qiE "(starting|restarting|unhealthy)"; then
+              echo "✅ すべてのサービスが正常に起動しました！"
+              break
+            fi
+          
+            echo "🕒 サービス起動中... 経過時間: ${elapsed}秒/${timeout}秒"
+            sleep $interval
+            elapsed=$((elapsed + interval))
+          done
+          
+          if [ $elapsed -ge $timeout ]; then
+            echo "❌ タイムアウト: サービスが起動しませんでした"
+            make logs:once ENV=test
+            exit 1
+          fi
+          
+          if make ps ENV=test | grep -q "unhealthy"; then
+            echo "❌ 不健全なサービスがあります:"
+            make ps ENV=test
+            make logs:once ENV=test
+            exit 1
+          fi
+          
+          make ps ENV=test
+
+      - name: Check Dumper service
+        run: make db:dump:test ENV=test
+
+      - name: Clean up
+        run: make down ENV=test
