@@ -99,7 +99,7 @@ services:
       - ./envs/aws-s3.env
     environment:
       - DB_TOOL_MODE=dumper
-      - DUMPER_MODE=stop
+      - DUMPER_MODE=scheduled
       - POSTGRES_HOST=db
       - POSTGRES_DB=main
     restart: unless-stopped
