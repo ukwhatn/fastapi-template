@@ -66,19 +66,13 @@ services:
 
   db-migrator:
     container_name: fastapi-template-db-migrator
-    build:
-      context: .
-      dockerfile: ./docker/db-tools.Dockerfile
-      args:
-        MODE: migrator
+    image: ghcr.io/ukwhatn/psql-migrator:latest
     volumes:
-      - ./app/db:/app/db
-      - ./app/core/config.py:/app/core/config.py
-      - ./migrations:/app/migrations
+      - ./versions:/app/versions
     env_file:
       - ./envs/db.env
     environment:
-      - DB_TOOL_MODE=migrator
+      - POSTGRES_HOST=db
     restart: no
     depends_on:
       db:
@@ -88,20 +82,13 @@ services:
 
   db-dumper:
     container_name: fastapi-template-db-dumper
-    build:
-      context: .
-      dockerfile: ./docker/db-tools.Dockerfile
-      args:
-        MODE: dumper
+    image: ghcr.io/ukwhatn/psql-dumper:latest
     env_file:
       - ./envs/db.env
       - ./envs/sentry.env
       - ./envs/aws-s3.env
     environment:
-      - DB_TOOL_MODE=dumper
-      - DUMPER_MODE=scheduled
       - POSTGRES_HOST=db
-      - POSTGRES_DB=main
     restart: unless-stopped
     depends_on:
       db:
