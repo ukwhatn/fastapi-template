@@ -69,7 +69,7 @@ jobs:
           curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin v0.46.1
           
           echo "Scanning Dockerfiles..."
-          trivy config --exit-code 1 --severity CRITICAL ./docker/app.Dockerfile &
+          trivy config --exit-code 1 --severity CRITICAL ./docker/server.Dockerfile &
           TRIVY1_PID=$!
           
           trivy config --exit-code 1 --severity CRITICAL ./docker/db-tools.Dockerfile &
@@ -79,7 +79,7 @@ jobs:
           wait $LINT_PID || { echo "Linting failed"; exit 1; }
           wait $BANDIT_PID || { echo "Bandit scan failed"; exit 1; }
           wait $SEMGREP_PID || { echo "Semgrep scan failed"; exit 1; }
-          wait $TRIVY1_PID || { echo "Trivy app.Dockerfile scan failed"; exit 1; }
+          wait $TRIVY1_PID || { echo "Trivy server.Dockerfile scan failed"; exit 1; }
           wait $TRIVY2_PID || { echo "Trivy db-tools.Dockerfile scan failed"; exit 1; }
           
           echo "All quality and security checks passed!"
