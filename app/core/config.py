@@ -40,7 +40,7 @@ class Settings(BaseSettings):
         raise ValueError(v)
 
     # セキュリティヘッダー設定
-    SECURITY_HEADERS: bool = True
+    SECURITY_HEADERS: bool = False
     CSP_POLICY: str = (
         "default-src 'self'; img-src 'self' data:; script-src 'self'; style-src 'self'"
     )
