@@ -1,6 +1,5 @@
 from typing import Callable
 
-from fastapi import FastAPI
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
@@ -14,12 +13,6 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     """
     セキュリティヘッダーを追加するミドルウェア
     """
-
-    def __init__(
-        self,
-        app: FastAPI,
-    ) -> None:
-        super().__init__(app)
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         response = await call_next(request)

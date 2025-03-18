@@ -147,7 +147,7 @@ async def validation_exception_handler(
 ) -> Response:
     """バリデーションエラーハンドラ"""
     error = ValidationError(
-        message="入力値が不正です",
+        message="Invalid request body",
         details=[
             {"loc": err["loc"], "msg": err["msg"], "type": err["type"]}
             for err in exc.errors()
@@ -171,7 +171,7 @@ async def error_response(request: Request, call_next):
 
         error = ErrorResponse(
             code="internal_server_error",
-            message="内部サーバーエラーが発生しました",
+            message="Internal server error occurred",
         )
         return Response(
             content=json.dumps(jsonable_encoder(error)),
