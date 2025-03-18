@@ -39,6 +39,7 @@ services:
       - ./envs/db.env
     environment:
       POSTGRES_DB: main
+      TZ: Asia/Tokyo
     volumes:
       - pg_data:/var/lib/postgresql/data
     restart: unless-stopped
@@ -50,18 +51,14 @@ services:
     networks:
       - db
 
-  pgadmin:
-    container_name: fastapi-template-pgadmin
-    image: dpage/pgadmin4:latest
-    volumes:
-      - ./pgadmin/config/servers.json:/pgadmin4/servers.json
+  adminer:
+    container_name: fastapi-template-adminer
+    image: adminer:latest
     environment:
-      PGADMIN_DEFAULT_EMAIL: user@example.com
-      PGADMIN_DEFAULT_PASSWORD: pwd
-      PGADMIN_CONFIG_SERVER_MODE: "False"
-      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+      ADMINER_DEFAULT_SERVER: db
+      ADMINER_DESIGN: pepa-linha
     ports:
-      - "127.0.0.1:8001:80"
+      - "127.0.0.1:8001:8080"
     restart: unless-stopped
     depends_on:
       db:

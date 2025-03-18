@@ -1,5 +1,8 @@
 FROM python:3.13.2-slim
 
+# timezone設定
+ENV TZ=Asia/Tokyo
+
 # 作業ディレクトリ設定
 WORKDIR /app
 

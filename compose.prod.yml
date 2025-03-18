@@ -41,6 +41,7 @@ services:
       - ./envs/db.env
     environment:
       POSTGRES_DB: main
+      TZ: Asia/Tokyo
     volumes:
       - pg_data:/var/lib/postgresql/data
     restart: unless-stopped
