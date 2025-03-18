@@ -1,3 +1,3 @@
-from .connection import Base, SessionLocal, engine, get_db
+from .connection import SessionLocal, engine, get_db
 
-__all__ = ["Base", "SessionLocal", "engine", "get_db"]
+__all__ = ["SessionLocal", "engine", "get_db"]
