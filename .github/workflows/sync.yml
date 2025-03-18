@@ -7,6 +7,7 @@ on:
         description: "Dry run"
         required: true
         default: "false"
+
 jobs:
   repo-sync:
     if: github.repository != 'ukwhatn/fastapi-template'
@@ -24,4 +25,4 @@ jobs:
         with:
           source_repo_path: ukwhatn/fastapi-template
           upstream_branch: develop
-          is_dry_run: ${{ github.event.inputs.dry_run }}
+          is_dry_run: ${{ github.event.inputs.dry_run == 'true' }}
