@@ -15,12 +15,6 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     セキュリティヘッダーを追加するミドルウェア
     """
 
-    def __init__(
-        self,
-        app: FastAPI,
-    ) -> None:
-        super().__init__(app)
-
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         response = await call_next(request)
 
