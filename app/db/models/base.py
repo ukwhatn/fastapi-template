@@ -1,10 +1,10 @@
 from datetime import datetime
 
 from sqlalchemy import DateTime, Integer
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, declarative_base
 from sqlalchemy.sql import text
 
-from db.connection import Base
+Base = declarative_base()
 
 
 class TimeStampMixin:

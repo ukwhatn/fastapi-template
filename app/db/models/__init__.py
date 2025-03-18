@@ -1,4 +1,4 @@
-from .base import BaseModel, TimeStampMixin
+from .base import Base, BaseModel, TimeStampMixin
 from .item import Item
 
-__all__ = ["BaseModel", "TimeStampMixin", "Item"]
+__all__ = ["Base", "BaseModel", "TimeStampMixin", "Item"]
