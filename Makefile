@@ -151,8 +151,8 @@ project\:init:
 	fi
 	@UNIX_NAME=$$(echo "$(NAME)" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g' | sed -E 's/^-|-$$//g'); \
 	echo "Initializing project with name: $(NAME) (unix name: $$UNIX_NAME)"; \
-	find . -type f -not -path "*/\.*" -not -path "*/node_modules/*" -not -path "*/venv/*" -exec grep -l "scp-jp-member-management-api" {} \; | xargs -I{} sed -i '' 's/scp-jp-member-management-api/'$$UNIX_NAME'/g' {}; \
-	find . -type f -not -path "*/\.*" -not -path "*/node_modules/*" -not -path "*/venv/*" -exec grep -l "SCP-JP Member Management API" {} \; | xargs -I{} sed -i '' 's/SCP-JP Member Management API/$(NAME)/g' {}
+	find . -type f -not -path "*/\.*" -not -path "*/node_modules/*" -not -path "*/venv/*" -exec grep -l "fastapi-template" {} \; | xargs -I{} sed -i '' 's/fastapi-template/'$$UNIX_NAME'/g' {}; \
+	find . -type f -not -path "*/\.*" -not -path "*/node_modules/*" -not -path "*/venv/*" -exec grep -l "FastAPI Template" {} \; | xargs -I{} sed -i '' 's/FastAPI Template/$(NAME)/g' {}
 
 	git add .
 	git commit -m "chore: initialize project with name: $(NAME)"
