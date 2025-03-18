@@ -6,8 +6,9 @@ on:
     inputs:
       dry_run:
         description: "Dry run"
+        type: boolean
         required: true
-        default: "false"
+        default: false
 
 jobs:
   repo-sync:
@@ -26,4 +27,4 @@ jobs:
         with:
           source_repo_path: ukwhatn/fastapi-template
           upstream_branch: develop
-          is_dry_run: ${{ github.event.inputs.dry_run == 'true' }}
+          is_dry_run: ${{ inputs.dry_run }}
