@@ -158,4 +158,17 @@ project\:init:
 	git commit -m "chore: initialize project with name: $(NAME)"
 	git switch -c develop
 
-.PHONY: build up down logs ps pr\:create deploy\:prod poetry\:install poetry\:add poetry\:lock poetry\:update poetry\:reset dev\:setup lint lint\:fix format security\:scan security\:scan\:code security\:scan\:sast test test\:cov test\:setup db\:revision\:create db\:migrate db\:downgrade db\:current db\:history db\:dump db\:backup\:test db\:dump\:oneshot db\:dump\:list db\:dump\:restore db\:dump\:test envs\:setup project\:init
+template\:update:
+	@if ! git remote | grep -q "template"; then \
+		git remote add template git@github.com:ukwhatn/fastapi-template.git; \
+		echo "Added template remote"; \
+	fi
+	git fetch --all
+	git merge template/main --squash --allow-unrelated-histories
+	@echo "Template updates from ukwhatn/fastapi-template have been squash-merged."
+	@echo "Review changes and commit them with: git commit -m \"your message\""
+
+template\:update\:commit:
+	git add . && git commit -m "chore: merge template updates from ukwhatn/fastapi-template"
+
+.PHONY: build up down logs ps pr\:create deploy\:prod poetry\:install poetry\:add poetry\:lock poetry\:update poetry\:reset dev\:setup lint lint\:fix format security\:scan security\:scan\:code security\:scan\:sast test test\:cov test\:setup db\:revision\:create db\:migrate db\:downgrade db\:current db\:history db\:dump db\:backup\:test db\:dump\:oneshot db\:dump\:list db\:dump\:restore db\:dump\:test envs\:setup project\:init template\:update template\:update\:commit
