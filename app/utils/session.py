@@ -33,13 +33,16 @@ class SessionCrud:
         """
         セッションデータ取得
         """
-        return self.crud.get(key)
+        data = self.crud.get(key)
+        if data is None:
+            return None
+        return SessionSchema.model_validate(data)
 
     def _set(self, key: str, value: SessionSchema) -> bool:
         """
         セッションデータ設定
         """
-        return self.crud.set(key, value, expire=self.expire)
+        return self.crud.set(key, value.model_dump(), expire=self.expire)
 
     def _delete(self, key: str) -> int:
         """
