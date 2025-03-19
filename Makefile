@@ -144,7 +144,7 @@ envs\:setup:
 	cp envs/aws-s3.env.example envs/aws-s3.env
 
 openapi\:generate:
-	docker compose -f $(COMPOSE_YML) exec server python -c "from main import app; import json; from fastapi.openapi.utils import get_openapi; openapi = get_openapi(title=app.title, version=app.version, description=app.description, routes=app.routes); print(json.dumps(openapi, indent=2))" > docs/openapi.json
+	docker compose -f $(COMPOSE_YML) exec server python -c "from main import app; import json; from fastapi.openapi.utils import get_openapi; openapi = get_openapi(title=app.title, version=app.version, description=app.description, routes=app.routes); print(json.dumps(openapi, indent=2, ensure_ascii=False))" > docs/openapi.json
 
 project\:init:
 	@if [ -z "$(NAME)" ]; then \
