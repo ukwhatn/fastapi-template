@@ -143,6 +143,9 @@ envs\:setup:
 	cp envs/sentry.env.example envs/sentry.env
 	cp envs/aws-s3.env.example envs/aws-s3.env
 
+openapi\:generate:
+	docker compose -f $(COMPOSE_YML) exec server python -c "from main import app; import json; from fastapi.openapi.utils import get_openapi; openapi = get_openapi(title=app.title, version=app.version, description=app.description, routes=app.routes); print(json.dumps(openapi, indent=2))" > docs/openapi.json
+
 project\:init:
 	@if [ -z "$(NAME)" ]; then \
 		echo "Error: NAME is required"; \
@@ -201,4 +204,4 @@ template\:apply\:force:
 	git checkout $$commit_hash -- . && \
 	echo "テンプレートの変更が強制的に適用されました。変更を確認しgit add/commitしてください。"
 
-.PHONY: build up down logs ps pr\:create deploy\:prod poetry\:install poetry\:add poetry\:lock poetry\:update poetry\:reset dev\:setup lint lint\:fix format security\:scan security\:scan\:code security\:scan\:sast test test\:cov test\:setup db\:revision\:create db\:migrate db\:downgrade db\:current db\:history db\:dump db\:backup\:test db\:dump\:oneshot db\:dump\:list db\:dump\:restore db\:dump\:test envs\:setup project\:init template\:list template\:apply template\:apply\:range template\:apply\:force
+.PHONY: build up down logs ps pr\:create deploy\:prod poetry\:install poetry\:add poetry\:lock poetry\:update poetry\:reset dev\:setup lint lint\:fix format security\:scan security\:scan\:code security\:scan\:sast test test\:cov test\:setup db\:revision\:create db\:migrate db\:downgrade db\:current db\:history db\:dump db\:backup\:test db\:dump\:oneshot db\:dump\:list db\:dump\:restore db\:dump\:test envs\:setup openapi\:generate project\:init template\:list template\:apply template\:apply\:range template\:apply\:force
