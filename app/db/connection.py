@@ -1,3 +1,5 @@
+from contextlib import contextmanager
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -20,5 +22,24 @@ def get_db():
     db = SessionLocal()
     try:
         yield db
+    finally:
+        db.close()
+
+
+@contextmanager
+def db_session():
+    """
+    with句で使用できるデータベースセッションのコンテキストマネージャ
+    使用例:
+    with db_session() as db:
+        user = db.query(User).filter(User.id == user_id).first()
+    """
+    db = SessionLocal()
+    try:
+        yield db
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise e
     finally:
         db.close()
