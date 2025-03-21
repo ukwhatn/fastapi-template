@@ -1746,18 +1746,18 @@ files = [
 
 [[package]]
 name = "semgrep"
-version = "1.112.0"
+version = "1.114.0"
 description = "Lightweight static analysis for many languages. Find bug variants with patterns that look like source code."
 optional = false
 python-versions = ">=3.9"
 groups = ["dev"]
 files = [
-    {file = "semgrep-1.112.0-cp39.cp310.cp311.py39.py310.py311-none-macosx_10_14_x86_64.whl", hash = "sha256:7eb00b0b331e2b97ee4b80834cd31e79996a48ec001f06f73ba12607f81c3c7b"},
-    {file = "semgrep-1.112.0-cp39.cp310.cp311.py39.py310.py311-none-macosx_11_0_arm64.whl", hash = "sha256:6195ac4d19474ae8b52f6c4f728355c69f87fdd9fb15d9c2f4fdd43b4f5244cb"},
-    {file = "semgrep-1.112.0-cp39.cp310.cp311.py39.py310.py311-none-musllinux_1_0_aarch64.manylinux2014_aarch64.whl", hash = "sha256:0c8f2db9b45353a7eede1985cedccaad1fef8522c6faf140ebbf1e05aa50dd39"},
-    {file = "semgrep-1.112.0-cp39.cp310.cp311.py39.py310.py311-none-musllinux_1_0_x86_64.manylinux2014_x86_64.whl", hash = "sha256:e8698a76e5b13c71ab6599767e39fe901f637be8a36e556f3f59876215efb4ea"},
-    {file = "semgrep-1.112.0-cp39.cp310.cp311.py39.py310.py311-none-win_amd64.whl", hash = "sha256:78b9e0d776299168c2f92db614d7f164d1b95a3d823b5e3b3dbb881e483ce256"},
-    {file = "semgrep-1.112.0.tar.gz", hash = "sha256:d00e42db01b81206d85491e803273cc57ad044e9fc17dbdb4c20e20cc1dabd75"},
+    {file = "semgrep-1.114.0-cp39.cp310.cp311.py39.py310.py311-none-macosx_10_14_x86_64.whl", hash = "sha256:c2e0e1c691111094bae6f22fa9db4525115c311f3439081f829192ed7cb5cd5e"},
+    {file = "semgrep-1.114.0-cp39.cp310.cp311.py39.py310.py311-none-macosx_11_0_arm64.whl", hash = "sha256:cc76329c6164ad92bbf98808d2f475d1c8b68383b7a0c96f50c6426a4ad91c51"},
+    {file = "semgrep-1.114.0-cp39.cp310.cp311.py39.py310.py311-none-musllinux_1_0_aarch64.manylinux2014_aarch64.whl", hash = "sha256:c06c7bf315c97858eb3d376e51912d7c8ec754c1b70715693643bd266b9e172a"},
+    {file = "semgrep-1.114.0-cp39.cp310.cp311.py39.py310.py311-none-musllinux_1_0_x86_64.manylinux2014_x86_64.whl", hash = "sha256:234ed5fe05fbd02d143059db1c93c40e0d61d60c997281b4cd867a9687da90fe"},
+    {file = "semgrep-1.114.0-cp39.cp310.cp311.py39.py310.py311-none-win_amd64.whl", hash = "sha256:106af67a3c47e9dcd2d6dd27b5786046a00e8f253a08f8e27c8cf0d5bb5681f2"},
+    {file = "semgrep-1.114.0.tar.gz", hash = "sha256:d872c171b1aa80a592cc95b70542bc3fdd7f15916cb4b9a8c2de65acf6f9157c"},
 ]
 
 [package.dependencies]
