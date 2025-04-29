@@ -1749,17 +1749,17 @@ files = [
 
 [[package]]
 name = "semgrep"
-version = "1.120.0"
+version = "1.120.1"
 description = "Lightweight static analysis for many languages. Find bug variants with patterns that look like source code."
 optional = false
 python-versions = ">=3.9"
 groups = ["dev"]
 files = [
-    {file = "semgrep-1.120.0-cp39.cp310.cp311.py39.py310.py311-none-macosx_10_14_x86_64.whl", hash = "sha256:6226d12eb286428589155bdaced3a2439ba04c629036f104ffb39c542d13cce3"},
-    {file = "semgrep-1.120.0-cp39.cp310.cp311.py39.py310.py311-none-macosx_11_0_arm64.whl", hash = "sha256:02f269443f4f3f99b7cc85ff67ae7bed29522889b0d2182727740969e658237f"},
-    {file = "semgrep-1.120.0-cp39.cp310.cp311.py39.py310.py311-none-musllinux_1_0_aarch64.manylinux2014_aarch64.whl", hash = "sha256:4a607262bbf56f6a09d55f0ab36cec6f4b147fb6c2cc2d49b38deb361d09a8e1"},
-    {file = "semgrep-1.120.0-cp39.cp310.cp311.py39.py310.py311-none-musllinux_1_0_x86_64.manylinux2014_x86_64.whl", hash = "sha256:91a66cb04eed24a0bb18abbc10b436e7c8d38e3db9694a85d9a9096678770e40"},
-    {file = "semgrep-1.120.0-cp39.cp310.cp311.py39.py310.py311-none-win_amd64.whl", hash = "sha256:bbb44254bce574dbfc0b3ff7e460ee98c2d283f9775feb0cbb730b10bedb7b9b"},
+    {file = "semgrep-1.120.1-cp39.cp310.cp311.py39.py310.py311-none-macosx_10_14_x86_64.whl", hash = "sha256:22d6839e56a3793f56a1b45296832f418c8efa653ffe9a0800e71629269feeae"},
+    {file = "semgrep-1.120.1-cp39.cp310.cp311.py39.py310.py311-none-macosx_11_0_arm64.whl", hash = "sha256:b91c4554f0019d3e4b87215b4d134c7a908095f4be9b0e9525f53c8a774aa695"},
+    {file = "semgrep-1.120.1-cp39.cp310.cp311.py39.py310.py311-none-musllinux_1_0_aarch64.manylinux2014_aarch64.whl", hash = "sha256:93babbb7b47bed170bbec7ef704dd33f072e70a144edfd7e032811ac70281c8f"},
+    {file = "semgrep-1.120.1-cp39.cp310.cp311.py39.py310.py311-none-musllinux_1_0_x86_64.manylinux2014_x86_64.whl", hash = "sha256:0feb5294e770b208c42802ff9503550a7464ed792d6ab216ba882edbd42862a7"},
+    {file = "semgrep-1.120.1-cp39.cp310.cp311.py39.py310.py311-none-win_amd64.whl", hash = "sha256:e595c0b6a975fbfd1df2180f41599a0464f496686dc717cf8cfbab1ec264e048"},
 ]
 
 [package.dependencies]
