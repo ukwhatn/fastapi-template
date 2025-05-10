@@ -1,0 +1,121 @@
+from typing import Any, List
+
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.orm import Session
+
+from api import deps
+from db import crud
+from db.schemas.{resource_name} import {Resource}, {Resource}Create, {Resource}Update
+
+router = APIRouter()
+
+
+@router.get("/", response_model=List[{Resource}])
+def read_{resource_name}s(
+    db_session: deps.DBWithSession = Depends(deps.get_db_with_session),
+    skip: int = 0,
+    limit: int = 100,
+    filter_param: str = Query(None, description="フィルタリングパラメータ"),
+) -> Any:
+    """
+    複数{resource_name}取得
+
+    すべての{resource_name}を取得します。
+    オプションでフィルタリングパラメータを指定できます。
+    """
+    if filter_param:
+        {resource_name}s = crud.{resource_name}.get_multi_by_filter(
+            db_session.db, filter_param=filter_param, skip=skip, limit=limit
+        )
+    else:
+        {resource_name}s = crud.{resource_name}.get_multi(db_session.db, skip=skip, limit=limit)
+    return {resource_name}s
+
+
+@router.post("/", response_model={Resource})
+def create_{resource_name}(
+    *,
+    db: Session = Depends(deps.get_db),
+    {resource_name}_in: {Resource}Create,
+    _: str = Depends(deps.get_api_key),  # APIキー認証
+) -> Any:
+    """
+    {resource_name}作成（APIキー認証必須）
+
+    新しい{resource_name}を作成します。
+    """
+    # 必要に応じて追加データを設定
+    additional_data = {
+        # 例: "created_by": "system"
+    }
+
+    {resource_name} = crud.{resource_name}.create_with_custom_data(
+        db=db, obj_in={resource_name}_in, additional_data=additional_data
+    )
+    return {resource_name}
+
+
+@router.put("/{id}", response_model={Resource})
+def update_{resource_name}(
+    *,
+    db: Session = Depends(deps.get_db),
+    id: int,
+    {resource_name}_in: {Resource}Update,
+    _: str = Depends(deps.get_api_key),  # APIキー認証
+) -> Any:
+    """
+    {resource_name}更新（APIキー認証必須）
+
+    指定されたIDの{resource_name}を更新します。
+    """
+    {resource_name} = crud.{resource_name}.get(db=db, id=id)
+    if not {resource_name}:
+        raise HTTPException(status_code=404, detail="{Resource} not found")
+
+    # 必要に応じて権限チェックなどを追加
+    # if not has_permission_to_update({resource_name}):
+    #     raise HTTPException(status_code=403, detail="Permission denied")
+
+    {resource_name} = crud.{resource_name}.update(db=db, db_obj={resource_name}, obj_in={resource_name}_in)
+    return {resource_name}
+
+
+@router.get("/{id}", response_model={Resource})
+def read_{resource_name}(
+    *,
+    db: Session = Depends(deps.get_db),
+    id: int,
+) -> Any:
+    """
+    {resource_name}取得
+
+    指定されたIDの{resource_name}を取得します。
+    """
+    {resource_name} = crud.{resource_name}.get(db=db, id=id)
+    if not {resource_name}:
+        raise HTTPException(status_code=404, detail="{Resource} not found")
+    return {resource_name}
+
+
+@router.delete("/{id}", response_model={Resource})
+def delete_{resource_name}(
+    *,
+    db: Session = Depends(deps.get_db),
+    id: int,
+    _: str = Depends(deps.get_api_key),  # APIキー認証
+) -> Any:
+    """
+    {resource_name}削除（APIキー認証必須）
+
+    指定されたIDの{resource_name}を削除します。
+    """
+    {resource_name} = crud.{resource_name}.get(db=db, id=id)
+    if not {resource_name}:
+        raise HTTPException(status_code=404, detail="{Resource} not found")
+
+    # 必要に応じて権限チェックなどを追加
+    # if not has_permission_to_delete({resource_name}):
+    #     raise HTTPException(status_code=403, detail="Permission denied")
+
+    {resource_name} = crud.{resource_name}.remove(db=db, id=id)
+    return {resource_name}

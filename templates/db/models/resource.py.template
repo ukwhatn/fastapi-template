@@ -1,0 +1,23 @@
+from sqlalchemy import String
+from sqlalchemy.orm import Mapped, mapped_column
+
+from .base import BaseModel
+
+
+class {Resource}(BaseModel):
+    """
+    {resource_name}モデル
+
+    このクラスは自動生成されたテンプレートです。
+    必要に応じてフィールドを追加・変更してください。
+    """
+
+    __tablename__ = "{resource_name}s"
+
+    # 以下はサンプルフィールドです。必要に応じて変更してください
+    name: Mapped[str] = mapped_column(String(100), index=True)
+    description: Mapped[str] = mapped_column(String(255), nullable=True)
+
+    # 例: 関連フィールドを追加する場合
+    # user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    # status: Mapped[str] = mapped_column(String(20), default="active")

@@ -1,0 +1,52 @@
+from typing import Optional
+
+from .base import BaseModelSchema, BaseSchema
+
+
+class {Resource}Base(BaseSchema):
+    """
+    {Resource}の基本スキーマ
+
+    このクラスは自動生成されたテンプレートです。
+    必要に応じてフィールドを追加・変更してください。
+    """
+
+    name: str
+    description: Optional[str] = None
+
+    # 以下のようにフィールドを追加できます
+    # status: str = "active"
+    # tags: List[str] = []
+
+
+class {Resource}Create({Resource}Base):
+    """
+    {Resource}作成時のスキーマ
+
+    作成時に必要な追加フィールドがあれば、ここに定義します。
+    """
+
+    pass
+
+
+class {Resource}Update({Resource}Base):
+    """
+    {Resource}更新時のスキーマ
+
+    更新時はすべてのフィールドをオプショナルにします。
+    """
+
+    name: Optional[str] = None
+    # 他のフィールドも同様にオプショナルにします
+
+
+class {Resource}({Resource}Base, BaseModelSchema):
+    """
+    {Resource}取得時のスキーマ
+
+    データベースから取得した際に含まれる追加フィールドを定義します。
+    """
+
+    # 以下は自動生成されるフィールドの例です
+    # user_id: Optional[int] = None
+    # created_by: Optional[str] = None

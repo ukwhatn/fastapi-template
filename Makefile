@@ -75,13 +75,13 @@ dev\:setup:
 	poetry install --with $(POETRY_GROUPS)
 
 lint:
-	poetry run ruff check .
+	poetry run ruff check ./app ./versions
 
 lint\:fix:
-	poetry run ruff check --fix .
+	poetry run ruff check --fix ./app ./versions
 
 format:
-	poetry run ruff format .
+	poetry run ruff format ./app ./versions
 
 security\:scan:
 	make security:scan:code
@@ -204,4 +204,40 @@ template\:apply\:force:
 	git checkout $$commit_hash -- . && \
 	echo "テンプレートの変更が強制的に適用されました。変更を確認しgit add/commitしてください。"
 
-.PHONY: build up down logs ps pr\:create deploy\:prod poetry\:install poetry\:add poetry\:lock poetry\:update poetry\:reset dev\:setup lint lint\:fix format security\:scan security\:scan\:code security\:scan\:sast test test\:cov test\:setup db\:revision\:create db\:migrate db\:downgrade db\:current db\:history db\:dump db\:backup\:test db\:dump\:oneshot db\:dump\:list db\:dump\:restore db\:dump\:test envs\:setup openapi\:generate project\:init template\:list template\:apply template\:apply\:range template\:apply\:force
+# リソース生成コマンド
+model\:generate:
+	@if [ -z "$(NAME)" ]; then \
+		echo "エラー: NAME が必要です"; \
+		echo "使用方法: make model:generate NAME=resource_name"; \
+		echo "例: make model:generate NAME=blog_post"; \
+		exit 1; \
+	fi
+	@echo "モデルを生成中: $(NAME)"
+	@python templates/generate.py model $(NAME)
+
+router\:generate:
+	@if [ -z "$(NAME)" ]; then \
+		echo "エラー: NAME が必要です"; \
+		echo "使用方法: make router:generate NAME=resource_name"; \
+		echo "例: make router:generate NAME=blog_post"; \
+		exit 1; \
+	fi
+	@echo "ルーターを生成中: $(NAME)"
+	@chmod +x templates/generate.py
+	@python templates/generate.py router $(NAME)
+
+# 後方互換性のために残す
+resource\:generate:
+	@if [ -z "$(NAME)" ]; then \
+		echo "エラー: NAME が必要です"; \
+		echo "使用方法: make resource:generate NAME=resource_name"; \
+		echo "例: make resource:generate NAME=blog_post"; \
+		echo "注意: このコマンドは非推奨です。代わりに model:generate と router:generate を使用してください。"; \
+		exit 1; \
+	fi
+	@echo "リソースを生成中: $(NAME)"
+	@chmod +x templates/generate.py
+	@python templates/generate.py model $(NAME)
+	@python templates/generate.py router $(NAME)
+
+.PHONY: build up down logs ps pr\:create deploy\:prod poetry\:install poetry\:add poetry\:lock poetry\:update poetry\:reset dev\:setup lint lint\:fix format security\:scan security\:scan\:code security\:scan\:sast test test\:cov test\:setup db\:revision\:create db\:migrate db\:downgrade db\:current db\:history db\:dump db\:backup\:test db\:dump\:oneshot db\:dump\:list db\:dump\:restore db\:dump\:test envs\:setup openapi\:generate project\:init template\:list template\:apply template\:apply\:range template\:apply\:force resource\:generate model\:generate router\:generate
