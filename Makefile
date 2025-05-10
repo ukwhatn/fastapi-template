@@ -75,13 +75,13 @@ dev\:setup:
 	poetry install --with $(POETRY_GROUPS)
 
 lint:
-	poetry run ruff check .
+	poetry run ruff check ./app
 
 lint\:fix:
-	poetry run ruff check --fix .
+	poetry run ruff check --fix ./app
 
 format:
-	poetry run ruff format .
+	poetry run ruff format ./app
 
 security\:scan:
 	make security:scan:code
