@@ -213,7 +213,6 @@ model\:generate:
 		exit 1; \
 	fi
 	@echo "モデルを生成中: $(NAME)"
-	@chmod +x templates/generate.py
 	@python templates/generate.py model $(NAME)
 
 router\:generate:
