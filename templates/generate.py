@@ -83,24 +83,27 @@ def generate_router(resource_name):
 
     # 各テンプレートの処理
     for mapping in template_mappings:
-        process_template(mapping, resource_name, resource_class_name)
+        process_template(mapping, resource_name, resource_class_name, non_interactive)
 
     print(f"\nAPIルーター '{resource_name}s' が正常に生成されました！")
     print(f"app/api/v1/__init__.pyにルーターを登録することを忘れないでください")
     print(f"例: router.include_router({resource_name}s.router, prefix='/{resource_name}s', tags=['{resource_class_name}s'])")
 
 
-def process_template(mapping, resource_name, resource_class_name):
+def process_template(mapping, resource_name, resource_class_name, non_interactive=False):
     """テンプレートを処理して出力ファイルを生成します。"""
     template_path = mapping['template']
     destination_path = mapping['destination']
 
     # 出力先ファイルが既に存在するかチェック
     if destination_path.exists():
-        overwrite = input(f"ファイル {destination_path} は既に存在します。上書きしますか？ (y/n): ")
-        if overwrite.lower() != 'y':
-            print(f"{destination_path} をスキップします")
-            return
+        if non_interactive:
+            print(f"非対話モード: {destination_path} を自動的に上書きします")
+        else:
+            overwrite = input(f"ファイル {destination_path} は既に存在します。上書きしますか？ (y/n): ")
+            if overwrite.lower() != 'y':
+                print(f"{destination_path} をスキップします")
+                return
 
     # 親ディレクトリが存在しない場合は作成
     destination_path.parent.mkdir(parents=True, exist_ok=True)
