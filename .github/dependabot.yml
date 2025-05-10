@@ -7,8 +7,6 @@ updates:
     target-branch: "develop"
     assignees:
       - "ukwhatn"
-    reviewers:
-      - "ukwhatn"
 
   - package-ecosystem: "pip"
     directory: "/"
@@ -18,8 +16,6 @@ updates:
     versioning-strategy: increase-if-necessary
     assignees:
       - "ukwhatn"
-    reviewers:
-      - "ukwhatn"
 
   - package-ecosystem: "docker"
     directory: "/docker"
@@ -27,6 +23,4 @@ updates:
       interval: "daily"
     target-branch: "develop"
     assignees:
-      - "ukwhatn"
-    reviewers:
       - "ukwhatn"
