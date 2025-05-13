@@ -11,7 +11,7 @@ python = "^3.10"
 [tool.poetry.group.server]
 optional = true
 [tool.poetry.group.server.dependencies]
-redis = "^5.0.8"
+redis = "^6.1.0"
 fastapi = {extras = ["standard"], version = "^0.115.0"}
 sentry-sdk = {extras = ["fastapi"], version = "^2.19.2"}
 newrelic = "^10.3.1"
