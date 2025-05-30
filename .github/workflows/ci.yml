@@ -27,9 +27,6 @@ jobs:
 
       - name: Install uv
         uses: astral-sh/setup-uv@v3
-        with:
-          enable-cache: true
-          cache-dependency-glob: "uv.lock"
 
       - name: Install dependencies
         id: install
@@ -41,14 +38,6 @@ jobs:
           make envs:setup
           sed -i 's/S3_ACCESS_KEY=""/S3_ACCESS_KEY="${{ secrets.S3_ACCESS_KEY }}"/' envs/aws-s3.env
           sed -i 's/S3_SECRET_KEY=""/S3_SECRET_KEY="${{ secrets.S3_SECRET_KEY }}"/' envs/aws-s3.env
-
-      - name: Cache setup artifacts
-        uses: actions/cache@v4
-        with:
-          path: |
-            envs/
-            .venv/
-          key: ${{ runner.os }}-setup-${{ github.sha }}
 
   quality-checks:
     runs-on: ubuntu-latest
@@ -65,17 +54,6 @@ jobs:
 
       - name: Install uv
         uses: astral-sh/setup-uv@v3
-        with:
-          enable-cache: true
-          cache-dependency-glob: "uv.lock"
-
-      - name: Restore setup artifacts
-        uses: actions/cache@v4
-        with:
-          path: |
-            envs/
-            .venv/
-          key: ${{ runner.os }}-setup-${{ github.sha }}
 
       - name: Install dependencies
         run: |
@@ -132,17 +110,6 @@ jobs:
 
       - name: Install uv
         uses: astral-sh/setup-uv@v3
-        with:
-          enable-cache: true
-          cache-dependency-glob: "uv.lock"
-
-      - name: Restore setup artifacts
-        uses: actions/cache@v4
-        with:
-          path: |
-            envs/
-            .venv/
-          key: ${{ runner.os }}-setup-${{ github.sha }}
 
       - name: Install dependencies
         run: |
