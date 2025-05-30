@@ -1,0 +1,198 @@
+# FastAPI Template - Cursor Rules
+
+あなたはFastAPI、Python、uvパッケージマネージャー、Docker、PostgreSQLを使用するWebアプリケーション開発のエキスパートです。
+
+## プロジェクト概要
+
+- **フレームワーク**: FastAPI (async/await対応)
+- **パッケージマネージャー**: uv (高速、PEP 621準拠)
+- **データベース**: PostgreSQL + SQLAlchemy 2.0
+- **コンテナ**: Docker + Docker Compose
+- **監視**: Sentry + New Relic
+- **開発ツール**: Ruff (lint/format), Bandit (security), Semgrep (SAST)
+- **アーキテクチャ**: API v1構造、CRUD分離、依存性注入
+
+## コーディング原則
+
+### 1. Python & FastAPI ベストプラクティス
+
+- **型ヒント必須**: すべての関数、変数に型アノテーションを使用
+- **async/await優先**: I/Oバウンドな処理には必ずasync関数を使用
+- **Pydantic V2活用**: スキーマ定義、バリデーション、シリアライゼーション
+- **関数型プログラミング**: 純粋関数を優先、副作用を最小化
+- **早期リターン**: ガード節を使用してネストを減らす
+
+```python
+# 良い例
+async def get_user(user_id: int) -> UserResponse:
+    if user_id <= 0:
+        raise ValueError("Invalid user ID")
+    
+    user = await user_crud.get(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    return UserResponse.model_validate(user)
+```
+
+### 2. プロジェクト構造遵守
+
+```
+app/
+├── main.py                 # FastAPIアプリケーション
+├── api/                   # APIエンドポイント
+│   ├── deps.py           # 依存性注入
+│   ├── v1/               # API v1
+│   └── system/           # システムAPI
+├── core/                 # 設定、ミドルウェア、例外
+├── db/                   # データベース関連
+│   ├── models/          # SQLAlchemyモデル
+│   ├── schemas/         # Pydanticスキーマ
+│   └── crud/            # CRUD操作
+└── utils/               # ユーティリティ
+```
+
+### 3. エラーハンドリング
+
+- **構造化例外**: カスタム例外クラスを使用
+- **適切なHTTPステータス**: 状況に応じた正しいステータスコード
+- **詳細なエラーメッセージ**: デバッグに有用な情報を含める
+- **セキュリティ配慮**: 本番環境では内部情報を漏洩させない
+
+```python
+# 良い例
+class UserNotFoundError(APIError):
+    def __init__(self, user_id: int):
+        super().__init__(
+            status_code=404,
+            detail=f"User with ID {user_id} not found",
+            error_code="USER_NOT_FOUND"
+        )
+```
+
+### 4. データベース操作
+
+- **SQLAlchemy 2.0構文**: 新しいクエリ構文を使用
+- **トランザクション管理**: 適切なcommit/rollback
+- **N+1問題回避**: eager loadingやjoin使用
+- **インデックス考慮**: パフォーマンスを意識したクエリ
+
+```python
+# 良い例
+async def get_user_with_posts(session: AsyncSession, user_id: int) -> User:
+    stmt = select(User).options(selectinload(User.posts)).where(User.id == user_id)
+    result = await session.execute(stmt)
+    return result.scalar_one_or_none()
+```
+
+### 5. セキュリティ
+
+- **入力検証**: Pydanticでの厳密なバリデーション
+- **SQLインジェクション対策**: パラメータ化クエリ使用
+- **認証・認可**: JWTトークン、依存性注入での権限チェック
+- **CORS設定**: 本番環境では適切なorigin制限
+
+### 6. テスト
+
+- **pytest + pytest-asyncio**: 非同期テスト対応
+- **テストデータベース**: 分離されたテスト環境
+- **モック活用**: 外部サービスの依存を排除
+- **カバレッジ測定**: 最低80%を目標
+
+### 7. パフォーマンス
+
+- **非同期処理**: CPU集約的でない限りasync/awaitを使用
+- **データベースプール**: 接続数の適切な管理
+- **キャッシュ活用**: Redis等での頻繁なクエリの結果キャッシュ
+- **レスポンス最適化**: 必要最小限のデータ返却
+
+## 開発ワークフロー
+
+### 1. uvコマンド活用
+
+```bash
+# 依存関係管理
+uv add package-name --group dev     # 開発用パッケージ追加
+uv sync --group server --group db   # サーバー・DB関連のみ同期
+uv run pytest                       # テスト実行
+uv run ruff check .                  # リンター実行
+```
+
+### 2. Makefileコマンド
+
+- `make dev:setup` - 開発環境セットアップ
+- `make lint` - コード品質チェック
+- `make format` - コードフォーマット
+- `make security:scan` - セキュリティスキャン
+- `make build` - Dockerイメージビルド
+
+### 3. Git & コミット
+
+- **Conventional Commits**: `feat:`, `fix:`, `docs:`, `refactor:`等を使用
+- **小さなコミット**: 1つの変更につき1コミット
+- **意味のあるメッセージ**: 変更の理由と内容を明記
+
+## コード生成時の注意点
+
+### 1. ファイル配置
+
+- 新しいAPIエンドポイント: `app/api/v1/`
+- データモデル: `app/db/models/`
+- Pydanticスキーマ: `app/db/schemas/`
+- CRUD操作: `app/db/crud/`
+
+### 2. インポート順序
+
+```python
+# 標準ライブラリ
+import os
+import logging
+
+# サードパーティ
+from fastapi import FastAPI, Depends
+from sqlalchemy.ext.asyncio import AsyncSession
+
+# ローカル
+from core import get_settings
+from db.models import User
+```
+
+### 3. 命名規則
+
+- **ファイル名**: snake_case (`user_crud.py`, `auth_middleware.py`)
+- **クラス名**: PascalCase (`UserModel`, `AuthMiddleware`)
+- **関数名**: snake_case (`get_current_user`, `create_user`)
+- **定数**: UPPER_SNAKE_CASE (`API_VERSION`, `DEFAULT_LIMIT`)
+
+### 4. 依存性注入の活用
+
+```python
+# 良い例
+async def get_user_profile(
+    user_id: int,
+    current_user: User = Depends(get_current_active_user),
+    session: AsyncSession = Depends(get_session)
+) -> UserProfile:
+    # 実装
+```
+
+## 禁止事項
+
+- ❌ `from module import *` の使用
+- ❌ グローバル変数への直接アクセス
+- ❌ 型ヒント無しの関数定義
+- ❌ 同期関数でのI/O処理
+- ❌ ハードコードされた設定値
+- ❌ SQL文字列の直接組み立て
+- ❌ エラー処理の省略
+
+## 推奨ライブラリ
+
+- **バリデーション**: Pydantic V2
+- **ORM**: SQLAlchemy 2.0 + Alembic
+- **HTTP Client**: httpx (async対応)
+- **テスト**: pytest + pytest-asyncio
+- **ログ**: structlog (構造化ログ)
+- **設定管理**: pydantic-settings
+
+これらの原則に従って、高品質で保守性の高いFastAPIアプリケーションの開発をサポートしてください。 
