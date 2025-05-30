@@ -15,7 +15,7 @@
 ### 環境構築
 - `make project:init NAME="プロジェクト名"` - カスタム名で新規プロジェクトを初期化
 - `make envs:setup` - 環境変数ファイルをサンプルから作成
-- `make dev:setup` - Poetryで依存関係をインストール
+- `make dev:setup` - uvで依存関係をインストール
 
 #### 環境構築の詳細
 
@@ -53,16 +53,18 @@ make envs:setup
 make dev:setup
 ```
 
-このコマンドは、Poetryを使用して`pyproject.toml`で定義されたすべての依存関係をインストールします。
+このコマンドは、uvを使用して`pyproject.toml`で定義されたすべての依存関係をインストールします。
 
-##### Poetry管理コマンド
+##### uv管理コマンド
 
-Poetryを使用してパッケージを管理するための追加コマンド:
+uvを使用してパッケージを管理するための追加コマンド:
 
 ```bash
-make poetry:add group=dev packages="pytest pytest-cov"  # 開発用パッケージを追加
-make poetry:update group=dev                           # 開発用パッケージを更新
-make poetry:lock                                       # 依存関係をロック
+make uv:add group=dev packages="pytest pytest-cov"  # 開発用パッケージを追加
+make uv:update packages="pytest"                   # 特定のパッケージを更新
+make uv:update:all                                  # すべてのパッケージを更新
+make uv:lock                                        # 依存関係をロック
+make uv:sync group=dev                              # 特定のグループをインストール
 ```
 
 ### Docker管理
