@@ -55,6 +55,8 @@ COMPOSE_CMD := docker compose $(PROFILE_ARGS) $(COMPOSE_ENV_FILES)
 # 環境変数
 export ENV_MODE
 export SERVER_PORT
+export INCLUDE_DB
+export INCLUDE_REDIS
 
 build:
 	$(COMPOSE_CMD) build
@@ -174,8 +176,12 @@ db\:dump\:restore:
 	$(COMPOSE_CMD) run --rm db-dumper custom python dump.py restore $(FILE)
 
 db\:dump\:test:
-	$(COMPOSE_CMD) build
-	$(COMPOSE_CMD) run --rm db-dumper custom python dump.py test --confirm
+	@if [ "$(INCLUDE_DB)" != "true" ]; then \
+		echo "Skipping database dump test: INCLUDE_DB is not set to true"; \
+	else \
+		$(COMPOSE_CMD) build; \
+		$(COMPOSE_CMD) run --rm db-dumper custom python dump.py test --confirm; \
+	fi
 
 db\:backup\:test: # 後方互換性のためにエイリアスを提供
 	make db:dump:test

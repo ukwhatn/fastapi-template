@@ -24,6 +24,8 @@ services:
     environment:
       - ENV_MODE=${ENV_MODE:-development}
       - WATCHFILES_FORCE_POLLING=true
+      - INCLUDE_DB=${INCLUDE_DB:-false}
+      - INCLUDE_REDIS=${INCLUDE_REDIS:-false}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:80/system/healthcheck/"]
