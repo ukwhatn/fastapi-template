@@ -10,16 +10,15 @@ WORKDIR /app
 RUN apt update && \
     apt upgrade -y && \
     apt install -y libpq-dev gcc make curl && \
-    pip install --upgrade pip poetry
-
-# Poetryの設定
-RUN poetry config virtualenvs.create false
+    pip install --upgrade pip
 
 # 依存関係ファイルをコピー
-COPY pyproject.toml poetry.lock ./
+COPY pyproject.toml uv.lock ./
 
-# 依存関係インストール
-RUN poetry install --with server,db
+# uvのインストールと依存関係インストール
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh && \
+    export PATH="/root/.local/bin:$PATH" && \
+    uv sync --group server --group db --frozen --no-dev
 
 # 非rootユーザーを作成
 RUN adduser --disabled-password --gecos "" nonroot

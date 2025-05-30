@@ -1,36 +1,33 @@
-[tool.poetry]
+[project]
 name = "fastapi-template"
 version = "1.0.0"
 description = "A template for creating a new application"
-authors = ["Yuki Watanabe <ukwhatn@gmail.com>"]
-package-mode = false
+authors = [{ name = "Yuki Watanabe", email = "ukwhatn@gmail.com" }]
+requires-python = "~=3.10"
 
-[tool.poetry.dependencies]
-python = "^3.10"
+[dependency-groups]
+server = [
+    "redis>=6.1.0,<7",
+    "fastapi[standard]>=0.115.0,<0.116",
+    "sentry-sdk[fastapi]>=2.19.2,<3",
+    "newrelic>=10.3.1,<11",
+]
+dev = [
+    "ruff>=0.11.0,<0.12",
+    "bandit>=1.7.8,<2",
+    "semgrep>=1.63.0,<2",
+    "pytest>=8.3.5",
+]
+db = [
+    "sqlalchemy>=2.0.32,<3",
+    "psycopg2-binary>=2.9.9,<3",
+    "pydantic>=2.8.2,<3",
+    "pydantic-settings>=2.8.1,<3",
+]
 
-[tool.poetry.group.server]
-optional = true
-[tool.poetry.group.server.dependencies]
-redis = "^6.1.0"
-fastapi = {extras = ["standard"], version = "^0.115.0"}
-sentry-sdk = {extras = ["fastapi"], version = "^2.19.2"}
-newrelic = "^10.3.1"
-
-[tool.poetry.group.dev]
-optional = true
-[tool.poetry.group.dev.dependencies]
-ruff = "^0.11.0"
-bandit = "^1.7.8"
-semgrep = "^1.63.0"
-
-[tool.poetry.group.db]
-optional = true
-[tool.poetry.group.db.dependencies]
-sqlalchemy = "^2.0.32"
-psycopg2-binary = "^2.9.9"
-pydantic = "^2.8.2"
-pydantic-settings = "^2.8.1"
+[tool.uv]
+package = false
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"

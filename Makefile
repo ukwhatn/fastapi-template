@@ -1,5 +1,5 @@
 ENV ?= "dev"
-POETRY_GROUPS = "server,db,dev"
+UV_GROUPS = "server,db,dev"
 
 ifeq ($(ENV), prod)
 	COMPOSE_YML := compose.prod.yml
@@ -50,48 +50,46 @@ deploy\:prod:
 	make build ENV=prod
 	make reload ENV=prod
 
-poetry\:install:
-	pip install poetry
-	poetry install --with $(group)
+uv\:install:
+	curl -LsSf https://astral.sh/uv/install.sh | sh
 
-poetry\:add:
-	poetry add --group=$(group) $(packages)
-	make poetry:lock
+uv\:add:
+	uv add --group=$(group) $(packages)
+	make uv:lock
 
-poetry\:lock:
-	poetry lock
+uv\:lock:
+	uv lock
 
-poetry\:update:
-	poetry update --with $(group)
+uv\:update:
+	uv lock --upgrade-package $(packages)
 
-poetry\:update\:all:
-	poetry update
+uv\:update\:all:
+	uv lock --upgrade
 
-poetry\:reset:
-	poetry env remove $(which python)
-	poetry install
+uv\:sync:
+	uv sync --group $(group)
 
 dev\:setup:
-	poetry install --with $(POETRY_GROUPS)
+	uv sync --group $(UV_GROUPS)
 
 lint:
-	poetry run ruff check ./app ./versions
+	uv run ruff check ./app ./versions
 
 lint\:fix:
-	poetry run ruff check --fix ./app ./versions
+	uv run ruff check --fix ./app ./versions
 
 format:
-	poetry run ruff format ./app ./versions
+	uv run ruff format ./app ./versions
 
 security\:scan:
 	make security:scan:code
 	make security:scan:sast
 
 security\:scan\:code:
-	poetry run bandit -r app/ -x tests/,app/db/dump.py
+	uv run bandit -r app/ -x tests/,app/db/dump.py
 
 security\:scan\:sast:
-	poetry run semgrep scan --config=p/python --config=p/security-audit --config=p/owasp-top-ten
+	uv run semgrep scan --config=p/python --config=p/security-audit --config=p/owasp-top-ten
 
 db\:revision\:create:
 	docker compose -f $(COMPOSE_YML) build db-migrator
@@ -240,4 +238,4 @@ resource\:generate:
 	@python templates/generate.py model $(NAME)
 	@python templates/generate.py router $(NAME)
 
-.PHONY: build up down logs ps pr\:create deploy\:prod poetry\:install poetry\:add poetry\:lock poetry\:update poetry\:reset dev\:setup lint lint\:fix format security\:scan security\:scan\:code security\:scan\:sast test test\:cov test\:setup db\:revision\:create db\:migrate db\:downgrade db\:current db\:history db\:dump db\:backup\:test db\:dump\:oneshot db\:dump\:list db\:dump\:restore db\:dump\:test envs\:setup openapi\:generate project\:init template\:list template\:apply template\:apply\:range template\:apply\:force resource\:generate model\:generate router\:generate
+.PHONY: build up down logs ps pr\:create deploy\:prod uv\:install uv\:add uv\:lock uv\:update uv\:update\:all uv\:sync dev\:setup lint lint\:fix format security\:scan security\:scan\:code security\:scan\:sast test test\:cov test\:setup db\:revision\:create db\:migrate db\:downgrade db\:current db\:history db\:dump db\:backup\:test db\:dump\:oneshot db\:dump\:list db\:dump\:restore db\:dump\:test envs\:setup openapi\:generate project\:init template\:list template\:apply template\:apply\:range template\:apply\:force resource\:generate model\:generate router\:generate
