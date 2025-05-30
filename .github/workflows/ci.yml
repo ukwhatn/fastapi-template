@@ -14,8 +14,6 @@ jobs:
       (github.event_name == 'workflow_dispatch') ||
       (github.event.pull_request.user.login == 'ukwhatn') ||
       (github.event.pull_request.user.login == 'dependabot[bot]')
-    outputs:
-      cache-hit: ${{ steps.uv-cache.outputs.cache-hit }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -32,13 +30,6 @@ jobs:
         with:
           enable-cache: true
           cache-dependency-glob: "uv.lock"
-
-      - name: Cache uv dependencies
-        uses: actions/cache@v4
-        id: uv-cache
-        with:
-          path: ~/.cache/uv
-          key: ${{ runner.os }}-uv-${{ hashFiles('**/uv.lock') }}
 
       - name: Install dependencies
         id: install
@@ -77,12 +68,6 @@ jobs:
         with:
           enable-cache: true
           cache-dependency-glob: "uv.lock"
-
-      - name: Restore uv dependencies
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/uv
-          key: ${{ runner.os }}-uv-${{ hashFiles('**/uv.lock') }}
 
       - name: Restore setup artifacts
         uses: actions/cache@v4
@@ -150,12 +135,6 @@ jobs:
         with:
           enable-cache: true
           cache-dependency-glob: "uv.lock"
-
-      - name: Restore uv dependencies
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/uv
-          key: ${{ runner.os }}-uv-${{ hashFiles('**/uv.lock') }}
 
       - name: Restore setup artifacts
         uses: actions/cache@v4
