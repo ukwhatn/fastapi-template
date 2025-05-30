@@ -4,21 +4,29 @@ services:
     build:
       context: .
       dockerfile: docker/server.Dockerfile
-    command: [ "/bin/sh", "-c", "fastapi run main.py --host 0.0.0.0 --port 80 --proxy-headers" ]
+    command:
+      - /bin/sh
+      - -c
+      - |
+        if [ "$ENV_MODE" = "development" ]; then
+          fastapi dev app/main.py --host 0.0.0.0 --port 80 --proxy-headers
+        else
+          fastapi run app/main.py --host 0.0.0.0 --port 80 --proxy-headers
+        fi
     ports:
-      - "127.0.0.1:59999:80"
+      - "${SERVER_PORT:-127.0.0.1:8000}:80"
     volumes:
-      - ./app:/app
-      - ./newrelic.ini:/etc/newrelic.ini
+      - ./app:/usr/src/app
+      - ./newrelic.ini:/etc/newrelic.ini:ro
     env_file:
       - ./envs/db.env
       - ./envs/server.env
-      - ./envs/sentry.env
     environment:
-      - ENV_MODE=production
+      - ENV_MODE=${ENV_MODE:-development}
+      - WATCHFILES_FORCE_POLLING=true
     restart: unless-stopped
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:80/system/healthcheck/" ]
+      test: ["CMD", "curl", "-f", "http://localhost:80/system/healthcheck/"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -26,13 +34,21 @@ services:
     depends_on:
       db:
         condition: service_healthy
+        required: false
       redis:
         condition: service_healthy
+        required: false
       db-migrator:
         condition: service_completed_successfully
+        required: false
     networks:
       - db
       - redis
+    profiles:
+      - dev
+      - stg
+      - test
+      - prod
 
   db:
     container_name: fastapi-template-db
@@ -52,6 +68,8 @@ services:
       retries: 30
     networks:
       - db
+    profiles:
+      - db
 
   redis:
     container_name: fastapi-template-redis
@@ -66,12 +84,15 @@ services:
       retries: 30
     networks:
       - redis
+    profiles:
+      - redis
 
   db-migrator:
     container_name: fastapi-template-db-migrator
     image: ghcr.io/ukwhatn/psql-migrator:latest
     volumes:
       - ./versions:/app/versions
+      - ./app/db/models:/app/migrations/models
     env_file:
       - ./envs/db.env
     environment:
@@ -82,6 +103,27 @@ services:
         condition: service_healthy
     networks:
       - db
+    profiles:
+      - db
+
+  adminer:
+    container_name: fastapi-template-adminer
+    image: adminer:latest
+    environment:
+      ADMINER_DEFAULT_SERVER: db
+      ADMINER_DESIGN: pepa-linha
+    ports:
+      - "127.0.0.1:8001:8080"
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      db-migrator:
+        condition: service_completed_successfully
+    networks:
+      - db
+    profiles:
+      - db-dev
 
   db-dumper:
     container_name: fastapi-template-db-dumper
@@ -98,6 +140,10 @@ services:
         condition: service_healthy
     networks:
       - db
+    profiles:
+      - db-prod
+      - db-stg
+      - db-test
 
 volumes:
   pg_data:
@@ -107,4 +153,4 @@ networks:
   db:
     driver: bridge
   redis:
-    driver: bridge
+    driver: bridge 

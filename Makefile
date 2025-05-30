@@ -1,44 +1,89 @@
 ENV ?= "dev"
 UV_GROUPS = "server,db,dev"
+INCLUDE_DB ?= false
+INCLUDE_REDIS ?= false
+PROD_PORT ?= 59999
 
+# 環境別設定
 ifeq ($(ENV), prod)
-	COMPOSE_YML := compose.prod.yml
+	ENV_MODE := production
+	SERVER_PORT := 127.0.0.1:$(PROD_PORT)
+	COMPOSE_PROFILES := prod
+	COMPOSE_ENV_FILES := --env-file ./envs/sentry.env
 else ifeq ($(ENV), stg)
-	COMPOSE_YML := compose.stg.yml
+	ENV_MODE := production
+	SERVER_PORT := 127.0.0.1:8000
+	COMPOSE_PROFILES := stg
+	COMPOSE_ENV_FILES := 
 else ifeq ($(ENV), test)
-	COMPOSE_YML := compose.test.yml
+	ENV_MODE := production
+	SERVER_PORT := 127.0.0.1:8000
+	COMPOSE_PROFILES := test
+	COMPOSE_ENV_FILES := 
 else
-	COMPOSE_YML := compose.dev.yml
+	ENV_MODE := development
+	SERVER_PORT := 127.0.0.1:8000
+	COMPOSE_PROFILES := dev
+	COMPOSE_ENV_FILES := 
 endif
 
+# プロファイル構築
+PROFILES_LIST := $(COMPOSE_PROFILES)
+ifeq ($(INCLUDE_DB), true)
+	PROFILES_LIST := $(PROFILES_LIST) db
+	# devの場合はdb-devも追加
+	ifeq ($(ENV), prod)
+		PROFILES_LIST := $(PROFILES_LIST) db-prod
+	else ifeq ($(ENV), stg)
+		PROFILES_LIST := $(PROFILES_LIST) db-stg
+	else ifeq ($(ENV), test)
+		PROFILES_LIST := $(PROFILES_LIST) db-test
+	else
+		PROFILES_LIST := $(PROFILES_LIST) db-dev
+	endif
+endif
+ifeq ($(INCLUDE_REDIS), true)
+	PROFILES_LIST := $(PROFILES_LIST) redis
+endif
+
+# profile引数構築
+PROFILE_ARGS := $(foreach profile,$(PROFILES_LIST),--profile $(profile))
+
+# composeコマンド構築
+COMPOSE_CMD := docker compose $(PROFILE_ARGS) $(COMPOSE_ENV_FILES)
+
+# 環境変数
+export ENV_MODE
+export SERVER_PORT
+
 build:
-	docker compose -f $(COMPOSE_YML) build
+	$(COMPOSE_CMD) build
 
 build\:no-cache:
-	docker compose -f $(COMPOSE_YML) build --no-cache
+	$(COMPOSE_CMD) build --no-cache
 
 up:
-	docker compose -f $(COMPOSE_YML) up --build -d
+	$(COMPOSE_CMD) up --build -d
 
 down:
-	docker compose -f $(COMPOSE_YML) down
+	$(COMPOSE_CMD) down
 
 reload:
-	docker compose -f $(COMPOSE_YML) build
-	docker compose -f $(COMPOSE_YML) down
-	docker compose -f $(COMPOSE_YML) up -d
+	$(COMPOSE_CMD) build
+	$(COMPOSE_CMD) down
+	$(COMPOSE_CMD) up -d
 
 reset:
-	docker compose -f $(COMPOSE_YML) down --volumes --remove-orphans --rmi all
+	$(COMPOSE_CMD) down --volumes --remove-orphans --rmi all
 
 logs:
-	docker compose -f $(COMPOSE_YML) logs -f
+	$(COMPOSE_CMD) logs -f
 
 logs\:once:
-	docker compose -f $(COMPOSE_YML) logs
+	$(COMPOSE_CMD) logs
 
 ps:
-	docker compose -f $(COMPOSE_YML) ps
+	$(COMPOSE_CMD) ps
 
 pr\:create:
 	git switch develop
@@ -92,45 +137,45 @@ security\:scan\:sast:
 	uv run semgrep scan --config=p/python --config=p/security-audit --config=p/owasp-top-ten
 
 db\:revision\:create:
-	docker compose -f $(COMPOSE_YML) build db-migrator
-	docker compose -f $(COMPOSE_YML) run --rm db-migrator custom alembic revision --autogenerate -m '${NAME}'
+	$(COMPOSE_CMD) build db-migrator
+	$(COMPOSE_CMD) run --rm db-migrator custom alembic revision --autogenerate -m '${NAME}'
 
 db\:migrate:
-	docker compose -f $(COMPOSE_YML) build db-migrator
-	docker compose -f $(COMPOSE_YML) run --rm db-migrator custom alembic upgrade head
+	$(COMPOSE_CMD) build db-migrator
+	$(COMPOSE_CMD) run --rm db-migrator custom alembic upgrade head
 
 db\:downgrade:
-	docker compose -f $(COMPOSE_YML) build db-migrator
-	docker compose -f $(COMPOSE_YML) run --rm db-migrator custom alembic downgrade $(REV)
+	$(COMPOSE_CMD) build db-migrator
+	$(COMPOSE_CMD) run --rm db-migrator custom alembic downgrade $(REV)
 
 db\:current:
-	docker compose -f $(COMPOSE_YML) build db-migrator
-	docker compose -f $(COMPOSE_YML) run --rm db-migrator custom alembic current
+	$(COMPOSE_CMD) build db-migrator
+	$(COMPOSE_CMD) run --rm db-migrator custom alembic current
 
 db\:history:
-	docker compose -f $(COMPOSE_YML) build db-migrator
-	docker compose -f $(COMPOSE_YML) run --rm db-migrator custom alembic history
+	$(COMPOSE_CMD) build db-migrator
+	$(COMPOSE_CMD) run --rm db-migrator custom alembic history
 
 # データベースダンプ関連コマンド
 db\:dump:
-	docker compose -f $(COMPOSE_YML) build
-	docker compose -f $(COMPOSE_YML) run --rm --build -e DB_TOOL_MODE=dumper -e DUMPER_MODE=interactive db-dumper custom python dump.py
+	$(COMPOSE_CMD) build
+	$(COMPOSE_CMD) run --rm --build -e DB_TOOL_MODE=dumper -e DUMPER_MODE=interactive db-dumper custom python dump.py
 
 db\:dump\:oneshot:
-	docker compose -f $(COMPOSE_YML) build
-	docker compose -f $(COMPOSE_YML) run --rm db-dumper custom python dump.py oneshot
+	$(COMPOSE_CMD) build
+	$(COMPOSE_CMD) run --rm db-dumper custom python dump.py oneshot
 
 db\:dump\:list:
-	docker compose -f $(COMPOSE_YML) build
-	docker compose -f $(COMPOSE_YML) run --rm db-dumper custom python dump.py list
+	$(COMPOSE_CMD) build
+	$(COMPOSE_CMD) run --rm db-dumper custom python dump.py list
 
 db\:dump\:restore:
-	docker compose -f $(COMPOSE_YML) build
-	docker compose -f $(COMPOSE_YML) run --rm db-dumper custom python dump.py restore $(FILE)
+	$(COMPOSE_CMD) build
+	$(COMPOSE_CMD) run --rm db-dumper custom python dump.py restore $(FILE)
 
 db\:dump\:test:
-	docker compose -f $(COMPOSE_YML) build
-	docker compose -f $(COMPOSE_YML) run --rm db-dumper custom python dump.py test --confirm
+	$(COMPOSE_CMD) build
+	$(COMPOSE_CMD) run --rm db-dumper custom python dump.py test --confirm
 
 db\:backup\:test: # 後方互換性のためにエイリアスを提供
 	make db:dump:test
@@ -142,7 +187,7 @@ envs\:setup:
 	cp envs/aws-s3.env.example envs/aws-s3.env
 
 openapi\:generate:
-	docker compose -f $(COMPOSE_YML) exec server python -c "from main import app; import json; from fastapi.openapi.utils import get_openapi; openapi = get_openapi(title=app.title, version=app.version, description=app.description, routes=app.routes); print(json.dumps(openapi, indent=2, ensure_ascii=False))" > docs/openapi.json
+	$(COMPOSE_CMD) exec server python -c "from main import app; import json; from fastapi.openapi.utils import get_openapi; openapi = get_openapi(title=app.title, version=app.version, description=app.description, routes=app.routes); print(json.dumps(openapi, indent=2, ensure_ascii=False))" > docs/openapi.json
 
 project\:init:
 	@if [ -z "$(NAME)" ]; then \
