@@ -18,6 +18,8 @@ class Settings(BaseSettings):
 
     # 環境設定
     ENV_MODE: Literal["development", "production", "test"] = "development"
+    INCLUDE_DB: bool = False
+    INCLUDE_REDIS: bool = False
 
     # CORS設定
     BACKEND_CORS_ORIGINS: Union[str, List[str]] = []

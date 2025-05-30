@@ -55,6 +55,8 @@ COMPOSE_CMD := docker compose $(PROFILE_ARGS) $(COMPOSE_ENV_FILES)
 # 環境変数
 export ENV_MODE
 export SERVER_PORT
+export INCLUDE_DB
+export INCLUDE_REDIS
 
 build:
 	$(COMPOSE_CMD) build
