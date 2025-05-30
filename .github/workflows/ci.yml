@@ -27,9 +27,38 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v3
 
+      # uvキャッシュの設定
+      - name: Cache uv
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/uv
+            .venv
+          key: uv-${{ runner.os }}-${{ hashFiles('pyproject.toml', 'uv.lock') }}
+          restore-keys: |
+            uv-${{ runner.os }}-
+
       - name: Install dependencies
         run: |
           uv sync --group dev --group server --group db
+
+      # Trivyデータベースキャッシュ
+      - name: Cache Trivy DB
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/trivy
+          key: trivy-db-${{ github.run_date }}
+          restore-keys: |
+            trivy-db-
+
+      # Semgrep rulesキャッシュ
+      - name: Cache Semgrep rules
+        uses: actions/cache@v4
+        with:
+          path: ~/.semgrep
+          key: semgrep-rules-${{ github.run_date }}
+          restore-keys: |
+            semgrep-rules-
 
       - name: Run Quality and Security Checks
         run: |
@@ -72,10 +101,18 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.ref }}
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      # Docker Buildx設定
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Dockerレイヤーキャッシュ
+      - name: Cache Docker layers
+        uses: actions/cache@v4
         with:
-          python-version: '3.13'
+          path: /tmp/.buildx-cache
+          key: docker-buildx-${{ github.sha }}
+          restore-keys: |
+            docker-buildx-
 
       - name: Setup environment
         run: |
