@@ -176,8 +176,12 @@ db\:dump\:restore:
 	$(COMPOSE_CMD) run --rm db-dumper custom python dump.py restore $(FILE)
 
 db\:dump\:test:
-	$(COMPOSE_CMD) build
-	$(COMPOSE_CMD) run --rm db-dumper custom python dump.py test --confirm
+	@if [ "$(INCLUDE_DB)" != "true" ]; then \
+		echo "Skipping database dump test: INCLUDE_DB is not set to true"; \
+	else \
+		$(COMPOSE_CMD) build; \
+		$(COMPOSE_CMD) run --rm db-dumper custom python dump.py test --confirm; \
+	fi
 
 db\:backup\:test: # 後方互換性のためにエイリアスを提供
 	make db:dump:test
