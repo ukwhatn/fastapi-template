@@ -4,16 +4,17 @@ services:
     build:
       context: .
       dockerfile: docker/server.Dockerfile
-    command: [ "/bin/sh", "-c", "fastapi dev main.py --host 0.0.0.0 --port 80 --proxy-headers" ]
+    command: [ "/bin/sh", "-c", "fastapi dev app/main.py --host 0.0.0.0 --port 80 --proxy-headers" ]
     ports:
       - "127.0.0.1:8000:80"
     volumes:
-      - ./app:/app
+      - ./app:/usr/src/app
     env_file:
       - ./envs/db.env
       - ./envs/server.env
     environment:
       - ENV_MODE=development
+      - WATCHFILES_FORCE_POLLING=true
     restart: unless-stopped
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:80/system/healthcheck/" ]
@@ -30,7 +31,7 @@ services:
         condition: service_completed_successfully
     networks:
       - db
-      - redis
+      - redis    
 
   db:
     container_name: fastapi-template-db
