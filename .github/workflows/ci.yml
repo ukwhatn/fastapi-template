@@ -8,12 +8,14 @@ on:
   workflow_dispatch:
 
 jobs:
-  integrated-checks:
+  setup:
     runs-on: ubuntu-latest
     if: |
       (github.event_name == 'workflow_dispatch') ||
       (github.event.pull_request.user.login == 'ukwhatn') ||
       (github.event.pull_request.user.login == 'dependabot[bot]')
+    outputs:
+      cache-hit: ${{ steps.uv-cache.outputs.cache-hit }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -49,12 +51,62 @@ jobs:
           sed -i 's/S3_ACCESS_KEY=""/S3_ACCESS_KEY="${{ secrets.S3_ACCESS_KEY }}"/' envs/aws-s3.env
           sed -i 's/S3_SECRET_KEY=""/S3_SECRET_KEY="${{ secrets.S3_SECRET_KEY }}"/' envs/aws-s3.env
 
+      - name: Cache setup artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            envs/
+            .venv/
+          key: ${{ runner.os }}-setup-${{ github.sha }}
+
+  quality-checks:
+    runs-on: ubuntu-latest
+    needs: setup
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.ref }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Restore uv dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/uv
+          key: ${{ runner.os }}-uv-${{ hashFiles('**/uv.lock') }}
+
+      - name: Restore setup artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            envs/
+            .venv/
+          key: ${{ runner.os }}-setup-${{ github.sha }}
+
+      - name: Install dependencies
+        run: |
+          uv sync --group dev --group server --group db
+
       # Quality and Security Checks (Run in parallel for speed)
       - name: Run Quality and Security Checks
         run: |
           echo "Running linting and security checks..."
           make lint &
           LINT_PID=$!
+          
+          # Install Trivy in parallel with other checks
+          echo "Installing Trivy Scanner..."
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin v0.46.1 &
+          TRIVY_INSTALL_PID=$!
           
           # Bandit scan for critical issues only
           echo "Running critical Bandit scan..."
@@ -66,21 +118,56 @@ jobs:
           uv run semgrep scan --config=p/python --config=p/security-audit --config=p/owasp-top-ten --severity ERROR --error &
           SEMGREP_PID=$!
           
-          # Install and run Trivy
-          echo "Installing Trivy Scanner..."
-          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin v0.46.1
-          
+          # Wait for Trivy installation, then run scan
+          wait $TRIVY_INSTALL_PID
           echo "Scanning Dockerfiles..."
           trivy config --exit-code 1 --severity CRITICAL ./docker/server.Dockerfile &
-          TRIVY1_PID=$!
+          TRIVY_PID=$!
           
           # Wait for all processes to complete, fail if any fail
           wait $LINT_PID || { echo "Linting failed"; exit 1; }
           wait $BANDIT_PID || { echo "Bandit scan failed"; exit 1; }
           wait $SEMGREP_PID || { echo "Semgrep scan failed"; exit 1; }
-          wait $TRIVY1_PID || { echo "Trivy server.Dockerfile scan failed"; exit 1; }
+          wait $TRIVY_PID || { echo "Trivy scan failed"; exit 1; }
           
           echo "All quality and security checks passed!"
+
+  docker-tests:
+    runs-on: ubuntu-latest
+    needs: setup
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.ref }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Restore uv dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/uv
+          key: ${{ runner.os }}-uv-${{ hashFiles('**/uv.lock') }}
+
+      - name: Restore setup artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            envs/
+            .venv/
+          key: ${{ runner.os }}-setup-${{ github.sha }}
+
+      - name: Install dependencies
+        run: |
+          uv sync --group dev --group server --group db
 
       # Docker Build and Health Check
       - name: Start services
