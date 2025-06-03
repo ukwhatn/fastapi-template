@@ -1,4 +1,4 @@
-from .session import SessionCrud
-from .schemas import SessionSchema
+from .session import SessionCrud, SessionSchema
+from .templates import get_templates
 
-__all__ = ["SessionCrud", "SessionSchema"]
+__all__ = ["SessionCrud", "SessionSchema", "get_templates"]

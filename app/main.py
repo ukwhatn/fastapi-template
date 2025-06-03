@@ -2,12 +2,16 @@ import contextlib
 import json
 import logging
 import os
+from pathlib import Path
+from typing import Any, Dict
 
 import sentry_sdk
 from fastapi import FastAPI, Request, Response
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from api import api_router
@@ -18,8 +22,12 @@ from utils import SessionCrud, SessionSchema
 # 設定読み込み
 settings = get_settings()
 
+# ディレクトリパス設定
+STATIC_DIR = Path(__file__).parent / "static"
+TEMPLATES_DIR = Path(__file__).parent / "templates"
+
 # アプリケーション設定
-app_params = {
+app_params: Dict[str, Any] = {
     "title": "FastAPI Template",
     "description": "FastAPIアプリケーションのテンプレート",
     "version": "0.1.0",
@@ -42,20 +50,20 @@ else:
 # New Relic設定
 if settings.is_production and settings.NEW_RELIC_LICENSE_KEY:
     print("New Relic!")
-    import newrelic.agent
+    import newrelic.agent  # type: ignore
 
     # 環境変数のオーバーライド
     os.environ["NEW_RELIC_LICENSE_KEY"] = settings.NEW_RELIC_LICENSE_KEY
     os.environ["NEW_RELIC_APP_NAME"] = settings.NEW_RELIC_APP_NAME
 
     # 設定オブジェクトの作成
-    newrelic_config = newrelic.agent.global_settings()
-    newrelic_config.high_security = settings.NEW_RELIC_HIGH_SECURITY
-    newrelic_config.monitor_mode = settings.NEW_RELIC_MONITOR_MODE
-    newrelic_config.app_name = settings.NEW_RELIC_APP_NAME
+    newrelic_config = newrelic.agent.global_settings()  # type: ignore
+    newrelic_config.high_security = settings.NEW_RELIC_HIGH_SECURITY  # type: ignore
+    newrelic_config.monitor_mode = settings.NEW_RELIC_MONITOR_MODE  # type: ignore
+    newrelic_config.app_name = settings.NEW_RELIC_APP_NAME  # type: ignore
 
     # New Relic初期化
-    newrelic.agent.initialize(
+    newrelic.agent.initialize(  # type: ignore
         config_file="/etc/newrelic.ini", environment=settings.ENV_MODE
     )
     logger.info("New Relic is enabled")
@@ -86,11 +94,35 @@ class HealthCheckFilter(logging.Filter):
 logging.getLogger("uvicorn.access").addFilter(HealthCheckFilter())
 
 
+def has_content(directory: Path) -> bool:
+    """ディレクトリに.keep以外のファイルまたはフォルダが存在するかチェック"""
+    if not directory.exists():
+        return False
+
+    for item in directory.iterdir():
+        if item.name != ".keep":
+            return True
+    return False
+
+
 @contextlib.asynccontextmanager
 async def lifespan(app: FastAPI):
     """
     アプリケーションのライフサイクル管理
     """
+    # 静的ファイルとテンプレートの自動設定
+    if has_content(STATIC_DIR):
+        app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+        logger.info(f"Static files enabled: {STATIC_DIR}")
+    else:
+        logger.info(f"Static files disabled: {STATIC_DIR}")
+
+    if has_content(TEMPLATES_DIR):
+        # Jinja2Templatesインスタンスをアプリケーション状態に保存
+        app.state.templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
+        logger.info(f"Jinja2 templates enabled: {TEMPLATES_DIR}")
+    else:
+        logger.info(f"Jinja2 templates disabled: {TEMPLATES_DIR}")
 
     yield  # アプリケーションの実行
 
@@ -201,9 +233,6 @@ async def session_creator(request: Request, call_next):
 
     return response
 
-
-# 静的ファイル設定
-# app.mount("/static", StaticFiles(directory="/app/static"), name="static")
 
 # ルーター登録
 app.include_router(api_router)

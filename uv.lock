@@ -306,6 +306,7 @@ dev = [
 ]
 server = [
     { name = "fastapi", extra = ["standard"] },
+    { name = "jinja2" },
     { name = "newrelic" },
     { name = "redis" },
     { name = "sentry-sdk", extra = ["fastapi"] },
@@ -328,6 +329,7 @@ dev = [
 ]
 server = [
     { name = "fastapi", extras = ["standard"], specifier = ">=0.115.0,<0.116" },
+    { name = "jinja2", specifier = ">=3.1.2,<4" },
     { name = "newrelic", specifier = ">=10.3.1,<11" },
     { name = "redis", specifier = ">=6.1.0,<7" },
     { name = "sentry-sdk", extras = ["fastapi"], specifier = ">=2.19.2,<3" },
