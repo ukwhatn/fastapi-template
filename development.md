@@ -9,9 +9,10 @@
 3. [プロジェクト構造](#プロジェクト構造)
 4. [APIエンドポイントの作成](#apiエンドポイントの作成)
 5. [データベース操作](#データベース操作)
-6. [設定管理](#設定管理)
-7. [Docker開発](#docker開発)
-8. [コード品質とテスト](#コード品質とテスト)
+6. [静的ファイルとテンプレート](#静的ファイルとテンプレート)
+7. [設定管理](#設定管理)
+8. [Docker開発](#docker開発)
+9. [コード品質とテスト](#コード品質とテスト)
 
 ---
 
@@ -126,6 +127,8 @@ app/
 │   ├── schemas/         # Pydanticスキーマ
 │   ├── crud/            # データベース操作
 │   └── connection.py    # データベース接続
+├── static/              # 静的ファイル（CSS、JS、画像など）
+├── templates/           # Jinja2テンプレート（HTMLファイル）
 └── utils/               # ユーティリティモジュール
 ```
 
@@ -400,6 +403,168 @@ def get_posts_with_stats(self, db: Session) -> List[dict]:
         .group_by(BlogPost.author_id)
         .all()
     )
+```
+
+---
+
+## 静的ファイルとテンプレート
+
+このテンプレートは静的ファイルサーブとJinja2テンプレートの自動有効化機能を提供します。
+
+### 1. 静的ファイルの使用
+
+**静的ファイルを配置**:
+```bash
+# CSSファイルを配置
+mkdir -p app/static/css
+echo "body { font-family: Arial, sans-serif; }" > app/static/css/style.css
+
+# JavaScriptファイルを配置
+mkdir -p app/static/js
+echo "console.log('Hello, FastAPI!');" > app/static/js/app.js
+
+# 画像ファイルを配置
+mkdir -p app/static/images
+# 画像ファイルをapp/static/images/にコピー
+```
+
+**静的ファイルへのアクセス**:
+- CSS: `http://localhost:8000/static/css/style.css`
+- JavaScript: `http://localhost:8000/static/js/app.js`
+- 画像: `http://localhost:8000/static/images/logo.png`
+
+### 2. Jinja2テンプレートの使用
+
+**テンプレートファイルを作成**:
+
+**`app/templates/base.html`**:
+```html
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ title }}{% endblock %}</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <header>
+        <h1>{% block header %}FastAPI Template{% endblock %}</h1>
+    </header>
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
+```
+
+**`app/templates/index.html`**:
+```html
+{% extends "base.html" %}
+
+{% block title %}{{ title }} - ホーム{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2>ようこそ</h2>
+    <p>FastAPIテンプレートへようこそ！</p>
+    
+    {% if user %}
+        <p>こんにちは、{{ user.name }}さん！</p>
+    {% else %}
+        <p>ゲストユーザーとしてアクセスしています。</p>
+    {% endif %}
+</div>
+{% endblock %}
+```
+
+### 3. テンプレートを使用するエンドポイント
+
+**`app/api/v1/pages.py`を作成**:
+
+```python
+from fastapi import APIRouter, Request, Depends
+from fastapi.responses import HTMLResponse
+from sqlalchemy.orm import Session
+from utils import get_templates
+from api.deps import get_db
+from db.crud.blog_post import blog_post
+
+router = APIRouter()
+
+@router.get("/", response_class=HTMLResponse)
+async def home_page(request: Request):
+    """ホームページ"""
+    templates = get_templates(request)
+    if templates is None:
+        return HTMLResponse("<h1>Templates not enabled</h1>")
+    
+    return templates.TemplateResponse(
+        "index.html",
+        {"request": request, "title": "FastAPI Template"}
+    )
+
+@router.get("/blog/", response_class=HTMLResponse)
+async def blog_list_page(
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """ブログ一覧ページ"""
+    templates = get_templates(request)
+    if templates is None:
+        return HTMLResponse("<h1>Templates not enabled</h1>")
+    
+    posts = blog_post.get_published(db)
+    
+    return templates.TemplateResponse(
+        "blog/list.html",
+        {
+            "request": request,
+            "title": "ブログ一覧",
+            "posts": posts
+        }
+    )
+```
+
+### 4. 自動有効化の仕組み
+
+- **静的ファイル**: `app/static/`ディレクトリに`.keep`以外のファイルがあると自動的に`/static`でマウント
+- **テンプレート**: `app/templates/`ディレクトリに`.keep`以外のファイルがあると自動的にJinja2Templates有効化
+- **アクセス**: `utils.get_templates(request)`でテンプレートインスタンスを取得
+
+### 5. テンプレートでの動的コンテンツ
+
+**条件分岐とループ**:
+```html
+{% if posts %}
+    <ul>
+    {% for post in posts %}
+        <li>
+            <h3>{{ post.title }}</h3>
+            <p>{{ post.content[:100] }}...</p>
+            <small>投稿日: {{ post.created_at.strftime('%Y-%m-%d') }}</small>
+        </li>
+    {% endfor %}
+    </ul>
+{% else %}
+    <p>投稿がありません。</p>
+{% endif %}
+```
+
+**フォーム処理**:
+```html
+<form method="post" action="/api/v1/blog_posts/">
+    <div>
+        <label for="title">タイトル:</label>
+        <input type="text" id="title" name="title" required>
+    </div>
+    <div>
+        <label for="content">内容:</label>
+        <textarea id="content" name="content" required></textarea>
+    </div>
+    <button type="submit">投稿</button>
+</form>
 ```
 
 ---

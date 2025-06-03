@@ -48,6 +48,8 @@ FastAPIで構築されたWebアプリケーションテンプレートで、プ�
 - **core/config.py**: Pydanticを使用した環境ベース設定の集約設定
 - **api/**: APIルーターとエンドポイント定義
 - **db/**: SQLAlchemyモデル、スキーマ、CRUD操作を含むデータベース層
+- **static/**: 静的ファイル（CSS、JavaScript、画像など）
+- **templates/**: Jinja2テンプレートファイル
 
 ### 設定システム
 アプリケーションはPydanticベースの設定システム（`core/config.py`）を使用し、以下をサポート:

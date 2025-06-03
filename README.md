@@ -67,6 +67,8 @@ app/
 ├── api/                 # APIエンドポイント（バージョン管理）
 ├── core/config.py       # 設定管理
 ├── db/                  # データベース層（モデル、スキーマ、CRUD）
+├── static/              # 静的ファイル（CSS、JS、画像など）
+├── templates/           # Jinja2テンプレート（HTMLファイル）
 └── utils/               # ユーティリティ関数とヘルパー
 ```
 
