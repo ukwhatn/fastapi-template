@@ -4,7 +4,7 @@
 
 ## プロジェクト概要
 
-FastAPIで構築されたWebアプリケーションテンプレートで、プロダクション対応のAPIサーバーの基盤を提供します。モジュラーアーキテクチャ、自動ルーター生成、SQLAlchemyによるデータベース統合、Redis対応、包括的なDockerデプロイメントを使用します。
+FastAPIで構築されたWebアプリケーションテンプレートで、プロダクション対応のAPIサーバーの基盤を提供します。モジュラーアーキテクチャ、SQLAlchemyによるデータベース統合、Redis対応、包括的なDockerデプロイメントを使用します。
 
 ## ドキュメント構造
 
@@ -35,10 +35,6 @@ FastAPIで構築されたWebアプリケーションテンプレートで、プ�
 - `make db:migrate` - データベースにマイグレーションを適用
 - `make db:current` - 現在のマイグレーションリビジョンを表示
 - `make db:history` - マイグレーション履歴を表示
-
-### リソース生成
-- `make model:generate NAME=resource_name` - モデル、CRUD、スキーマファイルを生成
-- `make router:generate NAME=resource_name` - APIルーターファイルを生成
 
 ### セキュリティスキャン
 - `make security:scan` - 全セキュリティスキャンを実行（Bandit + Semgrep）
@@ -100,16 +96,17 @@ FastAPIで構築されたWebアプリケーションテンプレートで、プ�
 - `app/core/config.py` - 環境設定とPydantic設定クラス
 - `app/db/models/base.py` - タイムスタンプMixin付きベースモデル
 - `app/api/__init__.py` - APIルーター統合
-- `templates/generate.py` - リソース生成スクリプト
 
 ## 典型的な開発タスク
 
 ### 新しいAPIエンドポイントを作成
-1. `make model:generate NAME=blog_post`でモデル、CRUD、スキーマを生成
-2. `make router:generate NAME=blog_post`でAPIルーターを生成
-3. `app/api/v1/__init__.py`にルーターを登録
-4. `make db:revision:create NAME="add_blog_post"`でマイグレーションを作成
-5. `make db:migrate`で適用
+1. `app/db/models/`に新しいモデルファイルを作成
+2. `app/db/schemas/`に対応するPydanticスキーマを作成
+3. `app/db/crud/`にCRUD操作を作成
+4. `app/api/v1/`にAPIルーターを作成
+5. `app/api/v1/__init__.py`にルーターを登録
+6. `make db:revision:create NAME="add_model"`でマイグレーションを作成
+7. `make db:migrate`で適用
 
 ### データベースモデルを追加
 1. `app/db/models/`に新しいモデルファイルを作成

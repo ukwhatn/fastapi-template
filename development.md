@@ -133,25 +133,104 @@ app/
 
 ## APIエンドポイントの作成
 
-FastAPIでは、エンドポイントをルーターとして整理します。
+FastAPIでは、エンドポイントをルーターとして整理します。新しいリソース（例：ブログ投稿）を作成する完全な手順を説明します。
 
-### 1. 新しいリソースを作成
+### 1. データベースモデルを作成
 
-**自動生成を使用**:
-```bash
-# モデル、CRUD、スキーマを生成
-make model:generate NAME=blog_post
-
-# APIルーターを生成
-make router:generate NAME=blog_post
-```
-
-### 2. 基本的なAPIルーター構造
+**`app/db/models/blog_post.py`を作成**:
 
 ```python
-from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import String, Text, Boolean, ForeignKey
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from .base import BaseModel
+
+class BlogPost(BaseModel):
+    __tablename__ = "blog_posts"
+    
+    title: Mapped[str] = mapped_column(String(200), index=True)
+    content: Mapped[str] = mapped_column(Text)
+    published: Mapped[bool] = mapped_column(Boolean, default=False)
+    author_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    
+    # リレーションシップ（必要に応じて）
+    # author = relationship("User", back_populates="blog_posts")
+```
+
+### 2. Pydanticスキーマを作成
+
+**`app/db/schemas/blog_post.py`を作成**:
+
+```python
+from typing import Optional
+from datetime import datetime
+from .base import BaseModelSchema, BaseSchema
+
+class BlogPostBase(BaseSchema):
+    title: str
+    content: str
+    published: bool = False
+    author_id: int
+
+class BlogPostCreate(BlogPostBase):
+    pass
+
+class BlogPostUpdate(BlogPostBase):
+    title: Optional[str] = None
+    content: Optional[str] = None
+    published: Optional[bool] = None
+    author_id: Optional[int] = None
+
+class BlogPost(BlogPostBase, BaseModelSchema):
+    pass
+```
+
+### 3. CRUD操作を作成
+
+**`app/db/crud/blog_post.py`を作成**:
+
+```python
+from typing import List, Optional
 from sqlalchemy.orm import Session
-from typing import List
+from .base import CRUDBase
+from db.models.blog_post import BlogPost
+from db.schemas.blog_post import BlogPostCreate, BlogPostUpdate
+
+class CRUDBlogPost(CRUDBase[BlogPost, BlogPostCreate, BlogPostUpdate]):
+    def get_by_author(self, db: Session, author_id: int) -> List[BlogPost]:
+        return db.query(BlogPost).filter(BlogPost.author_id == author_id).all()
+    
+    def get_published(self, db: Session, skip: int = 0, limit: int = 100) -> List[BlogPost]:
+        return (
+            db.query(BlogPost)
+            .filter(BlogPost.published == True)
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
+    
+    def search(
+        self, 
+        db: Session, 
+        query: str, 
+        category: Optional[str] = None,
+        published: bool = True
+    ) -> List[BlogPost]:
+        q = db.query(BlogPost).filter(BlogPost.title.contains(query))
+        if published:
+            q = q.filter(BlogPost.published == True)
+        return q.all()
+
+blog_post = CRUDBlogPost(BlogPost)
+```
+
+### 4. APIルーターを作成
+
+**`app/api/v1/blog_posts.py`を作成**:
+
+```python
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.orm import Session
+from typing import List, Optional
 
 from api.deps import get_db
 from db.crud.blog_post import blog_post
@@ -211,31 +290,6 @@ def delete_blog_post(
         raise HTTPException(status_code=404, detail="Blog post not found")
     blog_post.remove(db=db, id=post_id)
     return {"message": "Blog post deleted successfully"}
-```
-
-### 3. ルーターの登録
-
-生成されたルーターを`app/api/v1/__init__.py`に登録:
-
-```python
-from fastapi import APIRouter
-from api.v1 import blog_posts
-
-api_router = APIRouter()
-
-api_router.include_router(
-    blog_posts.router,
-    prefix="/blog_posts",
-    tags=["BlogPosts"]
-)
-```
-
-### 4. 高度なエンドポイント機能
-
-**クエリパラメータとバリデーション**:
-```python
-from fastapi import Query
-from typing import Optional
 
 @router.get("/search/", response_model=List[BlogPost])
 def search_blog_posts(
@@ -247,6 +301,39 @@ def search_blog_posts(
     """ブログ投稿を検索"""
     return blog_post.search(db, query=q, category=category, published=published)
 ```
+
+### 5. ルーターを登録
+
+**`app/api/v1/__init__.py`を編集してルーターを追加**:
+
+```python
+from fastapi import APIRouter
+from api.v1 import blog_posts  # 新しく追加
+
+api_router = APIRouter()
+
+# 既存のルーター
+# api_router.include_router(...)
+
+# 新しいルーターを追加
+api_router.include_router(
+    blog_posts.router,
+    prefix="/blog_posts",
+    tags=["BlogPosts"]
+)
+```
+
+### 6. マイグレーションを作成・適用
+
+```bash
+# 新しいマイグレーションを作成
+make db:revision:create NAME="add_blog_post_table"
+
+# マイグレーションを適用
+make db:migrate
+```
+
+### 7. 高度なエンドポイント機能
 
 **ファイルアップロード**:
 ```python
@@ -263,102 +350,26 @@ async def upload_blog_image(
     return {"filename": file.filename, "post_id": post_id}
 ```
 
+**認証が必要なエンドポイント**:
+```python
+from api.deps import get_current_user
+
+@router.post("/", response_model=BlogPost)
+def create_blog_post(
+    post_in: BlogPostCreate,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)  # 認証が必要
+):
+    """新しいブログ投稿を作成（認証必須）"""
+    post_in.author_id = current_user.id
+    return blog_post.create(db=db, obj_in=post_in)
+```
+
 ---
 
 ## データベース操作
 
-### 1. モデルの作成
-
-**`app/db/models/`で新しいモデルを定義**:
-
-```python
-# app/db/models/blog_post.py
-from sqlalchemy import String, Text, Boolean, ForeignKey
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-from .base import BaseModel
-
-class BlogPost(BaseModel):
-    __tablename__ = "blog_posts"
-    
-    title: Mapped[str] = mapped_column(String(200), index=True)
-    content: Mapped[str] = mapped_column(Text)
-    published: Mapped[bool] = mapped_column(Boolean, default=False)
-    author_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
-    
-    # リレーションシップ
-    author = relationship("User", back_populates="blog_posts")
-```
-
-### 2. スキーマの作成
-
-**`app/db/schemas/`でPydanticスキーマを定義**:
-
-```python
-# app/db/schemas/blog_post.py
-from typing import Optional
-from datetime import datetime
-from .base import BaseModelSchema, BaseSchema
-
-class BlogPostBase(BaseSchema):
-    title: str
-    content: str
-    published: bool = False
-    author_id: int
-
-class BlogPostCreate(BlogPostBase):
-    pass
-
-class BlogPostUpdate(BlogPostBase):
-    title: Optional[str] = None
-    content: Optional[str] = None
-    published: Optional[bool] = None
-    author_id: Optional[int] = None
-
-class BlogPost(BlogPostBase, BaseModelSchema):
-    pass
-```
-
-### 3. CRUD操作の作成
-
-**`app/db/crud/`でCRUDクラスを作成**:
-
-```python
-# app/db/crud/blog_post.py
-from typing import List, Optional
-from sqlalchemy.orm import Session
-from .base import CRUDBase
-from db.models.blog_post import BlogPost
-from db.schemas.blog_post import BlogPostCreate, BlogPostUpdate
-
-class CRUDBlogPost(CRUDBase[BlogPost, BlogPostCreate, BlogPostUpdate]):
-    def get_by_author(self, db: Session, author_id: int) -> List[BlogPost]:
-        return db.query(BlogPost).filter(BlogPost.author_id == author_id).all()
-    
-    def get_published(self, db: Session, skip: int = 0, limit: int = 100) -> List[BlogPost]:
-        return (
-            db.query(BlogPost)
-            .filter(BlogPost.published == True)
-            .offset(skip)
-            .limit(limit)
-            .all()
-        )
-    
-    def search(
-        self, 
-        db: Session, 
-        query: str, 
-        category: Optional[str] = None,
-        published: bool = True
-    ) -> List[BlogPost]:
-        q = db.query(BlogPost).filter(BlogPost.title.contains(query))
-        if published:
-            q = q.filter(BlogPost.published == True)
-        return q.all()
-
-blog_post = CRUDBlogPost(BlogPost)
-```
-
-### 4. データベースマイグレーション
+### 1. マイグレーション管理
 
 ```bash
 # 新しいマイグレーションを作成
@@ -372,6 +383,23 @@ make db:current
 
 # マイグレーション履歴を表示
 make db:history
+```
+
+### 2. 複雑なクエリの例
+
+```python
+# app/db/crud/blog_post.py に追加
+def get_posts_with_stats(self, db: Session) -> List[dict]:
+    """投稿数の統計付きでブログ投稿を取得"""
+    return (
+        db.query(
+            BlogPost.author_id,
+            func.count(BlogPost.id).label('post_count'),
+            func.max(BlogPost.created_at).label('latest_post')
+        )
+        .group_by(BlogPost.author_id)
+        .all()
+    )
 ```
 
 ---

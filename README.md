@@ -4,7 +4,7 @@
 
 ## ✨ 機能
 
-- **🚀 高速開発**: 自動リソース生成、ホットリロード、包括的なツール群
+- **🚀 高速開発**: 構造化されたテンプレート、ホットリロード、包括的なツール群
 - **🏗️ モジュラーアーキテクチャ**: クリーンなAPI設計とバージョン管理
 - **🗄️ データベース統合**: SQLAlchemy、PostgreSQL、Redis対応、マイグレーション管理
 - **🐳 Docker対応**: Docker Composeによる完全なコンテナ化
@@ -71,7 +71,7 @@ app/
 ```
 
 **主要機能:**
-- **自動リソース生成**: `make model:generate`と`make router:generate`でAPI開発を高速化
+- **構造化されたテンプレート**: モデル、スキーマ、CRUD、ルーターの明確な分離
 - **データベース層**: モデル、スキーマ、CRUD操作のクリーンな分離
 - **設定システム**: Pydanticバリデーション付き環境ベース設定
 - **エラーハンドリング**: 包括的なエラートラッキングとユーザーフレンドリーな応答
@@ -107,21 +107,17 @@ make down              # 全コンテナを停止
 # データベース
 make db:migrate        # データベースマイグレーションを適用
 make db:revision:create NAME="説明" # 新しいマイグレーションを作成
-
-# リソース生成
-make model:generate NAME=blog_post   # モデル、CRUD、スキーマを生成
-make router:generate NAME=blog_post  # APIルーターを生成
 ```
 
 ### 機能追加
 
 1. **APIエンドポイントを作成**: 
-   ```bash
-   make model:generate NAME=blog_post
-   make router:generate NAME=blog_post
-   ```
+   - `app/db/models/`にモデルを作成
+   - `app/db/schemas/`にスキーマを作成
+   - `app/db/crud/`にCRUD操作を作成
+   - `app/api/v1/`にルーターを作成
 2. **ルーターを登録**: `app/api/v1/__init__.py`にルーターを追加
-3. **マイグレーション**: `make db:revision:create NAME="add_blog_post"`
+3. **マイグレーション**: `make db:revision:create NAME="add_model"`
 4. **テスト**: 開発中は`make reload`でホットリロード
 
 各側面の詳細なチュートリアルは[開発ガイド](development.md)を参照してください。
