@@ -1,0 +1,621 @@
+# 開発ガイド
+
+このガイドでは、fastapi-templateを使用してFastAPI Webアプリケーションを作成するための完全な開発ワークフローを説明します。
+
+## 目次
+
+1. [初期セットアップ](#初期セットアップ)
+2. [開発環境](#開発環境)
+3. [プロジェクト構造](#プロジェクト構造)
+4. [APIエンドポイントの作成](#apiエンドポイントの作成)
+5. [データベース操作](#データベース操作)
+6. [設定管理](#設定管理)
+7. [Docker開発](#docker開発)
+8. [コード品質とテスト](#コード品質とテスト)
+
+---
+
+## 初期セットアップ
+
+### 1. テンプレートからリポジトリを作成
+
+1. テンプレートリポジトリにアクセス
+2. "Use this template" → "Create a new repository"をクリック
+3. リポジトリ名と設定を選択
+4. 新しいリポジトリをクローン:
+   ```bash
+   git clone https://github.com/yourusername/your-api-name.git
+   cd your-api-name
+   ```
+
+### 2. プロジェクトの初期化
+
+```bash
+make project:init NAME="あなたのプロジェクト名"
+```
+
+このコマンドは、プロジェクト名を指定された名前に変更し、新しいGitブランチ（develop）を作成します。
+
+### 3. 環境セットアップ
+
+1. **uv（Pythonパッケージマネージャー）をインストール**:
+   ```bash
+   # macOS/Linux
+   curl -LsSf https://astral.sh/uv/install.sh | sh
+   
+   # pipを使用する場合
+   pip install uv
+   ```
+
+2. **環境ファイルをセットアップ**:
+   ```bash
+   make envs:setup
+   ```
+   これにより`envs/`ディレクトリのテンプレートから環境ファイルが作成されます。
+
+3. **環境変数を設定**:
+   - `server.env`を編集 - API設定を追加
+   - `db.env`を編集 - データベース認証情報を設定
+   - 必要に応じて他の`.env`ファイルも編集
+
+4. **依存関係をインストール**:
+   ```bash
+   make dev:setup
+   ```
+
+---
+
+## 開発環境
+
+### ローカル開発（Dockerなし）
+
+データベースなしでのシンプルなAPI開発の場合:
+
+```bash
+# 依存関係をインストール
+make dev:setup
+
+# 環境変数を直接設定または.envファイルを使用
+export ENV_MODE="development"
+
+# APIサーバーを実行
+cd app && python main.py
+```
+
+### Docker開発（推奨）
+
+データベースとRedisを含むフルスタック開発の場合:
+
+```bash
+# 全サービス（API、データベース、Redis）を起動
+make up INCLUDE_DB=true INCLUDE_REDIS=true
+
+# またはAPIのみを起動
+make up
+
+# ログを確認
+make logs
+
+# サービスを停止
+make down
+```
+
+### 開発コマンド
+
+- `make lint` - コード品質をチェック
+- `make format` - コードをフォーマット
+- `make security:scan` - セキュリティスキャンを実行
+
+---
+
+## プロジェクト構造
+
+```
+app/
+├── main.py              # FastAPIアプリケーションエントリーポイント
+├── core/
+│   ├── config.py        # 設定管理
+│   ├── exceptions.py    # カスタム例外定義
+│   └── middleware.py    # カスタムミドルウェア
+├── api/                 # APIエンドポイント
+│   ├── deps.py          # 依存性注入
+│   ├── system/          # システム関連エンドポイント
+│   └── v1/              # バージョン1のAPIエンドポイント
+├── db/                  # データベース層
+│   ├── models/          # SQLAlchemyモデル
+│   ├── schemas/         # Pydanticスキーマ
+│   ├── crud/            # データベース操作
+│   └── connection.py    # データベース接続
+└── utils/               # ユーティリティモジュール
+```
+
+---
+
+## APIエンドポイントの作成
+
+FastAPIでは、エンドポイントをルーターとして整理します。
+
+### 1. 新しいリソースを作成
+
+**自動生成を使用**:
+```bash
+# モデル、CRUD、スキーマを生成
+make model:generate NAME=blog_post
+
+# APIルーターを生成
+make router:generate NAME=blog_post
+```
+
+### 2. 基本的なAPIルーター構造
+
+```python
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+from typing import List
+
+from api.deps import get_db
+from db.crud.blog_post import blog_post
+from db.schemas.blog_post import BlogPost, BlogPostCreate, BlogPostUpdate
+
+router = APIRouter()
+
+@router.get("/", response_model=List[BlogPost])
+def read_blog_posts(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db)
+):
+    """ブログ投稿一覧を取得"""
+    posts = blog_post.get_multi(db, skip=skip, limit=limit)
+    return posts
+
+@router.post("/", response_model=BlogPost)
+def create_blog_post(
+    post_in: BlogPostCreate,
+    db: Session = Depends(get_db)
+):
+    """新しいブログ投稿を作成"""
+    return blog_post.create(db=db, obj_in=post_in)
+
+@router.get("/{post_id}", response_model=BlogPost)
+def read_blog_post(
+    post_id: int,
+    db: Session = Depends(get_db)
+):
+    """特定のブログ投稿を取得"""
+    db_post = blog_post.get(db, id=post_id)
+    if db_post is None:
+        raise HTTPException(status_code=404, detail="Blog post not found")
+    return db_post
+
+@router.put("/{post_id}", response_model=BlogPost)
+def update_blog_post(
+    post_id: int,
+    post_in: BlogPostUpdate,
+    db: Session = Depends(get_db)
+):
+    """ブログ投稿を更新"""
+    db_post = blog_post.get(db, id=post_id)
+    if db_post is None:
+        raise HTTPException(status_code=404, detail="Blog post not found")
+    return blog_post.update(db=db, db_obj=db_post, obj_in=post_in)
+
+@router.delete("/{post_id}")
+def delete_blog_post(
+    post_id: int,
+    db: Session = Depends(get_db)
+):
+    """ブログ投稿を削除"""
+    db_post = blog_post.get(db, id=post_id)
+    if db_post is None:
+        raise HTTPException(status_code=404, detail="Blog post not found")
+    blog_post.remove(db=db, id=post_id)
+    return {"message": "Blog post deleted successfully"}
+```
+
+### 3. ルーターの登録
+
+生成されたルーターを`app/api/v1/__init__.py`に登録:
+
+```python
+from fastapi import APIRouter
+from api.v1 import blog_posts
+
+api_router = APIRouter()
+
+api_router.include_router(
+    blog_posts.router,
+    prefix="/blog_posts",
+    tags=["BlogPosts"]
+)
+```
+
+### 4. 高度なエンドポイント機能
+
+**クエリパラメータとバリデーション**:
+```python
+from fastapi import Query
+from typing import Optional
+
+@router.get("/search/", response_model=List[BlogPost])
+def search_blog_posts(
+    q: str = Query(..., min_length=1, description="検索クエリ"),
+    category: Optional[str] = Query(None, description="カテゴリフィルター"),
+    published: bool = Query(True, description="公開済みのみ"),
+    db: Session = Depends(get_db)
+):
+    """ブログ投稿を検索"""
+    return blog_post.search(db, query=q, category=category, published=published)
+```
+
+**ファイルアップロード**:
+```python
+from fastapi import File, UploadFile
+
+@router.post("/{post_id}/upload-image/")
+async def upload_blog_image(
+    post_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db)
+):
+    """ブログ投稿に画像をアップロード"""
+    # ファイル処理ロジック
+    return {"filename": file.filename, "post_id": post_id}
+```
+
+---
+
+## データベース操作
+
+### 1. モデルの作成
+
+**`app/db/models/`で新しいモデルを定義**:
+
+```python
+# app/db/models/blog_post.py
+from sqlalchemy import String, Text, Boolean, ForeignKey
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from .base import BaseModel
+
+class BlogPost(BaseModel):
+    __tablename__ = "blog_posts"
+    
+    title: Mapped[str] = mapped_column(String(200), index=True)
+    content: Mapped[str] = mapped_column(Text)
+    published: Mapped[bool] = mapped_column(Boolean, default=False)
+    author_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    
+    # リレーションシップ
+    author = relationship("User", back_populates="blog_posts")
+```
+
+### 2. スキーマの作成
+
+**`app/db/schemas/`でPydanticスキーマを定義**:
+
+```python
+# app/db/schemas/blog_post.py
+from typing import Optional
+from datetime import datetime
+from .base import BaseModelSchema, BaseSchema
+
+class BlogPostBase(BaseSchema):
+    title: str
+    content: str
+    published: bool = False
+    author_id: int
+
+class BlogPostCreate(BlogPostBase):
+    pass
+
+class BlogPostUpdate(BlogPostBase):
+    title: Optional[str] = None
+    content: Optional[str] = None
+    published: Optional[bool] = None
+    author_id: Optional[int] = None
+
+class BlogPost(BlogPostBase, BaseModelSchema):
+    pass
+```
+
+### 3. CRUD操作の作成
+
+**`app/db/crud/`でCRUDクラスを作成**:
+
+```python
+# app/db/crud/blog_post.py
+from typing import List, Optional
+from sqlalchemy.orm import Session
+from .base import CRUDBase
+from db.models.blog_post import BlogPost
+from db.schemas.blog_post import BlogPostCreate, BlogPostUpdate
+
+class CRUDBlogPost(CRUDBase[BlogPost, BlogPostCreate, BlogPostUpdate]):
+    def get_by_author(self, db: Session, author_id: int) -> List[BlogPost]:
+        return db.query(BlogPost).filter(BlogPost.author_id == author_id).all()
+    
+    def get_published(self, db: Session, skip: int = 0, limit: int = 100) -> List[BlogPost]:
+        return (
+            db.query(BlogPost)
+            .filter(BlogPost.published == True)
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
+    
+    def search(
+        self, 
+        db: Session, 
+        query: str, 
+        category: Optional[str] = None,
+        published: bool = True
+    ) -> List[BlogPost]:
+        q = db.query(BlogPost).filter(BlogPost.title.contains(query))
+        if published:
+            q = q.filter(BlogPost.published == True)
+        return q.all()
+
+blog_post = CRUDBlogPost(BlogPost)
+```
+
+### 4. データベースマイグレーション
+
+```bash
+# 新しいマイグレーションを作成
+make db:revision:create NAME="add_blog_post_table"
+
+# マイグレーションを適用
+make db:migrate
+
+# 現在のマイグレーションを確認
+make db:current
+
+# マイグレーション履歴を表示
+make db:history
+```
+
+---
+
+## 設定管理
+
+### 1. 環境変数
+
+アプリケーションは集約設定に`app/core/config.py`を使用します:
+
+```python
+# core/config.pyに新しい設定を追加
+class Settings(BaseSettings):
+    # 新しい設定
+    API_KEY: str = ""
+    FEATURE_ENABLED: bool = True
+    MAX_ITEMS: int = 100
+    UPLOAD_DIR: str = "/tmp/uploads"
+```
+
+### 2. APIでの設定使用
+
+```python
+from core import get_settings
+
+@router.get("/config/")
+def show_config():
+    settings = get_settings()
+    if settings.FEATURE_ENABLED:
+        return {"message": f"機能が有効です！最大アイテム数: {settings.MAX_ITEMS}"}
+    else:
+        return {"message": "機能は無効です"}
+```
+
+### 3. 環境固有の設定
+
+`ENV_MODE`を設定して動作を制御:
+
+```python
+from core import get_settings
+
+settings = get_settings()
+
+if settings.is_development:
+    # 開発用コード
+    logger.debug("デバッグ情報")
+
+if settings.is_production:
+    # 本番用コード
+    await send_error_to_monitoring()
+```
+
+---
+
+## Docker開発
+
+### 1. データベースとの開発
+
+```bash
+# データベースとRedisと一緒に起動
+make up INCLUDE_DB=true INCLUDE_REDIS=true
+
+# Adminer（Webインターフェース）でデータベースにアクセス
+# http://localhost:8080 にアクセス
+# サーバー: db, ユーザー名/パスワード: db.envから
+
+# データベースマイグレーションを実行
+make db:migrate
+```
+
+### 2. Docker Composeプロファイル
+
+`compose.yml`は起動するサービスを制御するためにプロファイルを使用:
+
+- **app**: FastAPIアプリケーション（常に含まれる）
+- **db**: PostgreSQLデータベース（`INCLUDE_DB=true`で含める）
+- **redis**: Redisキャッシュ（`INCLUDE_REDIS=true`で含める）
+- **dev**: Adminerなどの開発ツール
+
+### 3. カスタムDockerコマンド
+
+```bash
+# 再ビルドして再起動
+make reload
+
+# 特定のサービスのログを表示
+docker compose logs app -f
+
+# コンテナ内でコマンドを実行
+docker compose exec app python -c "from core import get_settings; print(get_settings().DATABASE_URI)"
+```
+
+---
+
+## コード品質とテスト
+
+### 1. コード品質ツール
+
+```bash
+# コードをリント（問題をチェック）
+make lint
+
+# リント問題を自動修正
+make lint:fix
+
+# コードをフォーマット
+make format
+
+# セキュリティスキャン
+make security:scan
+```
+
+### 2. プリコミットワークフロー
+
+コードをコミットする前に:
+
+```bash
+# フォーマットとリント
+make format
+make lint
+
+# セキュリティスキャンを実行
+make security:scan
+
+# 変更をコミット
+git add .
+git commit -m "feat: 新機能を追加"
+```
+
+### 3. テストの追加（オプション）
+
+テストを追加したい場合は、テストフレームワークを作成:
+
+1. `pyproject.toml`にテスト依存関係を追加:
+   ```toml
+   dev = [
+       "pytest>=8.3.5",
+       "pytest-asyncio>=0.21.0",
+       "httpx>=0.24.0",  # FastAPIテスト用
+       # ... 既存のdev依存関係
+   ]
+   ```
+
+2. テスト構造を作成:
+   ```
+   tests/
+   ├── conftest.py
+   ├── test_api/
+   └── test_db/
+   ```
+
+3. `Makefile`にテストコマンドを追加:
+   ```makefile
+   test:
+   	uv run pytest tests/
+   ```
+
+---
+
+## 一般的なパターン
+
+### 1. 認証と認可
+
+```python
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPBearer
+
+security = HTTPBearer()
+
+def get_current_user(token: str = Depends(security)):
+    # トークン検証ロジック
+    if not verify_token(token.credentials):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication credentials"
+        )
+    return get_user_from_token(token.credentials)
+
+@router.get("/protected/")
+def protected_endpoint(current_user = Depends(get_current_user)):
+    return {"message": f"Hello, {current_user.username}!"}
+```
+
+### 2. エラーハンドリング
+
+```python
+from core.exceptions import APIError
+
+@router.post("/process/")
+async def process_data(data: dict):
+    try:
+        result = await complex_operation(data)
+        return {"result": result}
+    except ValueError as e:
+        raise APIError(
+            status_code=400,
+            code="invalid_data",
+            message=f"データが無効です: {str(e)}"
+        )
+    except Exception as e:
+        logger.error(f"予期しないエラー: {e}")
+        raise APIError(
+            status_code=500,
+            code="internal_error",
+            message="内部エラーが発生しました"
+        )
+```
+
+### 3. バックグラウンドタスク
+
+```python
+from fastapi import BackgroundTasks
+
+def send_email_notification(email: str, message: str):
+    # メール送信ロジック
+    pass
+
+@router.post("/send-notification/")
+def create_notification(
+    email: str,
+    message: str,
+    background_tasks: BackgroundTasks
+):
+    background_tasks.add_task(send_email_notification, email, message)
+    return {"message": "通知が送信されます"}
+```
+
+### 4. OpenAPI文書のカスタマイズ
+
+```python
+@router.post(
+    "/",
+    response_model=BlogPost,
+    summary="ブログ投稿を作成",
+    description="新しいブログ投稿を作成します。タイトルと内容は必須です。",
+    response_description="作成されたブログ投稿",
+    responses={
+        400: {"description": "無効なリクエストデータ"},
+        500: {"description": "内部サーバーエラー"}
+    }
+)
+def create_blog_post(post_in: BlogPostCreate):
+    # 実装
+    pass
+```
+
+この開発ガイドは、このテンプレートを使用してFastAPI Webアプリケーションの構築を始めるのに役立ちます。各セクションでは、特定のニーズに適応できる実用的な例を提供しています。 
