@@ -16,7 +16,7 @@ jobs:
       (github.event.pull_request.user.login == 'dependabot[bot]')
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: ${{ github.event.pull_request.head.sha || github.ref }}
 
@@ -71,7 +71,7 @@ jobs:
       (github.event.pull_request.user.login == 'ukwhatn') ||
       (github.event.pull_request.user.login == 'dependabot[bot]')
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ github.event.pull_request.head.sha || github.ref }}
 
