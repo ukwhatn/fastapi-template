@@ -1351,7 +1351,7 @@ wheels = [
 
 [[package]]
 name = "semgrep"
-version = "1.137.0"
+version = "1.137.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "attrs" },
@@ -1379,13 +1379,13 @@ dependencies = [
     { name = "urllib3" },
     { name = "wcmatch" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/bb/e0/412ac0a915688135b97d0a802752d34e624ac561b119c699b55d83849878/semgrep-1.137.0.tar.gz", hash = "sha256:7e51e6a0f3f20c42c260b63ed92ee5f8bc5825a5395b2652c38b981035d1da3d", size = 42227123, upload-time = "2025-09-18T23:45:50.992Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/03/4b/f5c04980737360b32124e7be3b228e2403dd6c68fdb9d22a872b55b48e0d/semgrep-1.137.1.tar.gz", hash = "sha256:1a5c201bcf9b9d347916a466b8ee145908339f2171eab9bc7042f459f6ae90a0", size = 42227174, upload-time = "2025-09-24T00:33:45.491Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/b3/01/8132a6da61d6468cb9f21a393be294a82603e9b7eb0a53e552498fbcc28b/semgrep-1.137.0-cp310.cp311.py310.py311-none-macosx_10_14_x86_64.whl", hash = "sha256:4ff9cee52155458ea189385bd009355ec27abbf42c8007ee7552d483d29399fc", size = 34914502, upload-time = "2025-09-18T23:45:31.949Z" },
-    { url = "https://files.pythonhosted.org/packages/ce/7e/b176761d2e0ecea78e2a986d4d2b0c3f80f3226510706b9abc6d39be80f6/semgrep-1.137.0-cp310.cp311.py310.py311-none-macosx_11_0_arm64.whl", hash = "sha256:ac137c71385d7c93bb2127e9ae00a9573ade0b24236b734284479f466a21d39c", size = 39778620, upload-time = "2025-09-18T23:45:36.067Z" },
-    { url = "https://files.pythonhosted.org/packages/b6/2f/1afcc1a89779df6d7a496465c8dcb2d2bc6f299266316ffedc26303422f4/semgrep-1.137.0-cp310.cp311.py310.py311-none-musllinux_1_0_aarch64.manylinux2014_aarch64.whl", hash = "sha256:c13788c0d4dccbf3a64a15d394c450bfa25edbb7e7e81f77127d0575c1047c4f", size = 53398590, upload-time = "2025-09-18T23:45:39.277Z" },
-    { url = "https://files.pythonhosted.org/packages/22/0c/0b638f5fd17b43e3613a696f62490b6e2979fe47c60711a0b3ebf93c8cca/semgrep-1.137.0-cp310.cp311.py310.py311-none-musllinux_1_0_x86_64.manylinux2014_x86_64.whl", hash = "sha256:1f33b88d3b24b5b080dfbda5cd0b139ecfa69bcc24bfc8a12d430c30434e146e", size = 49524855, upload-time = "2025-09-18T23:45:45.049Z" },
-    { url = "https://files.pythonhosted.org/packages/9e/1e/18eee24046a5cde2af3cc6d1fb55a535460aa2c3d3a818809d424eeb31e9/semgrep-1.137.0-cp310.cp311.py310.py311-none-win_amd64.whl", hash = "sha256:59f14506a8f85763180ba31c4c7b5e5ce6da5acd53065553dcd9c36e52ea60cd", size = 42821758, upload-time = "2025-09-18T23:45:48.183Z" },
+    { url = "https://files.pythonhosted.org/packages/45/8c/1c3439a62468884f7333a7e429dd971dfd6e00ccca94bbca0b39502553e4/semgrep-1.137.1-cp310.cp311.py310.py311-none-macosx_10_14_x86_64.whl", hash = "sha256:b33f52fdde5a9a931a904bb0545d527b37bfbf441553f2c2cf7cae698412fad7", size = 34914529, upload-time = "2025-09-24T00:33:26.577Z" },
+    { url = "https://files.pythonhosted.org/packages/78/38/7350f6df5dff6e06bc9c407c4e980f98d2050ef36919f855051ccfc86679/semgrep-1.137.1-cp310.cp311.py310.py311-none-macosx_11_0_arm64.whl", hash = "sha256:6388e14dd9d31714a439ea532eb40cb2d2dc8cd5c54a3480235dd6ac5220ba42", size = 39778613, upload-time = "2025-09-24T00:33:30.771Z" },
+    { url = "https://files.pythonhosted.org/packages/c0/60/80b67e5a6b4d030d546cb0365271622f09cdfb17171ebfd1390ce492c7ea/semgrep-1.137.1-cp310.cp311.py310.py311-none-musllinux_1_0_aarch64.manylinux2014_aarch64.whl", hash = "sha256:a9dd86edec8e3f73cef76c72ba3f9452f90163e32216ba1450952a04f3ce8f36", size = 53420937, upload-time = "2025-09-24T00:33:34.252Z" },
+    { url = "https://files.pythonhosted.org/packages/64/75/31c4da8aef9eb6c3cbc9498f93e874e1c27b1c39f6bc94ef011b3744848a/semgrep-1.137.1-cp310.cp311.py310.py311-none-musllinux_1_0_x86_64.manylinux2014_x86_64.whl", hash = "sha256:e1b897c1bb79064c2eb6aef540b9333881de7bc9907a3b1a0b2b06677bcd881d", size = 49543097, upload-time = "2025-09-24T00:33:38.042Z" },
+    { url = "https://files.pythonhosted.org/packages/47/36/8d765ebb538a5a49c8f48402dc4875b43371c0b4b82a9dfc35e773f83626/semgrep-1.137.1-cp310.cp311.py310.py311-none-win_amd64.whl", hash = "sha256:c0b07e262c89ef4c39ebc3612824d7b548f48487ca469b0081763523d650aa95", size = 42821769, upload-time = "2025-09-24T00:33:42.276Z" },
 ]
 
 [[package]]
