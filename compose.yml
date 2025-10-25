@@ -45,22 +45,16 @@ services:
       - test
       - prod
     develop:
-      # Docker Compose Watchを使用した開発モードの設定
-      # Docker Compose 2.22.0以降が必要
       watch:
-        # 作業ディレクトリとコンテナ内の/appを同期
         - action: sync
           path: .
           target: /app
-          # 仮想環境ディレクトリは除外
           ignore:
             - .venv/
             - __pycache__/
             - "*.pyc"
-        # pyproject.tomlが変更された場合はイメージを再ビルド
         - action: rebuild
           path: ./pyproject.toml
-        # uv.lockが変更された場合はイメージを再ビルド
         - action: rebuild
           path: ./uv.lock
 
