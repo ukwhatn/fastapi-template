@@ -52,6 +52,10 @@ export ENV_MODE
 export SERVER_PORT
 export INCLUDE_DB
 
+# 共通変数
+DB_MIGRATOR_RUN := $(COMPOSE_CMD) build db-migrator && $(COMPOSE_CMD) run --rm db-migrator custom alembic
+DB_DUMPER_RUN := $(COMPOSE_CMD) build && $(COMPOSE_CMD) run --rm db-dumper custom python dump.py
+
 build:
 	$(COMPOSE_CMD) build
 
@@ -91,9 +95,6 @@ deploy\:prod:
 	make build ENV=prod
 	make reload ENV=prod
 
-uv\:install:
-	curl -LsSf https://astral.sh/uv/install.sh | sh
-
 uv\:add:
 	uv add $(packages)
 	make uv:lock
@@ -111,9 +112,6 @@ uv\:update:
 uv\:update\:all:
 	uv lock --upgrade
 
-uv\:sync:
-	uv sync
-
 dev\:setup:
 	uv sync
 
@@ -127,7 +125,7 @@ format:
 	uv run --active ruff format ./app ./versions ./tests
 
 type-check:
-	uv run --active mypy ./app ./versions ./tests
+	uv run --active mypy app versions tests
 
 security\:scan:
 	make security:scan:code
@@ -140,59 +138,43 @@ security\:scan\:sast:
 	uv run --active semgrep scan --config=p/python --config=p/security-audit --config=p/owasp-top-ten
 
 db\:revision\:create:
-	$(COMPOSE_CMD) build db-migrator
-	$(COMPOSE_CMD) run --rm db-migrator custom alembic revision --autogenerate -m '${NAME}'
+	$(DB_MIGRATOR_RUN) revision --autogenerate -m '${NAME}'
 
 db\:migrate:
-	$(COMPOSE_CMD) build db-migrator
-	$(COMPOSE_CMD) run --rm db-migrator custom alembic upgrade head
+	$(DB_MIGRATOR_RUN) upgrade head
 
 db\:downgrade:
-	$(COMPOSE_CMD) build db-migrator
-	$(COMPOSE_CMD) run --rm db-migrator custom alembic downgrade $(REV)
+	$(DB_MIGRATOR_RUN) downgrade $(REV)
 
 db\:current:
-	$(COMPOSE_CMD) build db-migrator
-	$(COMPOSE_CMD) run --rm db-migrator custom alembic current
+	$(DB_MIGRATOR_RUN) current
 
 db\:history:
-	$(COMPOSE_CMD) build db-migrator
-	$(COMPOSE_CMD) run --rm db-migrator custom alembic history
+	$(DB_MIGRATOR_RUN) history
 
 # データベースダンプ関連コマンド
 db\:dump:
-	$(COMPOSE_CMD) build
 	$(COMPOSE_CMD) run --rm --build -e DB_TOOL_MODE=dumper -e DUMPER_MODE=interactive db-dumper custom python dump.py
 
 db\:dump\:oneshot:
-	$(COMPOSE_CMD) build
-	$(COMPOSE_CMD) run --rm db-dumper custom python dump.py oneshot
+	$(DB_DUMPER_RUN) oneshot
 
 db\:dump\:list:
-	$(COMPOSE_CMD) build
-	$(COMPOSE_CMD) run --rm db-dumper custom python dump.py list
+	$(DB_DUMPER_RUN) list
 
 db\:dump\:restore:
-	$(COMPOSE_CMD) build
-	$(COMPOSE_CMD) run --rm db-dumper custom python dump.py restore $(FILE)
+	$(DB_DUMPER_RUN) restore $(FILE)
 
 db\:dump\:test:
 	@if [ "$(INCLUDE_DB)" != "true" ]; then \
 		echo "Skipping database dump test: INCLUDE_DB is not set to true"; \
 	else \
-		$(COMPOSE_CMD) build; \
-		$(COMPOSE_CMD) run --rm db-dumper custom python dump.py test --confirm; \
+		$(DB_DUMPER_RUN) test --confirm; \
 	fi
-
-db\:backup\:test: # 後方互換性のためにエイリアスを提供
-	make db:dump:test
 
 env:
 	cp .env.example .env
 	@echo ".env file created. Please edit it with your configuration."
-
-envs\:setup: env
-	@echo "envs:setup is deprecated. Use 'make env' instead."
 
 test:
 	uv run --active pytest tests/ -v
@@ -261,4 +243,4 @@ template\:apply\:force:
 	git checkout $$commit_hash -- . && \
 	echo "テンプレートの変更が強制的に適用されました。変更を確認しgit add/commitしてください。"
 
-.PHONY: build up down logs ps pr\:create deploy\:prod uv\:install uv\:add uv\:add\:dev uv\:lock uv\:update uv\:update\:all uv\:sync dev\:setup lint lint\:fix format type-check security\:scan security\:scan\:code security\:scan\:sast test test\:cov test\:setup db\:revision\:create db\:migrate db\:downgrade db\:current db\:history db\:dump db\:backup\:test db\:dump\:oneshot db\:dump\:list db\:dump\:restore db\:dump\:test env envs\:setup openapi\:generate project\:init template\:list template\:apply template\:apply\:range template\:apply\:force
+.PHONY: build build\:no-cache up down reload reset logs logs\:once ps pr\:create deploy\:prod uv\:add uv\:add\:dev uv\:lock uv\:update uv\:update\:all dev\:setup lint lint\:fix format type-check security\:scan security\:scan\:code security\:scan\:sast test test\:cov db\:revision\:create db\:migrate db\:downgrade db\:current db\:history db\:dump db\:dump\:oneshot db\:dump\:list db\:dump\:restore db\:dump\:test env openapi\:generate project\:init template\:list template\:apply template\:apply\:range template\:apply\:force
