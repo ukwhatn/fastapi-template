@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Generator
+from typing import Generator, Any, Dict
 
 from fastapi import Depends, HTTPException, Request, Security
 from fastapi.security import APIKeyHeader
@@ -21,7 +21,13 @@ def get_session(request: Request) -> SessionSchema:
     """
     セッションデータを取得するdependency
     """
-    return request.state.session
+    session = request.state.session
+    # すでにSessionSchemaの場合はそのまま返す
+    if isinstance(session, SessionSchema):
+        return session
+    # dictの場合はSessionSchemaに変換
+    session_data: Dict[str, Any] = session if session is not None else {}
+    return SessionSchema(data=session_data)
 
 
 def get_db_with_session(

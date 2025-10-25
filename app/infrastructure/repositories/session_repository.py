@@ -9,7 +9,7 @@ RDBベースのセッション管理を提供
 """
 
 import logging
-from typing import Any, Optional
+from typing import Any, Optional, cast
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session as DBSession
 from sqlalchemy import delete
@@ -34,7 +34,7 @@ class SessionService:
     セッション管理サービス
     """
 
-    def __init__(self, db: DBSession, encryption: Optional['SessionEncryption'] = None):
+    def __init__(self, db: DBSession, encryption: Optional["SessionEncryption"] = None):
         """
         Args:
             db: DBセッション
@@ -42,7 +42,9 @@ class SessionService:
         """
         self.db = db
         # 依存性注入: テスト時はモックインスタンスを渡せる
-        self.encryption = encryption if encryption is not None else get_session_encryption()
+        self.encryption = (
+            encryption if encryption is not None else get_session_encryption()
+        )
 
     def create_session(
         self,
@@ -111,7 +113,9 @@ class SessionService:
         Returns:
             セッションデータ、存在しないまたは無効な場合はNone
         """
-        session = self.db.query(Session).filter(Session.session_id == session_id).first()
+        session = (
+            self.db.query(Session).filter(Session.session_id == session_id).first()
+        )
 
         if not session:
             logger.debug(f"Session not found: {session_id}")
@@ -168,7 +172,9 @@ class SessionService:
         Returns:
             更新成功時True、失敗時False
         """
-        session = self.db.query(Session).filter(Session.session_id == session_id).first()
+        session = (
+            self.db.query(Session).filter(Session.session_id == session_id).first()
+        )
 
         if not session:
             logger.debug(f"Session not found for update: {session_id}")
@@ -182,7 +188,9 @@ class SessionService:
 
         # フィンガープリント検証
         if not verify_fingerprint(session.fingerprint, user_agent, client_ip):
-            logger.warning(f"Cannot update session with fingerprint mismatch: {session_id}")
+            logger.warning(
+                f"Cannot update session with fingerprint mismatch: {session_id}"
+            )
             self.delete_session(session_id)
             return False
 
@@ -214,7 +222,8 @@ class SessionService:
                 delete(Session).where(Session.session_id == session_id)
             )
             self.db.commit()
-            deleted = result.rowcount > 0
+            rowcount = cast(int, getattr(result, "rowcount", 0))
+            deleted = rowcount > 0
             if deleted:
                 logger.info(f"Session deleted: {session_id}")
             return deleted
@@ -235,7 +244,7 @@ class SessionService:
                 delete(Session).where(Session.expires_at < datetime.now())
             )
             self.db.commit()
-            count = result.rowcount
+            count = cast(int, getattr(result, "rowcount", 0))
             if count > 0:
                 logger.info(f"Cleaned up {count} expired sessions")
             return count
@@ -273,7 +282,9 @@ class SessionService:
         self.delete_session(old_session_id)
 
         # 新しいセッション作成
-        new_session_id, new_csrf_token = self.create_session(data, user_agent, client_ip)
+        new_session_id, new_csrf_token = self.create_session(
+            data, user_agent, client_ip
+        )
 
         logger.info(f"Session ID regenerated: {old_session_id} -> {new_session_id}")
         return new_session_id, new_csrf_token
@@ -288,5 +299,7 @@ class SessionService:
         Returns:
             CSRFトークン、セッションが存在しない場合はNone
         """
-        session = self.db.query(Session).filter(Session.session_id == session_id).first()
+        session = (
+            self.db.query(Session).filter(Session.session_id == session_id).first()
+        )
         return session.csrf_token if session else None

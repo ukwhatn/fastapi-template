@@ -5,8 +5,6 @@
 共通フィクスチャ（client, db_sessionなど）はtests/conftest.pyで定義されています。
 """
 
-import pytest
-
 
 # TODO: 統合テスト固有のフィクスチャをここに追加
 # 例:

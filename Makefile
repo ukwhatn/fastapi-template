@@ -118,23 +118,26 @@ dev\:setup:
 	uv sync
 
 lint:
-	uv run ruff check ./app ./versions ./tests
+	uv run --active ruff check ./app ./versions ./tests
 
 lint\:fix:
-	uv run ruff check --fix ./app ./versions ./tests
+	uv run --active ruff check --fix ./app ./versions ./tests
 
 format:
-	uv run ruff format ./app ./versions ./tests
+	uv run --active ruff format ./app ./versions ./tests
+
+type-check:
+	uv run --active mypy ./app ./versions ./tests
 
 security\:scan:
 	make security:scan:code
 	make security:scan:sast
 
 security\:scan\:code:
-	uv run bandit -r app/ -x tests/,app/db/dump.py
+	uv run --active bandit -r app/ -x tests/,app/db/dump.py
 
 security\:scan\:sast:
-	uv run semgrep scan --config=p/python --config=p/security-audit --config=p/owasp-top-ten
+	uv run --active semgrep scan --config=p/python --config=p/security-audit --config=p/owasp-top-ten
 
 db\:revision\:create:
 	$(COMPOSE_CMD) build db-migrator
@@ -192,10 +195,10 @@ envs\:setup: env
 	@echo "envs:setup is deprecated. Use 'make env' instead."
 
 test:
-	uv run pytest tests/ -v
+	uv run --active pytest tests/ -v
 
 test\:cov:
-	uv run pytest tests/ -v --cov=app --cov-report=html
+	uv run --active pytest tests/ -v --cov=app --cov-report=html
 
 openapi\:generate:
 	$(COMPOSE_CMD) exec server python -c "from main import app; import json; from fastapi.openapi.utils import get_openapi; openapi = get_openapi(title=app.title, version=app.version, description=app.description, routes=app.routes); print(json.dumps(openapi, indent=2, ensure_ascii=False))" > docs/openapi.json
@@ -258,4 +261,4 @@ template\:apply\:force:
 	git checkout $$commit_hash -- . && \
 	echo "テンプレートの変更が強制的に適用されました。変更を確認しgit add/commitしてください。"
 
-.PHONY: build up down logs ps pr\:create deploy\:prod uv\:install uv\:add uv\:add\:dev uv\:lock uv\:update uv\:update\:all uv\:sync dev\:setup lint lint\:fix format security\:scan security\:scan\:code security\:scan\:sast test test\:cov test\:setup db\:revision\:create db\:migrate db\:downgrade db\:current db\:history db\:dump db\:backup\:test db\:dump\:oneshot db\:dump\:list db\:dump\:restore db\:dump\:test env envs\:setup openapi\:generate project\:init template\:list template\:apply template\:apply\:range template\:apply\:force
+.PHONY: build up down logs ps pr\:create deploy\:prod uv\:install uv\:add uv\:add\:dev uv\:lock uv\:update uv\:update\:all uv\:sync dev\:setup lint lint\:fix format type-check security\:scan security\:scan\:code security\:scan\:sast test test\:cov test\:setup db\:revision\:create db\:migrate db\:downgrade db\:current db\:history db\:dump db\:backup\:test db\:dump\:oneshot db\:dump\:list db\:dump\:restore db\:dump\:test env envs\:setup openapi\:generate project\:init template\:list template\:apply template\:apply\:range template\:apply\:force

@@ -17,7 +17,7 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=True,
-        extra='ignore',  # 未定義のフィールドを無視
+        extra="ignore",  # 未定義のフィールドを無視
     )
 
     # 環境設定
@@ -85,7 +85,7 @@ class Settings(BaseSettings):
         """Supabase使用判定"""
         if not self.database_uri:
             return False
-        return 'supabase.co' in self.database_uri
+        return "supabase.co" in self.database_uri
 
     # セッション設定
     SESSION_COOKIE_NAME: str = "session_id"
@@ -99,15 +99,20 @@ class Settings(BaseSettings):
     def validate_encryption_key(cls, v: str) -> str:
         """暗号化キー検証"""
         if not v:
-            logger.warning("SESSION_ENCRYPTION_KEY is not set. Session encryption disabled.")
+            logger.warning(
+                "SESSION_ENCRYPTION_KEY is not set. Session encryption disabled."
+            )
             return ""
 
         # Fernet鍵の形式チェック
         try:
             from cryptography.fernet import Fernet
+
             Fernet(v.encode())
         except Exception:
-            raise ValueError("Invalid SESSION_ENCRYPTION_KEY format. Generate with: python -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\"")
+            raise ValueError(
+                'Invalid SESSION_ENCRYPTION_KEY format. Generate with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"'
+            )
 
         return v
 

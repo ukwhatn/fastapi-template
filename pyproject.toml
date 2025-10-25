@@ -5,28 +5,60 @@ description = "A template for creating a new application"
 authors = [{ name = "Yuki Watanabe", email = "ukwhatn@gmail.com" }]
 requires-python = ">=3.14"
 dependencies = [
-    "fastapi[standard]>=0.115.0,<0.116",
+    "fastapi[standard]>=0.120.0",
     "jinja2>=3.1.2,<4",
     "sqlalchemy>=2.0.32,<3",
     "psycopg2-binary>=2.9.9,<3",
     "pydantic>=2.8.2,<3",
     "pydantic-settings>=2.8.1,<3",
-    "cryptography>=44.0.0,<45",
+    "cryptography>=46.0.3",
     "sentry-sdk[fastapi]>=2.19.2,<3",
-    "newrelic>=10.3.1,<11",
+    "newrelic>=11.0.1",
 ]
 
 [dependency-groups]
 dev = [
-    "ruff>=0.11.0,<0.12",
+    "ruff>=0.14.2",
     "bandit>=1.7.8,<2",
     "semgrep>=1.63.0,<2",
     "pytest>=8.3.5",
     "pytest-cov>=7.0.0",
+    "mypy>=1.18.2",
+    "types-requests>=2.32.4.20250913",
 ]
 
 [tool.uv]
 package = false
+
+[tool.ruff]
+preview = true
+
+[tool.mypy]
+python_version = "3.14"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_any_unimported = false
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+check_untyped_defs = true
+strict_equality = true
+plugins = ["pydantic.mypy"]
+explicit_package_bases = true
+mypy_path = "$MYPY_CONFIG_FILE_DIR"
+
+[[tool.mypy.overrides]]
+module = [
+    "newrelic.*",
+    "sentry_sdk.*",
+    "bandit.*",
+    "semgrep.*",
+    "alembic.*",
+]
+ignore_missing_imports = true
 
 [build-system]
 requires = ["hatchling"]

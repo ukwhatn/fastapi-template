@@ -3,15 +3,16 @@ pytest設定と共通フィクスチャ
 """
 
 import os
+from typing import Any, Generator
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import StaticPool
 from cryptography.fernet import Fernet
 
 
-def pytest_configure(config):
+def pytest_configure(config: Any) -> None:
     """
     pytest実行前の設定
 
@@ -24,9 +25,9 @@ def pytest_configure(config):
 
 
 # pytest_configure後にインポート（環境変数設定後にモジュールをロード）
-from app.main import app
-from app.infrastructure.database.models import Base
-from app.infrastructure.database import get_db
+from app.main import app  # noqa: E402
+from app.infrastructure.database.models import Base  # noqa: E402
+from app.infrastructure.database import get_db  # noqa: E402
 
 
 # テスト用インメモリデータベース
@@ -41,7 +42,7 @@ TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engin
 
 
 @pytest.fixture(scope="function")
-def db_session():
+def db_session() -> Generator[Session, None, None]:
     """
     テスト用DBセッション
     各テストごとに新しいセッションを作成し、テスト後にロールバック
@@ -56,12 +57,12 @@ def db_session():
 
 
 @pytest.fixture(scope="function")
-def client(db_session):
+def client(db_session: Session) -> Generator[TestClient, None, None]:
     """
     テスト用FastAPIクライアント
     """
 
-    def override_get_db():
+    def override_get_db() -> Generator[Session, None, None]:
         try:
             yield db_session
         finally:
@@ -74,7 +75,7 @@ def client(db_session):
 
 
 @pytest.fixture
-def api_key():
+def api_key() -> str:
     """
     テスト用APIキー
     """

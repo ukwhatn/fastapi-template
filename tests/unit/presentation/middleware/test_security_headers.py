@@ -5,13 +5,13 @@ Note: ミドルウェアの実装はasyncだが、テストではモジュール
 実際の非同期実行はintegration testで検証する
 """
 
-import pytest
+from typing import Any
 
 
 class TestSecurityHeadersMiddlewareConfig:
     """SecurityHeadersMiddlewareの設定テスト"""
 
-    def test_security_headers_enabled_config(self, monkeypatch):
+    def test_security_headers_enabled_config(self, monkeypatch: Any) -> None:
         """SECURITY_HEADERS=Trueの場合、設定が正しく読み込まれること"""
         from cryptography.fernet import Fernet
 
@@ -19,6 +19,7 @@ class TestSecurityHeadersMiddlewareConfig:
         monkeypatch.setenv("SESSION_ENCRYPTION_KEY", Fernet.generate_key().decode())
 
         from app.core.config import get_settings
+
         get_settings.cache_clear()
 
         settings = get_settings()
@@ -27,7 +28,7 @@ class TestSecurityHeadersMiddlewareConfig:
 
         get_settings.cache_clear()
 
-    def test_security_headers_disabled_config(self, monkeypatch):
+    def test_security_headers_disabled_config(self, monkeypatch: Any) -> None:
         """SECURITY_HEADERS=Falseの場合、設定が正しく読み込まれること"""
         from cryptography.fernet import Fernet
 
@@ -35,6 +36,7 @@ class TestSecurityHeadersMiddlewareConfig:
         monkeypatch.setenv("SESSION_ENCRYPTION_KEY", Fernet.generate_key().decode())
 
         from app.core.config import get_settings
+
         get_settings.cache_clear()
 
         settings = get_settings()
@@ -43,7 +45,7 @@ class TestSecurityHeadersMiddlewareConfig:
 
         get_settings.cache_clear()
 
-    def test_custom_csp_policy_config(self, monkeypatch):
+    def test_custom_csp_policy_config(self, monkeypatch: Any) -> None:
         """カスタムCSPポリシーが設定できること"""
         from cryptography.fernet import Fernet
 
@@ -52,6 +54,7 @@ class TestSecurityHeadersMiddlewareConfig:
         monkeypatch.setenv("SESSION_ENCRYPTION_KEY", Fernet.generate_key().decode())
 
         from app.core.config import get_settings
+
         get_settings.cache_clear()
 
         settings = get_settings()

@@ -1,4 +1,4 @@
-from typing import Callable
+from typing import Callable, Awaitable
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
@@ -14,7 +14,9 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     セキュリティヘッダーを追加するミドルウェア
     """
 
-    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+    async def dispatch(
+        self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
         response = await call_next(request)
 
         if settings.SECURITY_HEADERS:

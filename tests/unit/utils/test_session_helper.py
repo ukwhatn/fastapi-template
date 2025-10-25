@@ -2,16 +2,15 @@
 セッションヘルパー関数の単体テスト
 """
 
-import pytest
 from unittest.mock import Mock, MagicMock
 from fastapi import Request, Response
-from fastapi.testclient import TestClient
+from sqlalchemy.orm import Session
 
 
 class TestIPAndUserAgentExtraction:
     """IP取得・User-Agent取得のテスト"""
 
-    def test_get_client_ip_from_header(self):
+    def test_get_client_ip_from_header(self) -> None:
         """X-Forwarded-Forヘッダーからクライアント IPを取得できること"""
         from app.utils.session_helper import get_client_ip
 
@@ -22,7 +21,7 @@ class TestIPAndUserAgentExtraction:
         ip = get_client_ip(request)
         assert ip == "203.0.113.1"
 
-    def test_get_client_ip_from_client_host(self):
+    def test_get_client_ip_from_client_host(self) -> None:
         """X-Forwarded-Forがない場合、client.hostから取得すること"""
         from app.utils.session_helper import get_client_ip
 
@@ -35,7 +34,7 @@ class TestIPAndUserAgentExtraction:
         ip = get_client_ip(request)
         assert ip == "192.168.1.1"
 
-    def test_get_client_ip_none_when_no_client(self):
+    def test_get_client_ip_none_when_no_client(self) -> None:
         """clientがない場合、Noneを返すこと"""
         from app.utils.session_helper import get_client_ip
 
@@ -46,7 +45,7 @@ class TestIPAndUserAgentExtraction:
         ip = get_client_ip(request)
         assert ip is None
 
-    def test_get_user_agent(self):
+    def test_get_user_agent(self) -> None:
         """User-Agentヘッダーを取得できること"""
         from app.utils.session_helper import get_user_agent
 
@@ -56,7 +55,7 @@ class TestIPAndUserAgentExtraction:
         user_agent = get_user_agent(request)
         assert user_agent == "Mozilla/5.0"
 
-    def test_get_user_agent_none(self):
+    def test_get_user_agent_none(self) -> None:
         """User-Agentヘッダーがない場合、Noneを返すこと"""
         from app.utils.session_helper import get_user_agent
 
@@ -70,7 +69,7 @@ class TestIPAndUserAgentExtraction:
 class TestSessionCookieOperations:
     """Cookieを使ったセッション操作のテスト"""
 
-    def test_create_session(self, db_session):
+    def test_create_session(self, db_session: Session) -> None:
         """セッションを作成してCookieに設定できること"""
         from app.utils.session_helper import create_session
 
@@ -92,12 +91,9 @@ class TestSessionCookieOperations:
         # Cookieが設定されたことを確認
         response.set_cookie.assert_called_once()
 
-    def test_get_session_data(self, db_session):
+    def test_get_session_data(self, db_session: Session) -> None:
         """セッションデータをCookieから取得できること"""
         from app.utils.session_helper import create_session, get_session_data
-        from app.core.config import get_settings
-
-        settings = get_settings()
 
         # セッション作成
         request = Mock(spec=Request)
@@ -120,7 +116,7 @@ class TestSessionCookieOperations:
         assert retrieved_data is not None
         assert retrieved_data["user_id"] == 123
 
-    def test_get_session_data_no_cookie(self, db_session):
+    def test_get_session_data_no_cookie(self, db_session: Session) -> None:
         """Cookieがない場合、Noneを返すこと"""
         from app.utils.session_helper import get_session_data
 
@@ -132,7 +128,7 @@ class TestSessionCookieOperations:
         data = get_session_data(db_session, request)
         assert data is None
 
-    def test_update_session_data(self, db_session):
+    def test_update_session_data(self, db_session: Session) -> None:
         """セッションデータを更新できること"""
         from app.utils.session_helper import create_session, update_session_data
 
@@ -157,7 +153,7 @@ class TestSessionCookieOperations:
 
         assert result is True
 
-    def test_update_session_data_no_cookie(self, db_session):
+    def test_update_session_data_no_cookie(self, db_session: Session) -> None:
         """Cookieがない場合、Falseを返すこと"""
         from app.utils.session_helper import update_session_data
 
@@ -169,7 +165,7 @@ class TestSessionCookieOperations:
         result = update_session_data(db_session, request, {"data": "test"})
         assert result is False
 
-    def test_delete_session(self, db_session):
+    def test_delete_session(self, db_session: Session) -> None:
         """セッションを削除してCookieをクリアできること"""
         from app.utils.session_helper import create_session, delete_session
 
@@ -195,7 +191,7 @@ class TestSessionCookieOperations:
         # delete_cookieが1回呼ばれる
         response.delete_cookie.assert_called_once()
 
-    def test_delete_session_no_cookie(self, db_session):
+    def test_delete_session_no_cookie(self, db_session: Session) -> None:
         """Cookieがない場合、Falseを返すこと"""
         from app.utils.session_helper import delete_session
 
@@ -209,7 +205,7 @@ class TestSessionCookieOperations:
         result = delete_session(db_session, request, response)
         assert result is False
 
-    def test_regenerate_session_id(self, db_session):
+    def test_regenerate_session_id(self, db_session: Session) -> None:
         """セッションIDを再生成できること"""
         from app.utils.session_helper import create_session, regenerate_session_id
 
@@ -222,7 +218,9 @@ class TestSessionCookieOperations:
 
         response = Mock(spec=Response)
         data = {"user_id": 123}
-        old_session_id, old_csrf_token = create_session(db_session, response, request, data)
+        old_session_id, old_csrf_token = create_session(
+            db_session, response, request, data
+        )
 
         # セッションID再生成
         mock_cookies = MagicMock()
@@ -237,7 +235,7 @@ class TestSessionCookieOperations:
         # set_cookieが2回呼ばれる（create + regenerate）
         assert response.set_cookie.call_count == 2
 
-    def test_regenerate_session_id_no_cookie(self, db_session):
+    def test_regenerate_session_id_no_cookie(self, db_session: Session) -> None:
         """Cookieがない場合、Noneを返すこと"""
         from app.utils.session_helper import regenerate_session_id
 
@@ -251,7 +249,7 @@ class TestSessionCookieOperations:
         result = regenerate_session_id(db_session, request, response)
         assert result is None
 
-    def test_get_csrf_token(self, db_session):
+    def test_get_csrf_token(self, db_session: Session) -> None:
         """CSRFトークンを取得できること"""
         from app.utils.session_helper import create_session, get_csrf_token
 
@@ -275,7 +273,7 @@ class TestSessionCookieOperations:
 
         assert csrf_token == expected_csrf
 
-    def test_get_csrf_token_no_cookie(self, db_session):
+    def test_get_csrf_token_no_cookie(self, db_session: Session) -> None:
         """Cookieがない場合、Noneを返すこと"""
         from app.utils.session_helper import get_csrf_token
 

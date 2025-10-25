@@ -34,6 +34,9 @@ class SessionEncryption:
             encryption_key = settings.SESSION_ENCRYPTION_KEY
 
         self.encryption_key = encryption_key
+        self.cipher: Optional[Fernet]
+        self.enabled: bool
+
         if self.encryption_key:
             try:
                 self.cipher = Fernet(self.encryption_key.encode())
@@ -46,7 +49,9 @@ class SessionEncryption:
         else:
             self.cipher = None
             self.enabled = False
-            logger.warning("Session encryption disabled (SESSION_ENCRYPTION_KEY not set)")
+            logger.warning(
+                "Session encryption disabled (SESSION_ENCRYPTION_KEY not set)"
+            )
 
     def encrypt(self, data: dict[str, Any]) -> str:
         """
@@ -88,7 +93,8 @@ class SessionEncryption:
         if not self.enabled or not self.cipher:
             # 暗号化無効時はJSONパース
             try:
-                return json.loads(encrypted_data)
+                parsed_result: dict[str, Any] = json.loads(encrypted_data)
+                return parsed_result
             except json.JSONDecodeError as e:
                 logger.error(f"Failed to parse session data: {e}")
                 raise ValueError("Invalid session data")
@@ -97,7 +103,8 @@ class SessionEncryption:
             # 復号化 → バイト列からデコード → JSONパース
             decrypted = self.cipher.decrypt(encrypted_data.encode("utf-8"))
             json_str = decrypted.decode("utf-8")
-            return json.loads(json_str)
+            decrypted_result: dict[str, Any] = json.loads(json_str)
+            return decrypted_result
         except InvalidToken:
             logger.error("Invalid encryption token for session data")
             raise ValueError("Invalid or corrupted session data")
@@ -165,7 +172,7 @@ def verify_fingerprint(
 
 
 # シングルトンインスタンス
-_session_encryption = None
+_session_encryption: Optional[SessionEncryption] = None
 
 
 def get_session_encryption() -> SessionEncryption:
