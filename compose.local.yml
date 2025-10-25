@@ -3,8 +3,8 @@
 # Docker services: db, adminer, db-migrator only
 #
 # Usage:
-#   docker compose -f compose.local.yml up -d
-#   uv run fastapi dev app/main.py --host 0.0.0.0 --port 8000
+#   make local:up
+#   make local:serve
 
 services:
   db:

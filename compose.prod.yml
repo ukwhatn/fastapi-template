@@ -4,8 +4,9 @@
 # No port exposure (use nginx + Cloudflare Proxy)
 #
 # Usage:
-#   ローカルDB: docker compose -f compose.prod.yml --profile local-db up -d
-#   外部DBaaS: docker compose -f compose.prod.yml up -d
+#   make prod:deploy  # Initial deployment
+#   make prod:logs    # View logs
+#   make prod:ps      # Check status
 
 services:
   server:

@@ -1,3 +1,7 @@
+# .envファイルを読み込む（存在する場合）
+-include .env
+export
+
 ENV ?= local
 
 ifeq ($(ENV), prod)
@@ -8,7 +12,17 @@ else
 	COMPOSE_FILE := compose.local.yml
 endif
 
-COMPOSE_CMD := docker compose -f $(COMPOSE_FILE)
+# POSTGRES_HOSTに基づくprofile自動判定（local環境以外）
+PROFILE_ARGS :=
+ifneq ($(ENV), local)
+	ifeq ($(POSTGRES_HOST), db)
+		PROFILE_ARGS := --profile local-db
+	else ifeq ($(POSTGRES_HOST), localhost)
+		PROFILE_ARGS := --profile local-db
+	endif
+endif
+
+COMPOSE_CMD := docker compose -f $(COMPOSE_FILE) $(PROFILE_ARGS)
 
 # 共通変数
 DB_MIGRATOR_RUN := $(COMPOSE_CMD) run --rm db-migrator custom alembic
@@ -106,18 +120,40 @@ test\:cov:
 openapi\:generate:
 	$(COMPOSE_CMD) exec server python -c "from main import app; import json; from fastapi.openapi.utils import get_openapi; openapi = get_openapi(title=app.title, version=app.version, description=app.description, routes=app.routes); print(json.dumps(openapi, indent=2, ensure_ascii=False))" > docs/openapi.json
 
+# 汎用Docker Composeコマンド
+compose\:up:
+	$(COMPOSE_CMD) up -d
+
+compose\:down:
+	$(COMPOSE_CMD) down
+
+compose\:logs:
+	$(COMPOSE_CMD) logs -f
+
+compose\:ps:
+	$(COMPOSE_CMD) ps
+
+compose\:pull:
+	$(COMPOSE_CMD) pull
+
+compose\:restart:
+	$(COMPOSE_CMD) restart
+
+compose\:build:
+	$(COMPOSE_CMD) up --build -d
+
 # ローカル開発環境（uv native + Docker DB）
 local\:up:
-	docker compose -f compose.local.yml up -d
+	ENV=local $(MAKE) compose:up
 
 local\:down:
-	docker compose -f compose.local.yml down
+	ENV=local $(MAKE) compose:down
 
 local\:logs:
-	docker compose -f compose.local.yml logs -f
+	ENV=local $(MAKE) compose:logs
 
 local\:ps:
-	docker compose -f compose.local.yml ps
+	ENV=local $(MAKE) compose:ps
 
 local\:serve:
 	uv run fastapi dev app/main.py --host 0.0.0.0 --port 8000
@@ -127,26 +163,26 @@ dev\:deploy:
 	./scripts/deploy-dev.sh
 
 dev\:logs:
-	docker compose -f compose.dev.yml logs -f
+	ENV=dev $(MAKE) compose:logs
 
 dev\:ps:
-	docker compose -f compose.dev.yml ps
+	ENV=dev $(MAKE) compose:ps
 
 dev\:down:
-	docker compose -f compose.dev.yml down
+	ENV=dev $(MAKE) compose:down
 
 # Prod環境（Watchtower自動デプロイ）
 prod\:deploy:
 	./scripts/deploy-prod.sh
 
 prod\:logs:
-	docker compose -f compose.prod.yml logs -f
+	ENV=prod $(MAKE) compose:logs
 
 prod\:ps:
-	docker compose -f compose.prod.yml ps
+	ENV=prod $(MAKE) compose:ps
 
 prod\:down:
-	docker compose -f compose.prod.yml down
+	ENV=prod $(MAKE) compose:down
 
 # Watchtower管理
 watchtower\:setup:
@@ -266,4 +302,4 @@ template\:apply\:force:
 	git checkout $$commit_hash -- . && \
 	echo "テンプレートの変更が強制的に適用されました。変更を確認しgit add/commitしてください。"
 
-.PHONY: build build\:no-cache up down reload reset logs logs\:once ps pr\:create deploy\:prod uv\:add uv\:add\:dev uv\:lock uv\:update uv\:update\:all dev\:setup lint lint\:fix format type-check security\:scan security\:scan\:code security\:scan\:sast test test\:cov db\:revision\:create db\:migrate db\:downgrade db\:current db\:history db\:dump db\:dump\:oneshot db\:dump\:list db\:dump\:restore db\:dump\:test env openapi\:generate local\:up local\:down local\:logs local\:ps local\:serve dev\:deploy dev\:logs dev\:ps dev\:down prod\:deploy prod\:logs prod\:ps prod\:down watchtower\:setup watchtower\:logs watchtower\:status watchtower\:restart secrets\:encrypt\:dev secrets\:encrypt\:prod secrets\:decrypt\:dev secrets\:decrypt\:prod secrets\:edit\:dev secrets\:edit\:prod project\:init template\:list template\:apply template\:apply\:range template\:apply\:force
+.PHONY: build build\:no-cache up down reload reset logs logs\:once ps pr\:create deploy\:prod uv\:add uv\:add\:dev uv\:lock uv\:update uv\:update\:all dev\:setup lint lint\:fix format type-check security\:scan security\:scan\:code security\:scan\:sast test test\:cov db\:revision\:create db\:migrate db\:downgrade db\:current db\:history db\:dump db\:dump\:oneshot db\:dump\:list db\:dump\:restore db\:dump\:test env openapi\:generate compose\:up compose\:down compose\:logs compose\:ps compose\:pull compose\:restart compose\:build local\:up local\:down local\:logs local\:ps local\:serve dev\:deploy dev\:logs dev\:ps dev\:down prod\:deploy prod\:logs prod\:ps prod\:down watchtower\:setup watchtower\:logs watchtower\:status watchtower\:restart secrets\:encrypt\:dev secrets\:encrypt\:prod secrets\:decrypt\:dev secrets\:decrypt\:prod secrets\:edit\:dev secrets\:edit\:prod project\:init template\:list template\:apply template\:apply\:range template\:apply\:force
