@@ -1,7 +1,5 @@
 ENV ?= "dev"
-UV_GROUPS = server db dev
 INCLUDE_DB ?= false
-INCLUDE_REDIS ?= false
 PROD_PORT ?= 59999
 
 # 環境別設定
@@ -42,15 +40,9 @@ ifeq ($(INCLUDE_DB), true)
 		PROFILES_LIST := $(PROFILES_LIST) db-dev
 	endif
 endif
-ifeq ($(INCLUDE_REDIS), true)
-	PROFILES_LIST := $(PROFILES_LIST) redis
-endif
 
 # profile引数構築
 PROFILE_ARGS := $(foreach profile,$(PROFILES_LIST),--profile $(profile))
-
-# uv group引数構築
-UV_GROUP_ARGS := $(foreach group,$(UV_GROUPS),--group $(group))
 
 # composeコマンド構築
 COMPOSE_CMD := docker compose $(PROFILE_ARGS) $(COMPOSE_ENV_FILES)
@@ -59,7 +51,10 @@ COMPOSE_CMD := docker compose $(PROFILE_ARGS) $(COMPOSE_ENV_FILES)
 export ENV_MODE
 export SERVER_PORT
 export INCLUDE_DB
-export INCLUDE_REDIS
+
+# 共通変数
+DB_MIGRATOR_RUN := $(COMPOSE_CMD) build db-migrator && $(COMPOSE_CMD) run --rm db-migrator custom alembic
+DB_DUMPER_RUN := $(COMPOSE_CMD) build && $(COMPOSE_CMD) run --rm db-dumper custom python dump.py
 
 build:
 	$(COMPOSE_CMD) build
@@ -100,11 +95,12 @@ deploy\:prod:
 	make build ENV=prod
 	make reload ENV=prod
 
-uv\:install:
-	curl -LsSf https://astral.sh/uv/install.sh | sh
-
 uv\:add:
-	uv add --group=$(group) $(packages)
+	uv add $(packages)
+	make uv:lock
+
+uv\:add\:dev:
+	uv add --group dev $(packages)
 	make uv:lock
 
 uv\:lock:
@@ -116,87 +112,180 @@ uv\:update:
 uv\:update\:all:
 	uv lock --upgrade
 
-uv\:sync:
-	uv sync --group $(group)
-
 dev\:setup:
-	uv sync $(UV_GROUP_ARGS)
+	uv sync
 
 lint:
-	uv run ruff check ./app ./versions
+	uv run --active ruff check ./app ./versions ./tests
 
 lint\:fix:
-	uv run ruff check --fix ./app ./versions
+	uv run --active ruff check --fix ./app ./versions ./tests
 
 format:
-	uv run ruff format ./app ./versions
+	uv run --active ruff format ./app ./versions ./tests
+
+type-check:
+	uv run --active mypy app versions tests
 
 security\:scan:
 	make security:scan:code
 	make security:scan:sast
 
 security\:scan\:code:
-	uv run bandit -r app/ -x tests/,app/db/dump.py
+	uv run --active bandit -r app/ -x tests/,app/db/dump.py
 
 security\:scan\:sast:
-	uv run semgrep scan --config=p/python --config=p/security-audit --config=p/owasp-top-ten
+	uv run --active semgrep scan --config=p/python --config=p/security-audit --config=p/owasp-top-ten
 
 db\:revision\:create:
-	$(COMPOSE_CMD) build db-migrator
-	$(COMPOSE_CMD) run --rm db-migrator custom alembic revision --autogenerate -m '${NAME}'
+	$(DB_MIGRATOR_RUN) revision --autogenerate -m '${NAME}'
 
 db\:migrate:
-	$(COMPOSE_CMD) build db-migrator
-	$(COMPOSE_CMD) run --rm db-migrator custom alembic upgrade head
+	$(DB_MIGRATOR_RUN) upgrade head
 
 db\:downgrade:
-	$(COMPOSE_CMD) build db-migrator
-	$(COMPOSE_CMD) run --rm db-migrator custom alembic downgrade $(REV)
+	$(DB_MIGRATOR_RUN) downgrade $(REV)
 
 db\:current:
-	$(COMPOSE_CMD) build db-migrator
-	$(COMPOSE_CMD) run --rm db-migrator custom alembic current
+	$(DB_MIGRATOR_RUN) current
 
 db\:history:
-	$(COMPOSE_CMD) build db-migrator
-	$(COMPOSE_CMD) run --rm db-migrator custom alembic history
+	$(DB_MIGRATOR_RUN) history
 
 # データベースダンプ関連コマンド
 db\:dump:
-	$(COMPOSE_CMD) build
 	$(COMPOSE_CMD) run --rm --build -e DB_TOOL_MODE=dumper -e DUMPER_MODE=interactive db-dumper custom python dump.py
 
 db\:dump\:oneshot:
-	$(COMPOSE_CMD) build
-	$(COMPOSE_CMD) run --rm db-dumper custom python dump.py oneshot
+	$(DB_DUMPER_RUN) oneshot
 
 db\:dump\:list:
-	$(COMPOSE_CMD) build
-	$(COMPOSE_CMD) run --rm db-dumper custom python dump.py list
+	$(DB_DUMPER_RUN) list
 
 db\:dump\:restore:
-	$(COMPOSE_CMD) build
-	$(COMPOSE_CMD) run --rm db-dumper custom python dump.py restore $(FILE)
+	$(DB_DUMPER_RUN) restore $(FILE)
 
 db\:dump\:test:
 	@if [ "$(INCLUDE_DB)" != "true" ]; then \
 		echo "Skipping database dump test: INCLUDE_DB is not set to true"; \
 	else \
-		$(COMPOSE_CMD) build; \
-		$(COMPOSE_CMD) run --rm db-dumper custom python dump.py test --confirm; \
+		$(DB_DUMPER_RUN) test --confirm; \
 	fi
 
-db\:backup\:test: # 後方互換性のためにエイリアスを提供
-	make db:dump:test
+env:
+	cp .env.example .env
+	@echo ".env file created. Please edit it with your configuration."
 
-envs\:setup:
-	cp envs/server.env.example envs/server.env
-	cp envs/db.env.example envs/db.env
-	cp envs/sentry.env.example envs/sentry.env
-	cp envs/aws-s3.env.example envs/aws-s3.env
+test:
+	uv run --active pytest tests/ -v
+
+test\:cov:
+	uv run --active pytest tests/ -v --cov=app --cov-report=html
 
 openapi\:generate:
 	$(COMPOSE_CMD) exec server python -c "from main import app; import json; from fastapi.openapi.utils import get_openapi; openapi = get_openapi(title=app.title, version=app.version, description=app.description, routes=app.routes); print(json.dumps(openapi, indent=2, ensure_ascii=False))" > docs/openapi.json
+
+# ローカル開発環境（uv native + Docker DB）
+local\:up:
+	docker compose -f compose.local.yml up -d
+
+local\:down:
+	docker compose -f compose.local.yml down
+
+local\:logs:
+	docker compose -f compose.local.yml logs -f
+
+local\:ps:
+	docker compose -f compose.local.yml ps
+
+local\:serve:
+	uv run fastapi dev app/main.py --host 0.0.0.0 --port 8000
+
+# Dev環境（Watchtower自動デプロイ）
+dev\:deploy:
+	./scripts/deploy-dev.sh
+
+dev\:logs:
+	docker compose -f compose.dev.yml logs -f
+
+dev\:ps:
+	docker compose -f compose.dev.yml ps
+
+dev\:down:
+	docker compose -f compose.dev.yml down
+
+# Prod環境（Watchtower自動デプロイ）
+prod\:deploy:
+	./scripts/deploy-prod.sh
+
+prod\:logs:
+	docker compose -f compose.prod.yml logs -f
+
+prod\:ps:
+	docker compose -f compose.prod.yml ps
+
+prod\:down:
+	docker compose -f compose.prod.yml down
+
+# Watchtower管理
+watchtower\:setup:
+	./scripts/setup-watchtower.sh
+
+watchtower\:logs:
+	docker logs watchtower -f
+
+watchtower\:status:
+	docker ps --filter "name=watchtower"
+
+watchtower\:restart:
+	docker restart watchtower
+
+# シークレット管理（SOPS + age）
+secrets\:encrypt\:dev:
+	@if [ ! -f .env.dev ]; then \
+		echo "Error: .env.dev not found. Create it first."; \
+		exit 1; \
+	fi
+	sops -e .env.dev > .env.dev.enc
+	@echo "✅ .env.dev encrypted to .env.dev.enc"
+
+secrets\:encrypt\:prod:
+	@if [ ! -f .env.prod ]; then \
+		echo "Error: .env.prod not found. Create it first."; \
+		exit 1; \
+	fi
+	sops -e .env.prod > .env.prod.enc
+	@echo "✅ .env.prod encrypted to .env.prod.enc"
+
+secrets\:decrypt\:dev:
+	@if [ ! -f .env.dev.enc ]; then \
+		echo "Error: .env.dev.enc not found"; \
+		exit 1; \
+	fi
+	sops -d .env.dev.enc > .env.dev
+	@echo "✅ .env.dev.enc decrypted to .env.dev"
+
+secrets\:decrypt\:prod:
+	@if [ ! -f .env.prod.enc ]; then \
+		echo "Error: .env.prod.enc not found"; \
+		exit 1; \
+	fi
+	sops -d .env.prod.enc > .env.prod
+	@echo "✅ .env.prod.enc decrypted to .env.prod"
+
+secrets\:edit\:dev:
+	@if [ ! -f .env.dev.enc ]; then \
+		echo "Error: .env.dev.enc not found"; \
+		exit 1; \
+	fi
+	sops .env.dev.enc
+
+secrets\:edit\:prod:
+	@if [ ! -f .env.prod.enc ]; then \
+		echo "Error: .env.prod.enc not found"; \
+		exit 1; \
+	fi
+	sops .env.prod.enc
 
 project\:init:
 	@if [ -z "$(NAME)" ]; then \
@@ -256,4 +345,4 @@ template\:apply\:force:
 	git checkout $$commit_hash -- . && \
 	echo "テンプレートの変更が強制的に適用されました。変更を確認しgit add/commitしてください。"
 
-.PHONY: build up down logs ps pr\:create deploy\:prod uv\:install uv\:add uv\:lock uv\:update uv\:update\:all uv\:sync dev\:setup lint lint\:fix format security\:scan security\:scan\:code security\:scan\:sast test test\:cov test\:setup db\:revision\:create db\:migrate db\:downgrade db\:current db\:history db\:dump db\:backup\:test db\:dump\:oneshot db\:dump\:list db\:dump\:restore db\:dump\:test envs\:setup openapi\:generate project\:init template\:list template\:apply template\:apply\:range template\:apply\:force
+.PHONY: build build\:no-cache up down reload reset logs logs\:once ps pr\:create deploy\:prod uv\:add uv\:add\:dev uv\:lock uv\:update uv\:update\:all dev\:setup lint lint\:fix format type-check security\:scan security\:scan\:code security\:scan\:sast test test\:cov db\:revision\:create db\:migrate db\:downgrade db\:current db\:history db\:dump db\:dump\:oneshot db\:dump\:list db\:dump\:restore db\:dump\:test env openapi\:generate local\:up local\:down local\:logs local\:ps local\:serve dev\:deploy dev\:logs dev\:ps dev\:down prod\:deploy prod\:logs prod\:ps prod\:down watchtower\:setup watchtower\:logs watchtower\:status watchtower\:restart secrets\:encrypt\:dev secrets\:encrypt\:prod secrets\:decrypt\:dev secrets\:decrypt\:prod secrets\:edit\:dev secrets\:edit\:prod project\:init template\:list template\:apply template\:apply\:range template\:apply\:force

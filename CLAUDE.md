@@ -1,139 +1,318 @@
 # CLAUDE.md
 
-このファイルは、Claude Code (claude.ai/code) がこのリポジトリのコードを扱う際のガイダンスを提供します。
+This file provides guidance for Claude Code when working with this repository.
 
-## プロジェクト概要
+## Project Overview
 
-FastAPIで構築されたWebアプリケーションテンプレートで、プロダクション対応のAPIサーバーの基盤を提供します。モジュラーアーキテクチャ、SQLAlchemyによるデータベース統合、Redis対応、包括的なDockerデプロイメントを使用します。
+FastAPI production-ready template using Clean Architecture (4-layer), SQLAlchemy ORM, RDB-based encrypted session management, comprehensive Docker deployment, and Supabase support.
 
-## ドキュメント構造
+**Tech Stack:**
+- FastAPI 0.120.0+ (Python 3.14+)
+- SQLAlchemy 2.0+ with PostgreSQL
+- Docker Compose (multi-profile setup)
+- uv for dependency management
+- Ruff for linting/formatting
+- mypy for strict type checking
+- pytest with coverage reporting
 
-- **README.md**: ユーザー向けランディングページ（日本語）
-- **development.md**: 完全な開発ガイド（日本語）- API作成、モデル定義、データベース操作、Docker開発
-- **CLAUDE.md**: AI開発アシスタント向けプロジェクト情報
+## Common Commands
 
-## 開発コマンド
+### Essential Setup
+```bash
+make env                    # Create .env from .env.example
+make dev:setup              # Install all dependencies with uv
+make up INCLUDE_DB=true     # Start all containers with database
+make db:migrate             # Apply database migrations
+```
 
-### 環境セットアップ
-- `make dev:setup` - uvを使用して全依存関係をインストール（server, db, devグループ）
-- `make envs:setup` - envs/ディレクトリから環境ファイルテンプレートをコピー
+### Development Workflow
+```bash
+make lint                   # Check code quality with Ruff
+make lint:fix               # Auto-fix linting issues
+make format                 # Format code with Ruff
+make type-check             # Run mypy type checking (strict mode)
+make test                   # Run all tests
+make test:cov               # Run tests with coverage report
+```
 
-### コード品質
-- `make lint` - Ruffリンターでコード品質をチェック
-- `make lint:fix` - 自動修正付きでRuffを実行
-- `make format` - Ruffフォーマッターでコードフォーマット
+### Database Operations
+```bash
+make db:revision:create NAME="description"  # Create new migration
+make db:migrate                             # Apply migrations
+make db:current                             # Show current revision
+make db:history                             # Show migration history
+```
 
-### Docker操作
-- `make up` - 全コンテナをデタッチモードでビルド・起動
-- `make down` - 全コンテナを停止
-- `make reload` - コンテナを再ビルドして再起動
-- `make logs` - コンテナログをフォロー
-- `make ps` - 実行中のコンテナを表示
+### Docker Operations
+```bash
+make up                     # Build and start containers (legacy)
+make down                   # Stop containers
+make reload                 # Rebuild and restart containers
+make logs                   # Follow container logs
+make ps                     # Show running containers
+```
 
-### データベース管理
-- `make db:revision:create NAME="説明"` - 新しいAlembicマイグレーションを作成
-- `make db:migrate` - データベースにマイグレーションを適用
-- `make db:current` - 現在のマイグレーションリビジョンを表示
-- `make db:history` - マイグレーション履歴を表示
+### Deployment (New)
+```bash
+# Local development (uv native + Docker DB)
+docker compose -f compose.local.yml up -d
+uv run fastapi dev app/main.py
 
-### セキュリティスキャン
-- `make security:scan` - 全セキュリティスキャンを実行（Bandit + Semgrep）
-- `make security:scan:code` - Bandit静的解析を実行
-- `make security:scan:sast` - Semgrepセキュリティ解析を実行
+# Dev environment (auto-deploy via Watchtower)
+make dev:deploy             # Deploy to dev environment
+make dev:logs               # View dev logs
+make dev:ps                 # Check dev status
 
-## アーキテクチャ
+# Production environment (auto-deploy via Watchtower)
+make prod:deploy            # Deploy to production (with confirmation)
+make prod:logs              # View production logs
+make prod:ps                # Check production status
 
-### コアコンポーネント
-- **main.py**: FastAPIアプリケーションエントリーポイント、ミドルウェア設定、エラーハンドリング
-- **core/config.py**: Pydanticを使用した環境ベース設定の集約設定
-- **api/**: APIルーターとエンドポイント定義
-- **db/**: SQLAlchemyモデル、スキーマ、CRUD操作を含むデータベース層
-- **static/**: 静的ファイル（CSS、JavaScript、画像など）
-- **templates/**: Jinja2テンプレートファイル
+# Watchtower setup (one-time per server)
+./scripts/setup-watchtower.sh
 
-### 設定システム
-アプリケーションはPydanticベースの設定システム（`core/config.py`）を使用し、以下をサポート:
-- 環境固有設定（`ENV_MODE`による development/production/test）
-- データベース接続管理（PostgreSQL）
-- Redis統合
-- Sentryエラートラッキング
-- New Relic APM監視
-- セキュリティヘッダーとCSPポリシー
+# Secrets management (SOPS + age)
+make secrets:encrypt:dev    # Encrypt dev secrets
+make secrets:encrypt:prod   # Encrypt prod secrets
+make secrets:decrypt:dev    # Decrypt dev secrets
+make secrets:decrypt:prod   # Decrypt prod secrets
+```
 
-### データベースアーキテクチャ
-- **models/base.py**: 自動インクリメントIDと created_at/updated_at用の`TimeStampMixin`を持つ`BaseModel`を提供
-- **models/**: `BaseModel`を継承するSQLAlchemyモデル定義
-- **schemas/**: データバリデーション用Pydanticスキーマ
-- **crud/**: ベースCRUD操作を持つデータベース操作層
+## Architecture
 
-### APIアーキテクチャ
-- **api/v1/**: バージョン管理されたAPIエンドポイント
-- **api/system/**: システム関連エンドポイント（ヘルスチェック等）
-- **api/deps.py**: 依存性注入用の共通依存関数
-- 自動OpenAPI/Swagger文書生成
+IMPORTANT: This project follows Clean Architecture with strict layer separation. Always respect dependency rules.
 
-### Docker設定
-プロジェクトはマルチプロファイルDocker Compose設定を使用:
-- **app**: メインFastAPIアプリケーションサービス
-- **db**: ヘルスチェック付きPostgreSQLデータベース
-- **redis**: Redisキャッシュ/セッションストア
-- **db-migrator**: Alembicマイグレーションランナー
-- **adminer**: データベース管理インターフェース（開発のみ）
-- **db-dumper**: データベースバックアップユーティリティ
+### Layer Structure (4 layers)
 
-環境変数が`INCLUDE_DB`と`INCLUDE_REDIS`フラグによってどのサービスが含まれるかを制御します。
+**Domain Layer** (`app/domain/`)
+- Core business logic, entities, value objects
+- No dependencies on other layers
+- Files: `exceptions/base.py`, `entities/`, `value_objects/`
 
-## 開発ワークフロー
+**Application Layer** (`app/application/`)
+- Use cases, DTOs, repository interfaces
+- Depends only on Domain layer
+- Files: `use_cases/`, `services/`, `interfaces/`, `dtos/`
 
-1. `make envs:setup`でテンプレートから環境ファイルを作成
-2. 各環境ファイルでデータベースとAPI設定を構成
-3. `make dev:setup`で依存関係をインストール
-4. `make up INCLUDE_DB=true`でデータベース付きで起動
-5. `make db:migrate`でデータベースマイグレーションを適用
-6. コミット前に`make lint`と`make format`を使用
+**Infrastructure Layer** (`app/infrastructure/`)
+- Database models, repositories, external services
+- Implements interfaces from Application layer
+- Files: `database/models/`, `repositories/`, `security/`, `external/`
 
-## 主要ファイル
+**Presentation Layer** (`app/presentation/`)
+- FastAPI routers, schemas, middleware, dependencies
+- Files: `api/v1/`, `api/system/`, `schemas/`, `middleware/`
 
-- `app/main.py:1-210` - FastAPIアプリケーション設定とミドルウェア
-- `app/core/config.py` - 環境設定とPydantic設定クラス
-- `app/db/models/base.py` - タイムスタンプMixin付きベースモデル
-- `app/api/__init__.py` - APIルーター統合
+### Key Files
 
-## 典型的な開発タスク
+- `app/main.py` - Application entry point with middleware setup
+- `app/core/config.py` - Settings management (Pydantic Settings)
+- `app/infrastructure/database/connection.py` - Database connection management
+- `app/infrastructure/database/models/base.py` - Base model with timestamp mixin
+- `app/infrastructure/repositories/session_repository.py` - Session service implementation
+- `app/infrastructure/security/encryption.py` - Fernet encryption for sessions
 
-### 新しいAPIエンドポイントを作成
-1. `app/db/models/`に新しいモデルファイルを作成
-2. `app/db/schemas/`に対応するPydanticスキーマを作成
-3. `app/db/crud/`にCRUD操作を作成
-4. `app/api/v1/`にAPIルーターを作成
-5. `app/api/v1/__init__.py`にルーターを登録
-6. `make db:revision:create NAME="add_model"`でマイグレーションを作成
-7. `make db:migrate`で適用
+## Code Style
 
-### データベースモデルを追加
-1. `app/db/models/`に新しいモデルファイルを作成
-2. `app/db/schemas/`に対応するPydanticスキーマを作成
-3. `app/db/crud/`にCRUD操作を作成
-4. `make db:revision:create NAME="add_model"`でマイグレーションを作成
-5. `make db:migrate`で適用
+IMPORTANT: Follow these conventions strictly:
 
-### 環境設定を追加
-1. `app/core/config.py`の`Settings`クラスに新しいフィールドを追加
-2. 必要に応じて対応する`.env`ファイルを更新
-3. APIエンドポイントで`get_settings()`を使用してアクセス
+- **Type hints**: Always use type hints. Project uses mypy strict mode
+- **Imports**: Use absolute imports (`from app.domain...`), not relative imports
+- **Async/await**: Use async for all database operations and API endpoints
+- **Docstrings**: Not required for simple functions, but recommended for complex logic
+- **Naming**:
+  - Files: `snake_case.py`
+  - Classes: `PascalCase`
+  - Functions/variables: `snake_case`
+  - Constants: `UPPER_SNAKE_CASE`
 
-### ミドルウェアを追加
-1. `app/core/middleware.py`に新しいミドルウェアクラスを作成
-2. `app/main.py`でミドルウェアを登録
+## Testing Guidelines
 
-## テスト
+- Place unit tests in `tests/unit/`
+- Place integration tests in `tests/integration/`
+- Use `test_` prefix for all test files and functions
+- Leverage fixtures from `tests/conftest.py` (`client`, `db_session`)
+- Run `make test` before committing
 
-プロジェクトにはセキュリティスキャンが含まれていますが、明示的なテストフレームワークは設定されていません。テストを追加する場合は、プロジェクト構造を確認し、`pyproject.toml`の`dev`グループに適切なテスト依存関係を追加してください。
+## Workflow for Common Tasks
 
-## 監視とエラーハンドリング
+### Adding a New API Endpoint
 
-- Sentry統合によるエラートラッキング
-- New Relic APM監視（本番環境）
-- 構造化ログ出力
-- カスタム例外ハンドリング（`core/exceptions.py`）
-- ヘルスチェックエンドポイント 
+1. Create SQLAlchemy model in `app/infrastructure/database/models/`
+2. Create Pydantic schema in `app/presentation/schemas/`
+3. Create repository in `app/infrastructure/repositories/`
+4. Create use case in `app/application/use_cases/` (if needed)
+5. Create router in `app/presentation/api/v1/`
+6. Register router in `app/presentation/api/v1/__init__.py`
+7. Create migration: `make db:revision:create NAME="add_model"`
+8. Apply migration: `make db:migrate`
+9. Add tests in `tests/`
+10. Run: `make lint && make type-check && make test`
+
+### Adding Database Model
+
+1. Create model class inheriting from `Base` in `app/infrastructure/database/models/`
+2. Import in `app/infrastructure/database/models/__init__.py`
+3. Create corresponding Pydantic schema
+4. Create repository implementation
+5. Generate migration: `make db:revision:create NAME="description"`
+6. Review migration file in `versions/`
+7. Apply: `make db:migrate`
+
+### Modifying Environment Configuration
+
+1. Add field to `Settings` class in `app/core/config.py`
+2. Update `.env.example` with new variable
+3. Update `.env` locally
+4. Access via `get_settings()` dependency in endpoints
+
+## Important Project Details
+
+### Session Management
+- Uses RDB-based sessions (NOT Redis)
+- Fernet encryption for session data (requires `SESSION_ENCRYPTION_KEY` in .env)
+- CSRF protection enabled
+- Session fixation protection via User-Agent + IP fingerprinting
+
+### Database Configuration
+- `DATABASE_URL` takes precedence over individual `POSTGRES_*` variables
+- Supabase auto-detected if URL contains 'supabase.co'
+- Application continues with DB features disabled if DATABASE_URL not set (with warning)
+
+### Docker Profiles
+- Use `INCLUDE_DB=true` to enable database services (db, adminer, db-migrator, db-dumper)
+- Environments: `dev` (default), `stg`, `test`, `prod`
+- Example: `make up ENV=prod INCLUDE_DB=true`
+
+### Security
+- Sentry integration for error tracking (production)
+- New Relic APM monitoring (production)
+- Security scanning via Bandit and Semgrep: `make security:scan`
+
+## Deployment Architecture
+
+IMPORTANT: The project uses three distinct deployment environments with automatic updates.
+
+### Environment Overview
+
+| Environment | App Execution | Database | Proxy | Auto-Deploy | Compose File |
+|-------------|--------------|----------|-------|-------------|--------------|
+| **Local** | uv native (hot reload) | Docker (optional) | None | No | `compose.local.yml` |
+| **Dev** | Docker (GHCR.io) | Docker PostgreSQL | Cloudflare Tunnels | Watchtower (develop) | `compose.dev.yml` |
+| **Prod** | Docker (GHCR.io) | External (Supabase) | nginx + Cloudflare | Watchtower (latest) | `compose.prod.yml` |
+
+### Key Deployment Features
+
+**Multi-platform builds**: GitHub Actions builds linux/amd64 and linux/arm64 images
+
+**Tag strategy**:
+- `main` branch → `latest` + `main` + `main-sha-xxx` tags
+- `develop` branch → `develop` + `develop-sha-xxx` tags
+
+**Automatic deployment**: Watchtower monitors GHCR.io and auto-updates containers (10 min polling)
+
+**Label-based control**: Only containers with `com.centurylinklabs.watchtower.enable=true` update
+
+**Secrets management**: SOPS + age for encrypted environment files (`.env.dev.enc`, `.env.prod.enc`)
+
+### Watchtower Setup
+
+**One Watchtower per server** (not per project):
+- Label-based control prevents unintended updates
+- Weekly self-update via cron
+- Discord/Slack notifications via Shoutrrr
+- Setup: `./scripts/setup-watchtower.sh`
+
+**Auto-update enabled for**:
+- `server` container
+- `db-dumper` container (from ukwhatn/postgres-tools)
+- `db-migrator` container (from ukwhatn/postgres-tools)
+
+**Auto-update disabled for**:
+- `db` container (PostgreSQL)
+- `cloudflared` container
+
+### Secrets Management (SOPS + age)
+
+**Why**: Encrypted secrets can be safely committed to Git with full audit trail
+
+**Setup**:
+1. Install SOPS and age
+2. Generate age key pair: `age-keygen -o ~/.config/sops/age/keys.txt`
+3. Update `.sops.yaml` with public key
+4. Encrypt: `sops -e .env.dev > .env.dev.enc`
+5. Commit encrypted file to Git
+
+**Deployment flow**:
+1. Deploy script decrypts `.env.dev.enc` → `.env`
+2. Starts containers with decrypted secrets
+3. Removes `.env` after deployment
+
+**Reference**: See `docs/secrets-management.md` for detailed guide
+
+### Deployment Workflow
+
+**Local development**:
+```bash
+docker compose -f compose.local.yml up -d
+uv run fastapi dev app/main.py
+```
+
+**Dev deployment** (initial):
+```bash
+./scripts/setup-watchtower.sh  # One-time per server
+./scripts/deploy-dev.sh         # Deploy
+```
+
+**Dev deployment** (subsequent):
+```bash
+git push origin develop        # GitHub Actions builds and pushes
+# Watchtower auto-updates within 10 minutes
+```
+
+**Production deployment** (initial):
+```bash
+./scripts/setup-watchtower.sh  # One-time per server
+./scripts/deploy-prod.sh        # Deploy with confirmation
+```
+
+**Production deployment** (subsequent):
+```bash
+git push origin main           # GitHub Actions builds and pushes
+# Watchtower auto-updates within 10 minutes
+```
+
+### Important Deployment Notes
+
+- **No SSH required**: All deployments use GHCR.io pull + Watchtower
+- **Downtime**: 10-30 seconds during auto-updates
+- **Branch isolation**: develop and main branches use different tags (no cross-contamination)
+- **Rollback**: Use SHA tags for specific version deployment
+- **Monitoring**: Check Watchtower logs with `docker logs watchtower -f`
+- **Health checks**: Containers have built-in health checks; Watchtower respects them
+
+**Reference**: See `docs/deployment.md` for comprehensive deployment guide
+
+## Repository Etiquette
+
+- Main branch: `main`
+- Development branch: `develop`
+- Create PRs from feature branches to `develop`
+- Use `make pr:create` to create PR (requires gh CLI)
+- Run `make lint`, `make type-check`, and `make test` before committing
+- Use conventional commits (e.g., `feat:`, `fix:`, `refactor:`)
+
+## Documentation
+
+- **README.md** - User-facing landing page (Japanese)
+- **development.md** - Complete development guide (Japanese)
+- **docs/deployment.md** - Deployment guide for local/dev/prod (Japanese)
+- **docs/secrets-management.md** - SOPS + age secrets management guide (Japanese)
+- **CLAUDE.md** - This file, for AI assistance
+
+## Common Gotchas
+
+- mypy requires paths without `./` prefix: use `mypy app tests` not `mypy ./app ./tests`
+- Database migrations must be reviewed before applying (Alembic can miss some changes)
+- Session encryption key must be 32 url-safe base64-encoded bytes
+- Docker Compose profiles must be explicitly enabled via `INCLUDE_DB=true` for database services

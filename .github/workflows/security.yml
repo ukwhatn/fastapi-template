@@ -1,0 +1,45 @@
+name: Security Scan
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+
+      - name: Setup Python with uv
+        uses: ./.github/actions/setup-python-uv
+
+      - name: Run security scans
+        run: |
+          echo "Installing Trivy Scanner..."
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin v0.46.1 &
+          TRIVY_INSTALL_PID=$!
+
+          echo "Running critical Bandit scan..."
+          uv run --active bandit -r app/ -x tests/,app/db/dump.py -ll &
+          BANDIT_PID=$!
+
+          echo "Running critical Semgrep scan..."
+          uv run --active semgrep scan --config=p/python --config=p/security-audit --config=p/owasp-top-ten --severity ERROR --error &
+          SEMGREP_PID=$!
+
+          # Wait for Trivy installation
+          wait $TRIVY_INSTALL_PID
+
+          echo "Scanning Dockerfiles..."
+          trivy config --exit-code 1 --severity CRITICAL ./docker/server.Dockerfile &
+          TRIVY_PID=$!
+
+          # Wait for all scans to complete
+          wait $BANDIT_PID || { echo "❌ Bandit scan failed"; exit 1; }
+          wait $SEMGREP_PID || { echo "❌ Semgrep scan failed"; exit 1; }
+          wait $TRIVY_PID || { echo "❌ Trivy scan failed"; exit 1; }
+
+          echo "✅ All security scans passed!"

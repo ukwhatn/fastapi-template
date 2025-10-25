@@ -30,7 +30,7 @@
 make project:init NAME="あなたのプロジェクト名"
 
 # 環境ファイルをセットアップ
-make envs:setup
+make env
 
 # 依存関係をインストール
 make dev:setup
@@ -38,25 +38,32 @@ make dev:setup
 
 ### 3. APIサーバーを実行
 
-**ローカル開発:**
+**ローカル開発（推奨 - ホットリロード付き）:**
 ```bash
-cd app && python main.py
+# データベースサービスを起動
+make local:up
+
+# アプリケーションをuvでネイティブ実行
+make local:serve
+# または: uv run fastapi dev app/main.py --host 0.0.0.0 --port 8000
 ```
 
-**Docker使用（推奨）:**
+**Docker使用:**
 ```bash
-# データベースとRedisと一緒にAPIを起動（不要ならfalseにする）
-make up INCLUDE_DB=true INCLUDE_REDIS=true
+# データベース付きで起動
+make up INCLUDE_DB=true
 ```
 
 APIサーバーが起動しました！ 🎉
 
 - **API文書**: http://localhost:8000/docs
-- **管理画面**: http://localhost:8080 (Adminer - データベース管理)
+- **管理画面**: http://localhost:8001 (Adminer - データベース管理)
 
 ## 📚 ドキュメント
 
 - **[開発ガイド](development.md)** - API構築、データベース操作、Docker開発の完全ガイド
+- **[デプロイメントガイド](docs/deployment.md)** - Local/Dev/Prod環境へのデプロイ方法
+- **[シークレット管理ガイド](docs/secrets-management.md)** - SOPS + ageによる安全なシークレット管理
 - **[クイックリファレンス](#クイックリファレンス)** - 開発に必要なコマンド一覧
 
 ## 🏗️ アーキテクチャ概要
@@ -91,24 +98,44 @@ app/
 ### 必須コマンド
 
 ```bash
-# 開発
+# 開発セットアップ
 make dev:setup          # 全依存関係をインストール
-make envs:setup         # テンプレートから環境ファイルを作成
+make env                # テンプレートから.envファイルを作成
 
 # コード品質
-make format            # Ruffでコードをフォーマット
-make lint              # コード品質をチェック
-make security:scan     # セキュリティ分析を実行
+make format             # Ruffでコードをフォーマット
+make lint               # コード品質をチェック
+make type-check         # mypy型チェック
+make security:scan      # セキュリティ分析を実行
+make test               # テストを実行
+make test:cov           # カバレッジ付きテスト
 
-# Docker操作
-make up                # APIサーバーを起動
+# ローカル開発（uv native + Docker DB）
+make local:up           # データベースサービス起動
+make local:serve        # アプリケーション起動（ホットリロード）
+make local:down         # サービス停止
+
+# Docker操作（レガシー）
 make up INCLUDE_DB=true # データベース付きで起動
-make logs              # コンテナログを表示
-make down              # 全コンテナを停止
+make down               # 全コンテナを停止
+make logs               # コンテナログを表示
+
+# デプロイ（新規）
+make dev:deploy         # Dev環境デプロイ（Watchtower自動更新）
+make prod:deploy        # 本番環境デプロイ（確認付き）
+make watchtower:setup   # Watchtowerセットアップ（サーバーごとに1回）
+
+# シークレット管理（SOPS + age）
+make secrets:encrypt:dev   # Dev環境変数を暗号化
+make secrets:encrypt:prod  # Prod環境変数を暗号化
+make secrets:edit:dev      # Dev環境変数を編集（自動再暗号化）
+make secrets:edit:prod     # Prod環境変数を編集（自動再暗号化）
 
 # データベース
-make db:migrate        # データベースマイグレーションを適用
+make db:migrate         # データベースマイグレーションを適用
 make db:revision:create NAME="説明" # 新しいマイグレーションを作成
+make db:current         # 現在のリビジョンを表示
+make db:history         # マイグレーション履歴を表示
 ```
 
 ### 機能追加

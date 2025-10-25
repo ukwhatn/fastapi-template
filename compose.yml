@@ -19,13 +19,10 @@ services:
       - ./app:/usr/src/app
       - ./newrelic.ini:/etc/newrelic.ini:ro
     env_file:
-      - ./envs/db.env
-      - ./envs/server.env
+      - .env
     environment:
       - ENV_MODE=${ENV_MODE:-development}
       - WATCHFILES_FORCE_POLLING=true
-      - INCLUDE_DB=${INCLUDE_DB:-false}
-      - INCLUDE_REDIS=${INCLUDE_REDIS:-false}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:80/system/healthcheck/"]
@@ -37,26 +34,35 @@ services:
       db:
         condition: service_healthy
         required: false
-      redis:
-        condition: service_healthy
-        required: false
       db-migrator:
         condition: service_completed_successfully
         required: false
     networks:
       - db
-      - redis
     profiles:
       - dev
       - stg
       - test
       - prod
+    develop:
+      watch:
+        - action: sync
+          path: .
+          target: /app
+          ignore:
+            - .venv/
+            - __pycache__/
+            - "*.pyc"
+        - action: rebuild
+          path: ./pyproject.toml
+        - action: rebuild
+          path: ./uv.lock
 
   db:
     container_name: fastapi-template-db
     image: postgres:17
     env_file:
-      - ./envs/db.env
+      - .env
     environment:
       POSTGRES_DB: main
       TZ: Asia/Tokyo
@@ -73,22 +79,6 @@ services:
     profiles:
       - db
 
-  redis:
-    container_name: fastapi-template-redis
-    image: redis:7.4.1
-    volumes:
-      - redis_data:/data
-    restart: unless-stopped
-    healthcheck:
-      test: redis-cli ping
-      interval: 2s
-      timeout: 5s
-      retries: 30
-    networks:
-      - redis
-    profiles:
-      - redis
-
   db-migrator:
     container_name: fastapi-template-db-migrator
     image: ghcr.io/ukwhatn/psql-migrator:latest
@@ -96,7 +86,7 @@ services:
       - ./versions:/app/versions
       - ./app/db/models:/app/migrations/models
     env_file:
-      - ./envs/db.env
+      - .env
     environment:
       - POSTGRES_HOST=db
     restart: no
@@ -131,9 +121,7 @@ services:
     container_name: fastapi-template-db-dumper
     image: ghcr.io/ukwhatn/psql-dumper:latest
     env_file:
-      - ./envs/db.env
-      - ./envs/sentry.env
-      - ./envs/aws-s3.env
+      - .env
     environment:
       - POSTGRES_HOST=db
     restart: unless-stopped
@@ -149,10 +137,7 @@ services:
 
 volumes:
   pg_data:
-  redis_data:
 
 networks:
   db:
-    driver: bridge
-  redis:
     driver: bridge 

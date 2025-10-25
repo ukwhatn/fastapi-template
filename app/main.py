@@ -3,7 +3,8 @@ import json
 import logging
 import os
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, AsyncIterator
+from collections.abc import Callable, Awaitable
 
 import sentry_sdk
 from fastapi import FastAPI, Request, Response
@@ -14,10 +15,11 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from api import api_router
-from core import APIError, ErrorResponse, ValidationError, get_settings
-from core.middleware import SecurityHeadersMiddleware
-from utils import SessionCrud, SessionSchema
+from app.presentation import api_router
+from app.core import APIError, ErrorResponse, ValidationError, get_settings
+from app.presentation.middleware.security_headers import SecurityHeadersMiddleware
+from app.infrastructure.database import get_db
+from app.infrastructure.repositories.session_repository import SessionService
 
 # 設定読み込み
 settings = get_settings()
@@ -50,20 +52,20 @@ else:
 # New Relic設定
 if settings.is_production and settings.NEW_RELIC_LICENSE_KEY:
     print("New Relic!")
-    import newrelic.agent  # type: ignore
+    import newrelic.agent
 
     # 環境変数のオーバーライド
     os.environ["NEW_RELIC_LICENSE_KEY"] = settings.NEW_RELIC_LICENSE_KEY
     os.environ["NEW_RELIC_APP_NAME"] = settings.NEW_RELIC_APP_NAME
 
     # 設定オブジェクトの作成
-    newrelic_config = newrelic.agent.global_settings()  # type: ignore
-    newrelic_config.high_security = settings.NEW_RELIC_HIGH_SECURITY  # type: ignore
-    newrelic_config.monitor_mode = settings.NEW_RELIC_MONITOR_MODE  # type: ignore
-    newrelic_config.app_name = settings.NEW_RELIC_APP_NAME  # type: ignore
+    newrelic_config = newrelic.agent.global_settings()
+    newrelic_config.high_security = settings.NEW_RELIC_HIGH_SECURITY
+    newrelic_config.monitor_mode = settings.NEW_RELIC_MONITOR_MODE
+    newrelic_config.app_name = settings.NEW_RELIC_APP_NAME
 
     # New Relic初期化
-    newrelic.agent.initialize(  # type: ignore
+    newrelic.agent.initialize(
         config_file="/etc/newrelic.ini", environment=settings.ENV_MODE
     )
     logger.info("New Relic is enabled")
@@ -87,7 +89,7 @@ if settings.SENTRY_DSN:
 
 # ヘルスチェックフィルター
 class HealthCheckFilter(logging.Filter):
-    def filter(self, record):
+    def filter(self, record: logging.LogRecord) -> bool:
         return "/system/healthcheck" not in record.getMessage()
 
 
@@ -106,7 +108,7 @@ def has_content(directory: Path) -> bool:
 
 
 @contextlib.asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """
     アプリケーションのライフサイクル管理
     """
@@ -194,7 +196,9 @@ async def validation_exception_handler(
 
 # エラーハンドリングミドルウェア
 @app.middleware("http")
-async def error_response(request: Request, call_next):
+async def error_response(
+    request: Request, call_next: Callable[[Request], Awaitable[Response]]
+) -> Response:
     try:
         return await call_next(request)
     except Exception as e:
@@ -214,24 +218,50 @@ async def error_response(request: Request, call_next):
 
 # セッション管理ミドルウェア
 @app.middleware("http")
-async def session_creator(request: Request, call_next):
-    if settings.INCLUDE_REDIS:
-        with SessionCrud() as session_crud:
-            req_session_data = session_crud.get(request)
-            if req_session_data is None:
-                req_session_data = SessionSchema()
-            request.state.session = req_session_data
+async def session_middleware(
+    request: Request, call_next: Callable[[Request], Awaitable[Response]]
+) -> Response:
+    """
+    セッション管理ミドルウェア
+
+    DATABASE_URLが設定されている場合のみ、RDBベースのセッション管理を有効化
+    """
+    if settings.has_database:
+        # データベースセッション取得
+        db_gen = get_db()
+        db = next(db_gen)
+        try:
+            # セッションIDをCookieから取得
+            session_id = request.cookies.get(settings.SESSION_COOKIE_NAME)
+            if session_id:
+                # 既存セッション取得
+                service = SessionService(db)
+                user_agent = request.headers.get("User-Agent")
+                client_ip = request.headers.get("X-Forwarded-For", "").split(",")[
+                    0
+                ].strip() or (request.client.host if request.client else None)
+                session_data = service.get_session(session_id, user_agent, client_ip)
+                request.state.session = session_data or {}
+            else:
+                request.state.session = {}
+
+            # リクエスト処理
+            response = await call_next(request)
+
+            # セッションデータの永続化は各エンドポイントで明示的に実施
+            # ミドルウェアでの自動保存は行わない（パフォーマンス対策）
+
+            return response
+        finally:
+            # DBセッションクローズ
+            try:
+                next(db_gen)
+            except StopIteration:
+                pass
     else:
+        # データベース未設定時はセッション無効
         request.state.session = None
-
-    response = await call_next(request)
-
-    if settings.INCLUDE_REDIS:
-        with SessionCrud() as session_crud:
-            res_session_data = request.state.session
-            session_crud.update(request, response, res_session_data)
-
-    return response
+        return await call_next(request)
 
 
 # ルーター登録

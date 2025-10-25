@@ -1,0 +1,39 @@
+# Production environment (auto-deploy via Watchtower)
+# Image from GHCR.io (latest tag)
+# External database (Supabase, etc.)
+# No port exposure (use nginx + Cloudflare Proxy)
+#
+# Usage:
+#   docker compose -f compose.prod.yml up -d
+
+services:
+  server:
+    container_name: ${COMPOSE_PROJECT_NAME:-fastapi-template}-server-prod
+    image: ghcr.io/${GITHUB_REPOSITORY:-owner/repo}:latest
+    command:
+      - /bin/sh
+      - -c
+      - |
+        fastapi run app/main.py --host 0.0.0.0 --port 80 --proxy-headers
+    volumes:
+      - ./newrelic.ini:/etc/newrelic.ini:ro
+    env_file:
+      - .env
+    environment:
+      - ENV_MODE=production
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/system/healthcheck/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - prod
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
+networks:
+  prod:
+    name: ${COMPOSE_PROJECT_NAME:-fastapi-template}-prod
+    driver: bridge
