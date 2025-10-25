@@ -35,25 +35,25 @@ jobs:
     uses: ./.github/workflows/docker-test.yml
     secrets: inherit
 
-  # Summary job
-  ci-success:
-    runs-on: ubuntu-latest
-    needs: [lint, type-check, security, test, docker-test]
-    if: always()
-    steps:
-      - name: Check all jobs status
-        run: |
-          if [ "${{ needs.lint.result }}" != "success" ] || \
-             [ "${{ needs.type-check.result }}" != "success" ] || \
-             [ "${{ needs.security.result }}" != "success" ] || \
-             [ "${{ needs.test.result }}" != "success" ] || \
-             [ "${{ needs.docker-test.result }}" != "success" ]; then
-            echo "❌ One or more CI jobs failed"
-            echo "Lint: ${{ needs.lint.result }}"
-            echo "Type Check: ${{ needs.type-check.result }}"
-            echo "Security: ${{ needs.security.result }}"
-            echo "Test: ${{ needs.test.result }}"
-            echo "Docker Test: ${{ needs.docker-test.result }}"
-            exit 1
-          fi
-          echo "✅ All CI checks passed successfully!"
+  # Summary job (Branch Protection Rules使用時に有効化)
+  # ci-success:
+  #   runs-on: ubuntu-latest
+  #   needs: [lint, type-check, security, test, docker-test]
+  #   if: always()
+  #   steps:
+  #     - name: Check all jobs status
+  #       run: |
+  #         if [ "${{ needs.lint.result }}" != "success" ] || \
+  #            [ "${{ needs.type-check.result }}" != "success" ] || \
+  #            [ "${{ needs.security.result }}" != "success" ] || \
+  #            [ "${{ needs.test.result }}" != "success" ] || \
+  #            [ "${{ needs.docker-test.result }}" != "success" ]; then
+  #           echo "❌ One or more CI jobs failed"
+  #           echo "Lint: ${{ needs.lint.result }}"
+  #           echo "Type Check: ${{ needs.type-check.result }}"
+  #           echo "Security: ${{ needs.security.result }}"
+  #           echo "Test: ${{ needs.test.result }}"
+  #           echo "Docker Test: ${{ needs.docker-test.result }}"
+  #           exit 1
+  #         fi
+  #         echo "✅ All CI checks passed successfully!"
