@@ -1,0 +1,72 @@
+# Local development environment
+# Application runs natively with uv
+# Docker services: db, adminer, db-migrator only
+#
+# Usage:
+#   docker compose -f compose.local.yml up -d
+#   uv run fastapi dev app/main.py --host 0.0.0.0 --port 8000
+
+services:
+  db:
+    container_name: ${COMPOSE_PROJECT_NAME:-fastapi-template}-db-local
+    image: postgres:17
+    env_file:
+      - .env
+    environment:
+      POSTGRES_DB: main
+      TZ: Asia/Tokyo
+    ports:
+      - "${POSTGRES_PORT:-127.0.0.1:5432}:5432"
+    volumes:
+      - pg_data_local:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: pg_isready -U ${POSTGRES_USER:-user} -d main
+      interval: 2s
+      timeout: 5s
+      retries: 30
+    networks:
+      - db-local
+
+  db-migrator:
+    container_name: ${COMPOSE_PROJECT_NAME:-fastapi-template}-db-migrator-local
+    image: ghcr.io/ukwhatn/psql-migrator:latest
+    volumes:
+      - ./versions:/app/versions
+      - ./app/infrastructure/database/models:/app/migrations/models
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_HOST=db
+    restart: no
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - db-local
+
+  adminer:
+    container_name: ${COMPOSE_PROJECT_NAME:-fastapi-template}-adminer-local
+    image: adminer:latest
+    environment:
+      ADMINER_DEFAULT_SERVER: db
+      ADMINER_DESIGN: pepa-linha
+    ports:
+      - "127.0.0.1:8001:8080"
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      db-migrator:
+        condition: service_completed_successfully
+    networks:
+      - db-local
+
+volumes:
+  pg_data_local:
+    name: ${COMPOSE_PROJECT_NAME:-fastapi-template}-pg-data-local
+
+networks:
+  db-local:
+    name: ${COMPOSE_PROJECT_NAME:-fastapi-template}-db-local
+    driver: bridge

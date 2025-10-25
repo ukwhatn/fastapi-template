@@ -1,0 +1,124 @@
+# Dev environment (auto-deploy via Watchtower)
+# Image from GHCR.io (develop tag)
+# Docker PostgreSQL
+# No port exposure (use Cloudflare Tunnels)
+#
+# Usage:
+#   docker compose -f compose.dev.yml up -d
+
+services:
+  server:
+    container_name: ${COMPOSE_PROJECT_NAME:-fastapi-template}-server-dev
+    image: ghcr.io/${GITHUB_REPOSITORY:-owner/repo}:develop
+    command:
+      - /bin/sh
+      - -c
+      - |
+        fastapi run app/main.py --host 0.0.0.0 --port 80 --proxy-headers
+    volumes:
+      - ./newrelic.ini:/etc/newrelic.ini:ro
+    env_file:
+      - .env
+    environment:
+      - ENV_MODE=development
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/system/healthcheck/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    depends_on:
+      db:
+        condition: service_healthy
+      db-migrator:
+        condition: service_completed_successfully
+    networks:
+      - db-dev
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
+  db:
+    container_name: ${COMPOSE_PROJECT_NAME:-fastapi-template}-db-dev
+    image: postgres:17
+    env_file:
+      - .env
+    environment:
+      POSTGRES_DB: main
+      TZ: Asia/Tokyo
+    volumes:
+      - pg_data_dev:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: pg_isready -U ${POSTGRES_USER:-user} -d main
+      interval: 2s
+      timeout: 5s
+      retries: 30
+    networks:
+      - db-dev
+    labels:
+      - "com.centurylinklabs.watchtower.enable=false"
+
+  db-migrator:
+    container_name: ${COMPOSE_PROJECT_NAME:-fastapi-template}-db-migrator-dev
+    image: ghcr.io/ukwhatn/psql-migrator:latest
+    volumes:
+      - ./versions:/app/versions
+      - ./app/infrastructure/database/models:/app/migrations/models
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_HOST=db
+    restart: no
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - db-dev
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
+  db-dumper:
+    container_name: ${COMPOSE_PROJECT_NAME:-fastapi-template}-db-dumper-dev
+    image: ghcr.io/ukwhatn/psql-dumper:latest
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_HOST=db
+      - BACKUP_SCHEDULE=${BACKUP_SCHEDULE:-0 3 * * *}
+    volumes:
+      - ./backups:/app/backups
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - db-dev
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
+  # Optional: Cloudflare Tunnel
+  # Uncomment if using Cloudflare Tunnels for external access
+  # cloudflared:
+  #   container_name: ${COMPOSE_PROJECT_NAME:-fastapi-template}-cloudflared-dev
+  #   image: cloudflare/cloudflared:latest
+  #   command: tunnel --no-autoupdate run
+  #   environment:
+  #     - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
+  #   restart: unless-stopped
+  #   depends_on:
+  #     server:
+  #       condition: service_healthy
+  #   networks:
+  #     - db-dev
+  #   labels:
+  #     - "com.centurylinklabs.watchtower.enable=false"
+
+volumes:
+  pg_data_dev:
+    name: ${COMPOSE_PROJECT_NAME:-fastapi-template}-pg-data-dev
+
+networks:
+  db-dev:
+    name: ${COMPOSE_PROJECT_NAME:-fastapi-template}-db-dev
+    driver: bridge

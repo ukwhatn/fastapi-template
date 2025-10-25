@@ -185,6 +185,108 @@ test\:cov:
 openapi\:generate:
 	$(COMPOSE_CMD) exec server python -c "from main import app; import json; from fastapi.openapi.utils import get_openapi; openapi = get_openapi(title=app.title, version=app.version, description=app.description, routes=app.routes); print(json.dumps(openapi, indent=2, ensure_ascii=False))" > docs/openapi.json
 
+# ローカル開発環境（uv native + Docker DB）
+local\:up:
+	docker compose -f compose.local.yml up -d
+
+local\:down:
+	docker compose -f compose.local.yml down
+
+local\:logs:
+	docker compose -f compose.local.yml logs -f
+
+local\:ps:
+	docker compose -f compose.local.yml ps
+
+local\:serve:
+	uv run fastapi dev app/main.py --host 0.0.0.0 --port 8000
+
+# Dev環境（Watchtower自動デプロイ）
+dev\:deploy:
+	./scripts/deploy-dev.sh
+
+dev\:logs:
+	docker compose -f compose.dev.yml logs -f
+
+dev\:ps:
+	docker compose -f compose.dev.yml ps
+
+dev\:down:
+	docker compose -f compose.dev.yml down
+
+# Prod環境（Watchtower自動デプロイ）
+prod\:deploy:
+	./scripts/deploy-prod.sh
+
+prod\:logs:
+	docker compose -f compose.prod.yml logs -f
+
+prod\:ps:
+	docker compose -f compose.prod.yml ps
+
+prod\:down:
+	docker compose -f compose.prod.yml down
+
+# Watchtower管理
+watchtower\:setup:
+	./scripts/setup-watchtower.sh
+
+watchtower\:logs:
+	docker logs watchtower -f
+
+watchtower\:status:
+	docker ps --filter "name=watchtower"
+
+watchtower\:restart:
+	docker restart watchtower
+
+# シークレット管理（SOPS + age）
+secrets\:encrypt\:dev:
+	@if [ ! -f .env.dev ]; then \
+		echo "Error: .env.dev not found. Create it first."; \
+		exit 1; \
+	fi
+	sops -e .env.dev > .env.dev.enc
+	@echo "✅ .env.dev encrypted to .env.dev.enc"
+
+secrets\:encrypt\:prod:
+	@if [ ! -f .env.prod ]; then \
+		echo "Error: .env.prod not found. Create it first."; \
+		exit 1; \
+	fi
+	sops -e .env.prod > .env.prod.enc
+	@echo "✅ .env.prod encrypted to .env.prod.enc"
+
+secrets\:decrypt\:dev:
+	@if [ ! -f .env.dev.enc ]; then \
+		echo "Error: .env.dev.enc not found"; \
+		exit 1; \
+	fi
+	sops -d .env.dev.enc > .env.dev
+	@echo "✅ .env.dev.enc decrypted to .env.dev"
+
+secrets\:decrypt\:prod:
+	@if [ ! -f .env.prod.enc ]; then \
+		echo "Error: .env.prod.enc not found"; \
+		exit 1; \
+	fi
+	sops -d .env.prod.enc > .env.prod
+	@echo "✅ .env.prod.enc decrypted to .env.prod"
+
+secrets\:edit\:dev:
+	@if [ ! -f .env.dev.enc ]; then \
+		echo "Error: .env.dev.enc not found"; \
+		exit 1; \
+	fi
+	sops .env.dev.enc
+
+secrets\:edit\:prod:
+	@if [ ! -f .env.prod.enc ]; then \
+		echo "Error: .env.prod.enc not found"; \
+		exit 1; \
+	fi
+	sops .env.prod.enc
+
 project\:init:
 	@if [ -z "$(NAME)" ]; then \
 		echo "Error: NAME is required"; \
@@ -243,4 +345,4 @@ template\:apply\:force:
 	git checkout $$commit_hash -- . && \
 	echo "テンプレートの変更が強制的に適用されました。変更を確認しgit add/commitしてください。"
 
-.PHONY: build build\:no-cache up down reload reset logs logs\:once ps pr\:create deploy\:prod uv\:add uv\:add\:dev uv\:lock uv\:update uv\:update\:all dev\:setup lint lint\:fix format type-check security\:scan security\:scan\:code security\:scan\:sast test test\:cov db\:revision\:create db\:migrate db\:downgrade db\:current db\:history db\:dump db\:dump\:oneshot db\:dump\:list db\:dump\:restore db\:dump\:test env openapi\:generate project\:init template\:list template\:apply template\:apply\:range template\:apply\:force
+.PHONY: build build\:no-cache up down reload reset logs logs\:once ps pr\:create deploy\:prod uv\:add uv\:add\:dev uv\:lock uv\:update uv\:update\:all dev\:setup lint lint\:fix format type-check security\:scan security\:scan\:code security\:scan\:sast test test\:cov db\:revision\:create db\:migrate db\:downgrade db\:current db\:history db\:dump db\:dump\:oneshot db\:dump\:list db\:dump\:restore db\:dump\:test env openapi\:generate local\:up local\:down local\:logs local\:ps local\:serve dev\:deploy dev\:logs dev\:ps dev\:down prod\:deploy prod\:logs prod\:ps prod\:down watchtower\:setup watchtower\:logs watchtower\:status watchtower\:restart secrets\:encrypt\:dev secrets\:encrypt\:prod secrets\:decrypt\:dev secrets\:decrypt\:prod secrets\:edit\:dev secrets\:edit\:prod project\:init template\:list template\:apply template\:apply\:range template\:apply\:force

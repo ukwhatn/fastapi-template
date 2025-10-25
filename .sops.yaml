@@ -1,0 +1,29 @@
+# SOPS Configuration
+# Defines encryption rules for environment files
+#
+# Setup:
+#   1. Generate age key pairs:
+#      age-keygen -o ~/.config/sops/age/keys.txt
+#   2. Replace placeholder public keys below with your actual keys
+#   3. Keep private keys secure (never commit to git)
+#
+# Usage:
+#   Encrypt: sops -e .env.dev > .env.dev.enc
+#   Decrypt: sops -d .env.dev.enc > .env
+#   Edit: sops .env.dev.enc
+
+creation_rules:
+  # Dev environment
+  - path_regex: \.env\.dev(\.enc)?$
+    age: >-
+      age1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+  # Production environment
+  - path_regex: \.env\.prod(\.enc)?$
+    age: >-
+      age1yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy
+
+  # Default rule for any other .env files
+  - path_regex: \.env\..*$
+    age: >-
+      age1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx

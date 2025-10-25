@@ -45,11 +45,37 @@ make db:history                             # Show migration history
 
 ### Docker Operations
 ```bash
-make up                     # Build and start containers
+make up                     # Build and start containers (legacy)
 make down                   # Stop containers
 make reload                 # Rebuild and restart containers
 make logs                   # Follow container logs
 make ps                     # Show running containers
+```
+
+### Deployment (New)
+```bash
+# Local development (uv native + Docker DB)
+docker compose -f compose.local.yml up -d
+uv run fastapi dev app/main.py
+
+# Dev environment (auto-deploy via Watchtower)
+make dev:deploy             # Deploy to dev environment
+make dev:logs               # View dev logs
+make dev:ps                 # Check dev status
+
+# Production environment (auto-deploy via Watchtower)
+make prod:deploy            # Deploy to production (with confirmation)
+make prod:logs              # View production logs
+make prod:ps                # Check production status
+
+# Watchtower setup (one-time per server)
+./scripts/setup-watchtower.sh
+
+# Secrets management (SOPS + age)
+make secrets:encrypt:dev    # Encrypt dev secrets
+make secrets:encrypt:prod   # Encrypt prod secrets
+make secrets:decrypt:dev    # Decrypt dev secrets
+make secrets:decrypt:prod   # Decrypt prod secrets
 ```
 
 ## Architecture
@@ -163,6 +189,110 @@ IMPORTANT: Follow these conventions strictly:
 - New Relic APM monitoring (production)
 - Security scanning via Bandit and Semgrep: `make security:scan`
 
+## Deployment Architecture
+
+IMPORTANT: The project uses three distinct deployment environments with automatic updates.
+
+### Environment Overview
+
+| Environment | App Execution | Database | Proxy | Auto-Deploy | Compose File |
+|-------------|--------------|----------|-------|-------------|--------------|
+| **Local** | uv native (hot reload) | Docker (optional) | None | No | `compose.local.yml` |
+| **Dev** | Docker (GHCR.io) | Docker PostgreSQL | Cloudflare Tunnels | Watchtower (develop) | `compose.dev.yml` |
+| **Prod** | Docker (GHCR.io) | External (Supabase) | nginx + Cloudflare | Watchtower (latest) | `compose.prod.yml` |
+
+### Key Deployment Features
+
+**Multi-platform builds**: GitHub Actions builds linux/amd64 and linux/arm64 images
+
+**Tag strategy**:
+- `main` branch → `latest` + `main` + `main-sha-xxx` tags
+- `develop` branch → `develop` + `develop-sha-xxx` tags
+
+**Automatic deployment**: Watchtower monitors GHCR.io and auto-updates containers (10 min polling)
+
+**Label-based control**: Only containers with `com.centurylinklabs.watchtower.enable=true` update
+
+**Secrets management**: SOPS + age for encrypted environment files (`.env.dev.enc`, `.env.prod.enc`)
+
+### Watchtower Setup
+
+**One Watchtower per server** (not per project):
+- Label-based control prevents unintended updates
+- Weekly self-update via cron
+- Discord/Slack notifications via Shoutrrr
+- Setup: `./scripts/setup-watchtower.sh`
+
+**Auto-update enabled for**:
+- `server` container
+- `db-dumper` container (from ukwhatn/postgres-tools)
+- `db-migrator` container (from ukwhatn/postgres-tools)
+
+**Auto-update disabled for**:
+- `db` container (PostgreSQL)
+- `cloudflared` container
+
+### Secrets Management (SOPS + age)
+
+**Why**: Encrypted secrets can be safely committed to Git with full audit trail
+
+**Setup**:
+1. Install SOPS and age
+2. Generate age key pair: `age-keygen -o ~/.config/sops/age/keys.txt`
+3. Update `.sops.yaml` with public key
+4. Encrypt: `sops -e .env.dev > .env.dev.enc`
+5. Commit encrypted file to Git
+
+**Deployment flow**:
+1. Deploy script decrypts `.env.dev.enc` → `.env`
+2. Starts containers with decrypted secrets
+3. Removes `.env` after deployment
+
+**Reference**: See `docs/secrets-management.md` for detailed guide
+
+### Deployment Workflow
+
+**Local development**:
+```bash
+docker compose -f compose.local.yml up -d
+uv run fastapi dev app/main.py
+```
+
+**Dev deployment** (initial):
+```bash
+./scripts/setup-watchtower.sh  # One-time per server
+./scripts/deploy-dev.sh         # Deploy
+```
+
+**Dev deployment** (subsequent):
+```bash
+git push origin develop        # GitHub Actions builds and pushes
+# Watchtower auto-updates within 10 minutes
+```
+
+**Production deployment** (initial):
+```bash
+./scripts/setup-watchtower.sh  # One-time per server
+./scripts/deploy-prod.sh        # Deploy with confirmation
+```
+
+**Production deployment** (subsequent):
+```bash
+git push origin main           # GitHub Actions builds and pushes
+# Watchtower auto-updates within 10 minutes
+```
+
+### Important Deployment Notes
+
+- **No SSH required**: All deployments use GHCR.io pull + Watchtower
+- **Downtime**: 10-30 seconds during auto-updates
+- **Branch isolation**: develop and main branches use different tags (no cross-contamination)
+- **Rollback**: Use SHA tags for specific version deployment
+- **Monitoring**: Check Watchtower logs with `docker logs watchtower -f`
+- **Health checks**: Containers have built-in health checks; Watchtower respects them
+
+**Reference**: See `docs/deployment.md` for comprehensive deployment guide
+
 ## Repository Etiquette
 
 - Main branch: `main`
@@ -176,6 +306,8 @@ IMPORTANT: Follow these conventions strictly:
 
 - **README.md** - User-facing landing page (Japanese)
 - **development.md** - Complete development guide (Japanese)
+- **docs/deployment.md** - Deployment guide for local/dev/prod (Japanese)
+- **docs/secrets-management.md** - SOPS + age secrets management guide (Japanese)
 - **CLAUDE.md** - This file, for AI assistance
 
 ## Common Gotchas
