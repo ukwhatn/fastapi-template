@@ -1,11 +1,12 @@
 from functools import lru_cache
 from typing import List, Literal, Optional, Union
-import logging
 
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-logger = logging.getLogger(__name__)
+from .logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class Settings(BaseSettings):
@@ -65,6 +66,7 @@ class Settings(BaseSettings):
         return (
             f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
             f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+            f"?gssencmode=disable"
         )
 
     @property

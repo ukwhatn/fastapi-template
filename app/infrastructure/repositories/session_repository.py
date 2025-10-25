@@ -8,7 +8,6 @@ RDBベースのセッション管理を提供
 - 期限切れセッションの自動削除
 """
 
-import logging
 from typing import Any, Optional, cast
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session as DBSession
@@ -16,6 +15,7 @@ from sqlalchemy import delete
 
 from ..database.models.session import Session
 from ...core.config import get_settings
+from ...core.logging import get_logger
 from ..security.encryption import (
     SessionEncryption,
     get_session_encryption,
@@ -25,7 +25,7 @@ from ..security.encryption import (
     verify_fingerprint,
 )
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 settings = get_settings()
 
 
