@@ -85,6 +85,23 @@ make secrets:decrypt:dev    # Decrypt dev secrets
 make secrets:decrypt:prod   # Decrypt prod secrets
 ```
 
+## Important Guidelines
+
+**ALWAYS use Makefile commands when available**:
+- This project uses a comprehensive Makefile with predefined tasks for common operations
+- Using `make` commands ensures consistency, proper environment setup, and adherence to project conventions
+- Before running any direct command (e.g., `pytest`, `mypy`, `ruff`), check if a corresponding `make` target exists
+- Examples:
+  - Use `make test` instead of `uv run pytest tests/`
+  - Use `make type-check` instead of `uv run mypy app versions tests`
+  - Use `make lint` instead of `uv run ruff check ./app`
+  - Use `make format` instead of `uv run ruff format ./app`
+
+**When to use direct commands**:
+- Only when no Makefile target exists for the specific operation
+- When you need to pass special flags not covered by existing targets
+- When explicitly requested by the user to run a command directly
+
 ## Architecture
 
 IMPORTANT: This project follows Clean Architecture with strict layer separation. Always respect dependency rules.
