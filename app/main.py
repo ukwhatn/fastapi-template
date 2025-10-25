@@ -17,7 +17,8 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from api import api_router
 from core import APIError, ErrorResponse, ValidationError, get_settings
 from core.middleware import SecurityHeadersMiddleware
-from utils import SessionCrud, SessionSchema
+from db.connection import get_db
+from db.services import SessionService
 
 # 設定読み込み
 settings = get_settings()
@@ -214,24 +215,49 @@ async def error_response(request: Request, call_next):
 
 # セッション管理ミドルウェア
 @app.middleware("http")
-async def session_creator(request: Request, call_next):
-    if settings.INCLUDE_REDIS:
-        with SessionCrud() as session_crud:
-            req_session_data = session_crud.get(request)
-            if req_session_data is None:
-                req_session_data = SessionSchema()
-            request.state.session = req_session_data
+async def session_middleware(request: Request, call_next):
+    """
+    セッション管理ミドルウェア
+
+    DATABASE_URLが設定されている場合のみ、RDBベースのセッション管理を有効化
+    """
+    if settings.has_database:
+        # データベースセッション取得
+        db_gen = get_db()
+        db = next(db_gen)
+        try:
+            # セッションIDをCookieから取得
+            session_id = request.cookies.get(settings.SESSION_COOKIE_NAME)
+            if session_id:
+                # 既存セッション取得
+                service = SessionService(db)
+                user_agent = request.headers.get("User-Agent")
+                client_ip = (
+                    request.headers.get("X-Forwarded-For", "").split(",")[0].strip()
+                    or (request.client.host if request.client else None)
+                )
+                session_data = service.get_session(session_id, user_agent, client_ip)
+                request.state.session = session_data or {}
+            else:
+                request.state.session = {}
+
+            # リクエスト処理
+            response = await call_next(request)
+
+            # セッションデータの永続化は各エンドポイントで明示的に実施
+            # ミドルウェアでの自動保存は行わない（パフォーマンス対策）
+
+            return response
+        finally:
+            # DBセッションクローズ
+            try:
+                next(db_gen)
+            except StopIteration:
+                pass
     else:
+        # データベース未設定時はセッション無効
         request.state.session = None
-
-    response = await call_next(request)
-
-    if settings.INCLUDE_REDIS:
-        with SessionCrud() as session_crud:
-            res_session_data = request.state.session
-            session_crud.update(request, response, res_session_data)
-
-    return response
+        return await call_next(request)
 
 
 # ルーター登録
