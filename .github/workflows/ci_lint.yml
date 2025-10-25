@@ -18,15 +18,11 @@ jobs:
 
       - name: Run linting checks
         run: |
-          echo "Running Ruff linter..."
-          uv run --active ruff check ./app ./versions ./tests &
+          make lint &
           LINT_PID=$!
 
-          echo "Running Ruff formatter check..."
-          uv run --active ruff format --check ./app ./versions ./tests &
+          make format:check &
           FORMAT_PID=$!
 
-          wait $LINT_PID || { echo "❌ Linting failed"; exit 1; }
-          wait $FORMAT_PID || { echo "❌ Format check failed"; exit 1; }
-
-          echo "✅ All linting checks passed!"
+          wait $LINT_PID || exit 1
+          wait $FORMAT_PID || exit 1
