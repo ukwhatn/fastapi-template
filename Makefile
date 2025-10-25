@@ -156,13 +156,13 @@ db\:history:
 
 # ==== DBバックアップ ====
 db\:backup\:oneshot:
-	@uv run python -m app.infrastructure.batch.cli oneshot
+	@uv run python -m app.utils.backup_cli oneshot
 
 db\:backup\:list:
-	@uv run python -m app.infrastructure.batch.cli list
+	@uv run python -m app.utils.backup_cli list
 
 db\:backup\:list\:remote:
-	@uv run python -m app.infrastructure.batch.cli list --remote
+	@uv run python -m app.utils.backup_cli list --remote
 
 db\:backup\:restore:
 	@if [ -z "$(FILE)" ]; then \
@@ -170,7 +170,7 @@ db\:backup\:restore:
 		echo "Usage: make db:backup:restore FILE=\"backup_20250101_120000.dump\""; \
 		exit 1; \
 	fi
-	@uv run python -m app.infrastructure.batch.cli restore $(FILE)
+	@uv run python -m app.utils.backup_cli restore $(FILE)
 
 db\:backup\:restore\:s3:
 	@if [ -z "$(FILE)" ]; then \
@@ -178,7 +178,7 @@ db\:backup\:restore\:s3:
 		echo "Usage: make db:backup:restore:s3 FILE=\"backup_20250101_120000.dump\""; \
 		exit 1; \
 	fi
-	@uv run python -m app.infrastructure.batch.cli restore $(FILE) --from-s3
+	@uv run python -m app.utils.backup_cli restore $(FILE) --from-s3
 
 # ==== Docker Compose操作 ====
 compose\:up:

@@ -184,9 +184,32 @@ class BackupTask(BatchTask):
 
         # S3ファイルのクリーンアップ
         if self.storage:
-            # Note: OpenDALのlistやdeleteの実装は省略
-            # 必要に応じて後で実装
-            pass
+            try:
+                # S3上のバックアップファイルをリスト
+                entries = self.storage.list("")
+                for entry in entries:
+                    if not entry.path.startswith("backup_"):
+                        continue
+                    if not entry.path.endswith(".dump"):
+                        continue
+
+                    # ファイル名からタイムスタンプを抽出
+                    try:
+                        # backup_20250101_120000.dump -> 20250101_120000
+                        timestamp_str = entry.path.replace("backup_", "").replace(
+                            ".dump", ""
+                        )
+                        file_date = datetime.strptime(timestamp_str, "%Y%m%d_%H%M%S")
+
+                        if file_date < cutoff_date:
+                            self.storage.delete(entry.path)
+                            self.logger.info(f"Deleted old S3 backup: {entry.path}")
+                    except (ValueError, Exception) as e:
+                        self.logger.warning(
+                            f"Failed to process S3 file {entry.path}: {e}"
+                        )
+            except Exception as e:
+                self.logger.error(f"Failed to cleanup S3 backups: {e}")
 
 
 def run_backup() -> None:
