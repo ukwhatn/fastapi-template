@@ -2,7 +2,6 @@
 設定クラスの単体テスト
 """
 
-from typing import Any
 from app.core.config import Settings
 
 
