@@ -2,12 +2,28 @@
 pytest設定と共通フィクスチャ
 """
 
+import os
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
+from cryptography.fernet import Fernet
 
+
+def pytest_configure(config):
+    """
+    pytest実行前の設定
+
+    暗号化キーをモジュールインポート前に設定する必要があるため、
+    フィクスチャではなくpytest_configureフックで設定
+    """
+    # テスト用暗号化キーを設定
+    key = Fernet.generate_key().decode()
+    os.environ["SESSION_ENCRYPTION_KEY"] = key
+
+
+# pytest_configure後にインポート（環境変数設定後にモジュールをロード）
 from app.main import app
 from app.infrastructure.database.models import Base
 from app.infrastructure.database import get_db

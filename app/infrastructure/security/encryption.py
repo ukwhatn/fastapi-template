@@ -14,7 +14,6 @@ from cryptography.fernet import Fernet, InvalidToken
 from app.core.config import get_settings
 
 logger = logging.getLogger(__name__)
-settings = get_settings()
 
 
 class SessionEncryption:
@@ -24,8 +23,17 @@ class SessionEncryption:
     Fernet (対称暗号化) を使用してセッションデータを安全に保存
     """
 
-    def __init__(self):
-        self.encryption_key = settings.SESSION_ENCRYPTION_KEY
+    def __init__(self, encryption_key: Optional[str] = None):
+        """
+        Args:
+            encryption_key: 暗号化キー（Noneの場合は設定から取得）
+        """
+        # 依存性注入: テスト時は明示的にキーを渡せる
+        if encryption_key is None:
+            settings = get_settings()
+            encryption_key = settings.SESSION_ENCRYPTION_KEY
+
+        self.encryption_key = encryption_key
         if self.encryption_key:
             try:
                 self.cipher = Fernet(self.encryption_key.encode())

@@ -17,6 +17,7 @@ from sqlalchemy import delete
 from app.infrastructure.database.models.session import Session
 from app.core.config import get_settings
 from app.infrastructure.security.encryption import (
+    SessionEncryption,
     get_session_encryption,
     generate_session_id,
     generate_csrf_token,
@@ -33,9 +34,15 @@ class SessionService:
     セッション管理サービス
     """
 
-    def __init__(self, db: DBSession):
+    def __init__(self, db: DBSession, encryption: Optional['SessionEncryption'] = None):
+        """
+        Args:
+            db: DBセッション
+            encryption: 暗号化インスタンス（Noneの場合はデフォルト取得）
+        """
         self.db = db
-        self.encryption = get_session_encryption()
+        # 依存性注入: テスト時はモックインスタンスを渡せる
+        self.encryption = encryption if encryption is not None else get_session_encryption()
 
     def create_session(
         self,

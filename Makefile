@@ -118,13 +118,13 @@ dev\:setup:
 	uv sync
 
 lint:
-	uv run ruff check ./app ./versions
+	uv run ruff check ./app ./versions ./tests
 
 lint\:fix:
-	uv run ruff check --fix ./app ./versions
+	uv run ruff check --fix ./app ./versions ./tests
 
 format:
-	uv run ruff format ./app ./versions
+	uv run ruff format ./app ./versions ./tests
 
 security\:scan:
 	make security:scan:code
