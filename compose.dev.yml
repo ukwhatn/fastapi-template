@@ -62,25 +62,6 @@ services:
     labels:
       - "com.centurylinklabs.watchtower.enable=false"
 
-  db-dumper:
-    container_name: ${COMPOSE_PROJECT_NAME:-fastapi-template}-db-dumper-dev
-    image: ghcr.io/ukwhatn/psql-dumper:latest
-    env_file:
-      - .env
-    environment:
-      - BACKUP_SCHEDULE=${BACKUP_SCHEDULE:-0 3 * * *}
-    volumes:
-      - ./backups:/app/backups
-    restart: unless-stopped
-    depends_on:
-      db:
-        condition: service_healthy
-        required: false
-    networks:
-      - db-dev
-    labels:
-      - "com.centurylinklabs.watchtower.enable=true"
-
 volumes:
   pg_data_dev:
     name: ${COMPOSE_PROJECT_NAME:-fastapi-template}-pg-data-dev

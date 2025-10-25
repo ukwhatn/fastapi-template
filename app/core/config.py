@@ -127,6 +127,17 @@ class Settings(BaseSettings):
     NEW_RELIC_HIGH_SECURITY: bool = False
     NEW_RELIC_MONITOR_MODE: bool = True
 
+    # バックアップ設定
+    BACKUP_SCHEDULE: Optional[str] = None  # cron形式 (例: "0 3 * * *")
+    BACKUP_RETENTION_DAYS: int = 7
+
+    # S3互換ストレージ設定
+    S3_ENDPOINT: Optional[str] = None
+    S3_BUCKET: Optional[str] = None
+    S3_ACCESS_KEY: Optional[str] = None
+    S3_SECRET_KEY: Optional[str] = None
+    S3_REGION: Optional[str] = None
+
     @property
     def is_development(self) -> bool:
         """開発環境かどうか"""

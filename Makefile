@@ -23,7 +23,6 @@ endif
 COMPOSE_CMD := docker compose -f $(COMPOSE_FILE) $(PROFILE_ARGS)
 
 # 共通変数
-DB_DUMPER_RUN := $(COMPOSE_CMD) run --rm db-dumper custom python dump.py
 ALEMBIC_DIR := app/infrastructure/database/alembic
 
 # ==== 環境セットアップ ====
@@ -156,20 +155,30 @@ db\:history:
 	@cd $(ALEMBIC_DIR) && uv run alembic history
 
 # ==== DBバックアップ ====
-db\:dump:
-	@$(COMPOSE_CMD) run --rm --build -e DB_TOOL_MODE=dumper -e DUMPER_MODE=interactive db-dumper custom python dump.py
+db\:backup\:oneshot:
+	@uv run python -m app.infrastructure.batch.cli oneshot
 
-db\:dump\:oneshot:
-	@$(DB_DUMPER_RUN) oneshot
+db\:backup\:list:
+	@uv run python -m app.infrastructure.batch.cli list
 
-db\:dump\:list:
-	@$(DB_DUMPER_RUN) list
+db\:backup\:list\:remote:
+	@uv run python -m app.infrastructure.batch.cli list --remote
 
-db\:dump\:restore:
-	@$(DB_DUMPER_RUN) restore $(FILE)
+db\:backup\:restore:
+	@if [ -z "$(FILE)" ]; then \
+		echo "Error: FILE is required"; \
+		echo "Usage: make db:backup:restore FILE=\"backup_20250101_120000.dump\""; \
+		exit 1; \
+	fi
+	@uv run python -m app.infrastructure.batch.cli restore $(FILE)
 
-db\:dump\:test:
-	@$(DB_DUMPER_RUN) test --confirm
+db\:backup\:restore\:s3:
+	@if [ -z "$(FILE)" ]; then \
+		echo "Error: FILE is required"; \
+		echo "Usage: make db:backup:restore:s3 FILE=\"backup_20250101_120000.dump\""; \
+		exit 1; \
+	fi
+	@uv run python -m app.infrastructure.batch.cli restore $(FILE) --from-s3
 
 # ==== Docker Compose操作 ====
 compose\:up:
@@ -347,4 +356,4 @@ template\:apply\:force:
 	git checkout $$commit_hash -- . && \
 	echo "テンプレートの変更が強制的に適用されました。変更を確認しgit add/commitしてください。"
 
-.PHONY: build build\:no-cache up down reload reset logs logs\:once ps pr\:create deploy\:prod uv\:add uv\:add\:dev uv\:lock uv\:update uv\:update\:all dev\:setup lint lint\:fix format format\:check type-check security\:scan security\:scan\:code security\:scan\:code\:critical security\:scan\:sast security\:scan\:sast\:critical security\:scan\:trivy test test\:cov db\:revision\:create db\:migrate db\:downgrade db\:current db\:history db\:dump db\:dump\:oneshot db\:dump\:list db\:dump\:restore db\:dump\:test env openapi\:generate compose\:up compose\:down compose\:down\:v compose\:logs compose\:ps compose\:pull compose\:restart compose\:build local\:up local\:down local\:down\:v local\:logs local\:ps local\:serve dev\:deploy dev\:logs dev\:ps dev\:down prod\:deploy prod\:logs prod\:ps prod\:down watchtower\:setup watchtower\:logs watchtower\:status watchtower\:restart secrets\:encrypt\:dev secrets\:encrypt\:prod secrets\:decrypt\:dev secrets\:decrypt\:prod secrets\:edit\:dev secrets\:edit\:prod project\:rename project\:init template\:list template\:apply template\:apply\:range template\:apply\:force pre-commit\:install pre-commit\:run pre-commit\:update
+.PHONY: build build\:no-cache up down reload reset logs logs\:once ps pr\:create deploy\:prod uv\:add uv\:add\:dev uv\:lock uv\:update uv\:update\:all dev\:setup lint lint\:fix format format\:check type-check security\:scan security\:scan\:code security\:scan\:code\:critical security\:scan\:sast security\:scan\:sast\:critical security\:scan\:trivy test test\:cov db\:revision\:create db\:migrate db\:downgrade db\:current db\:history db\:backup\:oneshot db\:backup\:list db\:backup\:list\:remote db\:backup\:restore db\:backup\:restore\:s3 env openapi\:generate compose\:up compose\:down compose\:down\:v compose\:logs compose\:ps compose\:pull compose\:restart compose\:build local\:up local\:down local\:down\:v local\:logs local\:ps local\:serve dev\:deploy dev\:logs dev\:ps dev\:down prod\:deploy prod\:logs prod\:ps prod\:down watchtower\:setup watchtower\:logs watchtower\:status watchtower\:restart secrets\:encrypt\:dev secrets\:encrypt\:prod secrets\:decrypt\:dev secrets\:decrypt\:prod secrets\:edit\:dev secrets\:edit\:prod project\:rename project\:init template\:list template\:apply template\:apply\:range template\:apply\:force pre-commit\:install pre-commit\:run pre-commit\:update
