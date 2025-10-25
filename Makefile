@@ -189,11 +189,12 @@ db\:dump\:test:
 db\:backup\:test: # 後方互換性のためにエイリアスを提供
 	make db:dump:test
 
-envs\:setup:
-	cp envs/server.env.example envs/server.env
-	cp envs/db.env.example envs/db.env
-	cp envs/sentry.env.example envs/sentry.env
-	cp envs/aws-s3.env.example envs/aws-s3.env
+env:
+	cp .env.example .env
+	@echo ".env file created. Please edit it with your configuration."
+
+envs\:setup: env
+	@echo "envs:setup is deprecated. Use 'make env' instead."
 
 openapi\:generate:
 	$(COMPOSE_CMD) exec server python -c "from main import app; import json; from fastapi.openapi.utils import get_openapi; openapi = get_openapi(title=app.title, version=app.version, description=app.description, routes=app.routes); print(json.dumps(openapi, indent=2, ensure_ascii=False))" > docs/openapi.json
@@ -256,4 +257,4 @@ template\:apply\:force:
 	git checkout $$commit_hash -- . && \
 	echo "テンプレートの変更が強制的に適用されました。変更を確認しgit add/commitしてください。"
 
-.PHONY: build up down logs ps pr\:create deploy\:prod uv\:install uv\:add uv\:add\:dev uv\:lock uv\:update uv\:update\:all uv\:sync dev\:setup lint lint\:fix format security\:scan security\:scan\:code security\:scan\:sast test test\:cov test\:setup db\:revision\:create db\:migrate db\:downgrade db\:current db\:history db\:dump db\:backup\:test db\:dump\:oneshot db\:dump\:list db\:dump\:restore db\:dump\:test envs\:setup openapi\:generate project\:init template\:list template\:apply template\:apply\:range template\:apply\:force
+.PHONY: build up down logs ps pr\:create deploy\:prod uv\:install uv\:add uv\:add\:dev uv\:lock uv\:update uv\:update\:all uv\:sync dev\:setup lint lint\:fix format security\:scan security\:scan\:code security\:scan\:sast test test\:cov test\:setup db\:revision\:create db\:migrate db\:downgrade db\:current db\:history db\:dump db\:backup\:test db\:dump\:oneshot db\:dump\:list db\:dump\:restore db\:dump\:test env envs\:setup openapi\:generate project\:init template\:list template\:apply template\:apply\:range template\:apply\:force

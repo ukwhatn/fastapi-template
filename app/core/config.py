@@ -1,8 +1,11 @@
 from functools import lru_cache
 from typing import List, Literal, Optional, Union
+import logging
 
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+logger = logging.getLogger(__name__)
 
 
 class Settings(BaseSettings):
@@ -18,8 +21,6 @@ class Settings(BaseSettings):
 
     # 環境設定
     ENV_MODE: Literal["development", "production", "test"] = "development"
-    INCLUDE_DB: bool = False
-    INCLUDE_REDIS: bool = False
 
     # CORS設定
     BACKEND_CORS_ORIGINS: Union[str, List[str]] = []
@@ -51,28 +52,63 @@ class Settings(BaseSettings):
     API_KEY: str = "default_api_key_change_me_in_production"
 
     # データベース設定
-    POSTGRES_USER: str = "user"
+    DATABASE_URL: Optional[str] = None  # 優先: 直接指定
+    POSTGRES_USER: str = "user"  # 後方互換
     POSTGRES_PASSWORD: str = "password"
     POSTGRES_DB: str = "main"
     POSTGRES_HOST: str = "db"
     POSTGRES_PORT: str = "5432"
 
     @property
-    def DATABASE_URI(self) -> str:
-        """
-        データベース接続URLを取得
-        """
-        return (
-            f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
-            f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
-        )
+    def database_uri(self) -> Optional[str]:
+        """データベース接続URL取得（DATABASE_URL優先）"""
+        if self.DATABASE_URL:
+            return self.DATABASE_URL
 
-    # Redis設定
-    REDIS_HOST: str = "redis"
-    REDIS_PORT: int = 6379
+        # 後方互換: 個別設定から構築
+        if self.POSTGRES_USER and self.POSTGRES_PASSWORD:
+            return (
+                f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
+                f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+            )
 
+        return None
+
+    @property
+    def has_database(self) -> bool:
+        """データベース設定有無"""
+        return self.database_uri is not None
+
+    @property
+    def is_supabase(self) -> bool:
+        """Supabase使用判定"""
+        if not self.database_uri:
+            return False
+        return 'supabase.co' in self.database_uri
+
+    # セッション設定
     SESSION_COOKIE_NAME: str = "session_id"
     SESSION_EXPIRE: int = 60 * 60 * 24  # 1 day
+
+    # セッション暗号化キー
+    SESSION_ENCRYPTION_KEY: str = ""
+
+    @field_validator("SESSION_ENCRYPTION_KEY")
+    @classmethod
+    def validate_encryption_key(cls, v: str) -> str:
+        """暗号化キー検証"""
+        if not v:
+            logger.warning("SESSION_ENCRYPTION_KEY is not set. Session encryption disabled.")
+            return ""
+
+        # Fernet鍵の形式チェック
+        try:
+            from cryptography.fernet import Fernet
+            Fernet(v.encode())
+        except Exception:
+            raise ValueError("Invalid SESSION_ENCRYPTION_KEY format. Generate with: python -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\"")
+
+        return v
 
     # Sentry設定
     SENTRY_DSN: Optional[str] = None
