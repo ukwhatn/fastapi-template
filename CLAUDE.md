@@ -1,181 +1,186 @@
 # CLAUDE.md
 
-このファイルは、Claude Code (claude.ai/code) がこのリポジトリのコードを扱う際のガイダンスを提供します。
+This file provides guidance for Claude Code when working with this repository.
 
-## プロジェクト概要
+## Project Overview
 
-FastAPIで構築されたWebアプリケーションテンプレートで、プロダクション対応のAPIサーバーの基盤を提供します。Clean Architecture（4層）、SQLAlchemyによるデータベース統合、RDBベースのセッション管理（暗号化対応）、包括的なDockerデプロイメントを使用します。Supabase対応。
+FastAPI production-ready template using Clean Architecture (4-layer), SQLAlchemy ORM, RDB-based encrypted session management, comprehensive Docker deployment, and Supabase support.
 
-## ドキュメント構造
+**Tech Stack:**
+- FastAPI 0.120.0+ (Python 3.14+)
+- SQLAlchemy 2.0+ with PostgreSQL
+- Docker Compose (multi-profile setup)
+- uv for dependency management
+- Ruff for linting/formatting
+- mypy for strict type checking
+- pytest with coverage reporting
 
-- **README.md**: ユーザー向けランディングページ（日本語）
-- **development.md**: 完全な開発ガイド（日本語）- API作成、モデル定義、データベース操作、Docker開発
-- **CLAUDE.md**: AI開発アシスタント向けプロジェクト情報
+## Common Commands
 
-## 開発コマンド
+### Essential Setup
+```bash
+make env                    # Create .env from .env.example
+make dev:setup              # Install all dependencies with uv
+make up INCLUDE_DB=true     # Start all containers with database
+make db:migrate             # Apply database migrations
+```
 
-### 環境セットアップ
-- `make dev:setup` - uvを使用して全依存関係をインストール
-- `make env` - .env.exampleから.envファイルを作成
+### Development Workflow
+```bash
+make lint                   # Check code quality with Ruff
+make lint:fix               # Auto-fix linting issues
+make format                 # Format code with Ruff
+make type-check             # Run mypy type checking (strict mode)
+make test                   # Run all tests
+make test:cov               # Run tests with coverage report
+```
 
-### コード品質
-- `make lint` - Ruffリンターでコード品質をチェック
-- `make lint:fix` - 自動修正付きでRuffを実行
-- `make format` - Ruffフォーマッターでコードフォーマット
+### Database Operations
+```bash
+make db:revision:create NAME="description"  # Create new migration
+make db:migrate                             # Apply migrations
+make db:current                             # Show current revision
+make db:history                             # Show migration history
+```
 
-### Docker操作
-- `make up` - 全コンテナをデタッチモードでビルド・起動
-- `make down` - 全コンテナを停止
-- `make reload` - コンテナを再ビルドして再起動
-- `make logs` - コンテナログをフォロー
-- `make ps` - 実行中のコンテナを表示
+### Docker Operations
+```bash
+make up                     # Build and start containers
+make down                   # Stop containers
+make reload                 # Rebuild and restart containers
+make logs                   # Follow container logs
+make ps                     # Show running containers
+```
 
-### データベース管理
-- `make db:revision:create NAME="説明"` - 新しいAlembicマイグレーションを作成
-- `make db:migrate` - データベースにマイグレーションを適用
-- `make db:current` - 現在のマイグレーションリビジョンを表示
-- `make db:history` - マイグレーション履歴を表示
+## Architecture
 
-### セキュリティスキャン
-- `make security:scan` - 全セキュリティスキャンを実行（Bandit + Semgrep）
-- `make security:scan:code` - Bandit静的解析を実行
-- `make security:scan:sast` - Semgrepセキュリティ解析を実行
+IMPORTANT: This project follows Clean Architecture with strict layer separation. Always respect dependency rules.
 
-### テスト
-- `make test` - 全テストを実行
-- `make test:cov` - カバレッジレポート付きでテストを実行
+### Layer Structure (4 layers)
 
-## アーキテクチャ
+**Domain Layer** (`app/domain/`)
+- Core business logic, entities, value objects
+- No dependencies on other layers
+- Files: `exceptions/base.py`, `entities/`, `value_objects/`
 
-Clean Architecture（4層）を採用:
+**Application Layer** (`app/application/`)
+- Use cases, DTOs, repository interfaces
+- Depends only on Domain layer
+- Files: `use_cases/`, `services/`, `interfaces/`, `dtos/`
 
-### Domain層 (`app/domain/`)
-- **exceptions/**: ビジネスルール例外（APIError, ValidationErrorなど）
-- **entities/**: ドメインエンティティ
-- **value_objects/**: 値オブジェクト
+**Infrastructure Layer** (`app/infrastructure/`)
+- Database models, repositories, external services
+- Implements interfaces from Application layer
+- Files: `database/models/`, `repositories/`, `security/`, `external/`
 
-### Application層 (`app/application/`)
-- **use_cases/**: ユースケース実装
-- **services/**: アプリケーションサービス
-- **interfaces/**: リポジトリインターフェース
-- **dtos/**: Data Transfer Objects
+**Presentation Layer** (`app/presentation/`)
+- FastAPI routers, schemas, middleware, dependencies
+- Files: `api/v1/`, `api/system/`, `schemas/`, `middleware/`
 
-### Infrastructure層 (`app/infrastructure/`)
-- **database/**: SQLAlchemyモデル、接続管理
-- **repositories/**: リポジトリ実装（SessionServiceなど）
-- **security/**: セキュリティ実装（暗号化、フィンガープリント）
-- **external/**: 外部API連携
+### Key Files
 
-### Presentation層 (`app/presentation/`)
-- **api/**: FastAPI ルーター（v1, system）
-- **middleware/**: セキュリティヘッダーなど
-- **dependencies/**: 依存性注入
-- **schemas/**: Pydantic入出力スキーマ
+- `app/main.py` - Application entry point with middleware setup
+- `app/core/config.py` - Settings management (Pydantic Settings)
+- `app/infrastructure/database/connection.py` - Database connection management
+- `app/infrastructure/database/models/base.py` - Base model with timestamp mixin
+- `app/infrastructure/repositories/session_repository.py` - Session service implementation
+- `app/infrastructure/security/encryption.py` - Fernet encryption for sessions
 
-### 共通層
-- **core/**: 設定管理（config.py）
-- **main.py**: アプリケーションエントリーポイント
-- **static/**: 静的ファイル（CSS、JavaScript、画像など）
-- **templates/**: Jinja2テンプレートファイル
+## Code Style
 
-### セッション管理
-RDBベースのセッション管理（Redisは使用しない）:
-- Fernet暗号化によるセッションデータ保護
-- CSRF保護機能
-- セッション固定攻撃対策（User-Agent + IPフィンガープリント）
-- SESSION_ENCRYPTION_KEY環境変数で暗号化キーを設定
+IMPORTANT: Follow these conventions strictly:
 
-### データベース設定
-- **DATABASE_URL**: PostgreSQL接続文字列（優先）
-- **POSTGRES_***: 個別設定（後方互換、DATABASE_URL未設定時のみ有効）
-- **Supabase対応**: URLに'supabase.co'が含まれる場合、自動検出
-- DATABASE_URL未設定時: 警告を出してDB機能無効で続行
+- **Type hints**: Always use type hints. Project uses mypy strict mode
+- **Imports**: Use absolute imports (`from app.domain...`), not relative imports
+- **Async/await**: Use async for all database operations and API endpoints
+- **Docstrings**: Not required for simple functions, but recommended for complex logic
+- **Naming**:
+  - Files: `snake_case.py`
+  - Classes: `PascalCase`
+  - Functions/variables: `snake_case`
+  - Constants: `UPPER_SNAKE_CASE`
 
-### Docker設定
-プロジェクトはマルチプロファイルDocker Compose設定を使用:
-- **server**: メインFastAPIアプリケーションサービス
-- **db**: PostgreSQL 17（ヘルスチェック付き）
-- **db-migrator**: Alembicマイグレーション
-- **adminer**: データベース管理UI（開発のみ）
-- **db-dumper**: データベースバックアップ
+## Testing Guidelines
 
-`INCLUDE_DB=true`でデータベースサービスを有効化。
+- Place unit tests in `tests/unit/`
+- Place integration tests in `tests/integration/`
+- Use `test_` prefix for all test files and functions
+- Leverage fixtures from `tests/conftest.py` (`client`, `db_session`)
+- Run `make test` before committing
 
-## 開発ワークフロー
+## Workflow for Common Tasks
 
-1. `make env`で.env.exampleから.envファイルを作成
-2. .envファイルでデータベースとAPI設定を構成
-   - DATABASE_URLを設定（推奨）または個別のPOSTGRES_*変数を設定
-   - SESSION_ENCRYPTION_KEYを設定（必須）
-3. `make dev:setup`で依存関係をインストール
-4. `make up INCLUDE_DB=true`でデータベース付きで起動
-5. `make db:migrate`でデータベースマイグレーションを適用
-6. コミット前に`make lint`と`make format`を使用
-7. `make test`でテストを実行して動作確認
+### Adding a New API Endpoint
 
-## 主要ファイル
+1. Create SQLAlchemy model in `app/infrastructure/database/models/`
+2. Create Pydantic schema in `app/presentation/schemas/`
+3. Create repository in `app/infrastructure/repositories/`
+4. Create use case in `app/application/use_cases/` (if needed)
+5. Create router in `app/presentation/api/v1/`
+6. Register router in `app/presentation/api/v1/__init__.py`
+7. Create migration: `make db:revision:create NAME="add_model"`
+8. Apply migration: `make db:migrate`
+9. Add tests in `tests/`
+10. Run: `make lint && make type-check && make test`
 
-- `app/main.py` - FastAPIアプリケーション設定とミドルウェア
-- `app/core/config.py` - 環境設定とPydantic設定クラス
-- `app/infrastructure/database/models/base.py` - タイムスタンプMixin付きベースモデル
-- `app/infrastructure/database/models/session.py` - セッションモデル
-- `app/infrastructure/repositories/session_repository.py` - セッションサービス
-- `app/infrastructure/security/encryption.py` - セッション暗号化
-- `app/presentation/api/__init__.py` - APIルーター統合
+### Adding Database Model
 
-## 典型的な開発タスク
+1. Create model class inheriting from `Base` in `app/infrastructure/database/models/`
+2. Import in `app/infrastructure/database/models/__init__.py`
+3. Create corresponding Pydantic schema
+4. Create repository implementation
+5. Generate migration: `make db:revision:create NAME="description"`
+6. Review migration file in `versions/`
+7. Apply: `make db:migrate`
 
-### 新しいAPIエンドポイントを作成
-1. `app/infrastructure/database/models/`に新しいモデルファイルを作成
-2. `app/presentation/schemas/`に対応するPydanticスキーマを作成
-3. `app/infrastructure/repositories/`にリポジトリを作成
-4. `app/application/use_cases/`にユースケースを作成（必要に応じて）
-5. `app/presentation/api/v1/`にAPIルーターを作成
-6. `app/presentation/api/v1/__init__.py`にルーターを登録
-7. `make db:revision:create NAME="add_model"`でマイグレーションを作成
-8. `make db:migrate`で適用
-9. `make test`でテストを実行
+### Modifying Environment Configuration
 
-### データベースモデルを追加
-1. `app/infrastructure/database/models/`に新しいモデルファイルを作成
-2. `app/presentation/schemas/`に対応するPydanticスキーマを作成
-3. `app/infrastructure/repositories/`にリポジトリを作成
-4. `make db:revision:create NAME="add_model"`でマイグレーションを作成
-5. `make db:migrate`で適用
+1. Add field to `Settings` class in `app/core/config.py`
+2. Update `.env.example` with new variable
+3. Update `.env` locally
+4. Access via `get_settings()` dependency in endpoints
 
-### 環境設定を追加
-1. `app/core/config.py`の`Settings`クラスに新しいフィールドを追加
-2. `.env`ファイルを更新
-3. APIエンドポイントで`get_settings()`を使用してアクセス
+## Important Project Details
 
-### ミドルウェアを追加
-1. `app/presentation/middleware/`に新しいミドルウェアクラスを作成
-2. `app/main.py`でミドルウェアを登録
+### Session Management
+- Uses RDB-based sessions (NOT Redis)
+- Fernet encryption for session data (requires `SESSION_ENCRYPTION_KEY` in .env)
+- CSRF protection enabled
+- Session fixation protection via User-Agent + IP fingerprinting
 
-## テスト
+### Database Configuration
+- `DATABASE_URL` takes precedence over individual `POSTGRES_*` variables
+- Supabase auto-detected if URL contains 'supabase.co'
+- Application continues with DB features disabled if DATABASE_URL not set (with warning)
 
-プロジェクトはpytestを使用した包括的なテストスイートを備えています:
+### Docker Profiles
+- Use `INCLUDE_DB=true` to enable database services (db, adminer, db-migrator, db-dumper)
+- Environments: `dev` (default), `stg`, `test`, `prod`
+- Example: `make up ENV=prod INCLUDE_DB=true`
 
-### テスト構成
-- **tests/conftest.py**: テスト用フィクスチャ（SQLiteインメモリDB、TestClient）
-- **tests/integration/**: API統合テスト
-- **tests/unit/**: ユニットテスト（セキュリティ、リポジトリなど）
+### Security
+- Sentry integration for error tracking (production)
+- New Relic APM monitoring (production)
+- Security scanning via Bandit and Semgrep: `make security:scan`
 
-### テスト実行
-- `make test`: 全テストを実行
-- `make test:cov`: カバレッジレポート付きで実行
-- `uv run pytest tests/ -v`: 直接実行
+## Repository Etiquette
 
-### テスト追加
-1. `tests/unit/`または`tests/integration/`に新しいテストファイルを作成
-2. pytest規約に従って`test_`プレフィックスを使用
-3. `conftest.py`のフィクスチャ（`client`, `db_session`）を活用
-4. `make test`で動作確認
+- Main branch: `main`
+- Development branch: `develop`
+- Create PRs from feature branches to `develop`
+- Use `make pr:create` to create PR (requires gh CLI)
+- Run `make lint`, `make type-check`, and `make test` before committing
+- Use conventional commits (e.g., `feat:`, `fix:`, `refactor:`)
 
-## 監視とエラーハンドリング
+## Documentation
 
-- Sentry統合によるエラートラッキング
-- New Relic APM監視（本番環境）
-- 構造化ログ出力
-- カスタム例外ハンドリング（`app/domain/exceptions/`）
-- ヘルスチェックエンドポイント（`/system/healthcheck/`） 
+- **README.md** - User-facing landing page (Japanese)
+- **development.md** - Complete development guide (Japanese)
+- **CLAUDE.md** - This file, for AI assistance
+
+## Common Gotchas
+
+- mypy requires paths without `./` prefix: use `mypy app tests` not `mypy ./app ./tests`
+- Database migrations must be reviewed before applying (Alembic can miss some changes)
+- Session encryption key must be 32 url-safe base64-encoded bytes
+- Docker Compose profiles must be explicitly enabled via `INCLUDE_DB=true` for database services
