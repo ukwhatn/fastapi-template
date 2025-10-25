@@ -191,6 +191,12 @@ env:
 envs\:setup: env
 	@echo "envs:setup is deprecated. Use 'make env' instead."
 
+test:
+	uv run pytest tests/ -v
+
+test\:cov:
+	uv run pytest tests/ -v --cov=app --cov-report=html
+
 openapi\:generate:
 	$(COMPOSE_CMD) exec server python -c "from main import app; import json; from fastapi.openapi.utils import get_openapi; openapi = get_openapi(title=app.title, version=app.version, description=app.description, routes=app.routes); print(json.dumps(openapi, indent=2, ensure_ascii=False))" > docs/openapi.json
 
