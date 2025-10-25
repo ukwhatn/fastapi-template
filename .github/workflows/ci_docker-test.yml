@@ -45,7 +45,7 @@ jobs:
           elapsed=0
 
           while [ $elapsed -lt $timeout ]; do
-            status=$(ENV=prod POSTGRES_HOST=db make compose:ps --format json | jq -rs 'map(.Health // "unknown") | join("\n")')
+            status=$(ENV=prod POSTGRES_HOST=db make compose:ps:json | jq -rs 'map(.Health // "unknown") | join("\n")')
 
             if echo "$status" | grep -qiE "starting|unhealthy"; then
               echo "🕒 Services starting... Elapsed: ${elapsed}s/${timeout}s"

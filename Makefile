@@ -162,6 +162,9 @@ compose\:logs:
 compose\:ps:
 	@$(COMPOSE_CMD) ps
 
+compose\:ps\:json:
+	@$(COMPOSE_CMD) ps --format json
+
 compose\:pull:
 	@$(COMPOSE_CMD) pull
 
