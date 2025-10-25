@@ -1,6 +1,10 @@
 name: CI
 
 on:
+  push:
+    branches:
+      - main
+      - develop
   pull_request_target:
     branches:
       - main
@@ -13,10 +17,11 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Authorization check
+  # Authorization check (only for pull_request_target)
   check-authorization:
     runs-on: ubuntu-latest
     if: |
+      (github.event_name == 'push') ||
       (github.event_name == 'workflow_dispatch') ||
       (github.event.pull_request.user.login == 'ukwhatn') ||
       (github.event.pull_request.user.login == 'dependabot[bot]')

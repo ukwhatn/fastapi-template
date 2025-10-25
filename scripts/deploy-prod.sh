@@ -69,10 +69,22 @@ echo "✅ GHCR.io login successful"
 export COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-fastapi-template}"
 echo "📦 Project name: $COMPOSE_PROJECT_NAME"
 
+# Check POSTGRES_HOST to determine if local DB is needed
+PROFILE_ARGS=""
+POSTGRES_HOST=$(grep "^POSTGRES_HOST=" .env | cut -d'=' -f2 | tr -d '"' | tr -d "'")
+
+if [ "$POSTGRES_HOST" = "db" ] || [ "$POSTGRES_HOST" = "localhost" ]; then
+    echo "📦 ローカルDB使用を検出 (POSTGRES_HOST=$POSTGRES_HOST)"
+    PROFILE_ARGS="--profile local-db"
+else
+    echo "🌐 外部DBaaS使用を検出 (POSTGRES_HOST=$POSTGRES_HOST)"
+    echo "ℹ️  db-migratorとdb-dumperは外部DBに接続します"
+fi
+
 # Pull latest images
 echo ""
 echo "📥 Pulling latest images..."
-docker compose -f compose.prod.yml pull
+docker compose -f compose.prod.yml $PROFILE_ARGS pull
 
 # Final confirmation
 echo ""
@@ -88,7 +100,7 @@ fi
 # Start services
 echo ""
 echo "🚀 Starting services..."
-docker compose -f compose.prod.yml up -d
+docker compose -f compose.prod.yml $PROFILE_ARGS up -d
 
 # Wait for health check
 echo ""
@@ -98,7 +110,7 @@ ELAPSED=0
 INTERVAL=5
 
 while [ $ELAPSED -lt $MAX_WAIT ]; do
-    if docker compose -f compose.prod.yml ps | grep -q "healthy"; then
+    if docker compose -f compose.prod.yml $PROFILE_ARGS ps | grep -q "healthy"; then
         echo "✅ Services are healthy!"
         break
     fi
@@ -110,13 +122,13 @@ done
 
 if [ $ELAPSED -ge $MAX_WAIT ]; then
     echo "⚠️  Health check timeout"
-    echo "Check logs: docker compose -f compose.prod.yml logs"
+    echo "Check logs: docker compose -f compose.prod.yml $PROFILE_ARGS logs"
     echo ""
     read -p "Rollback deployment? (y/N): " -n 1 -r
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         echo "Rolling back..."
-        docker compose -f compose.prod.yml down
+        docker compose -f compose.prod.yml $PROFILE_ARGS down
         rm -f .env
         exit 1
     fi
@@ -125,7 +137,7 @@ fi
 # Display status
 echo ""
 echo "=== Deployment Status ==="
-docker compose -f compose.prod.yml ps
+docker compose -f compose.prod.yml $PROFILE_ARGS ps
 
 # Check if Watchtower is running
 echo ""
@@ -146,8 +158,8 @@ echo ""
 echo "✅ Production deployment complete!"
 echo ""
 echo "Next steps:"
-echo "  - View logs: docker compose -f compose.prod.yml logs -f"
+echo "  - View logs: docker compose -f compose.prod.yml $PROFILE_ARGS logs -f"
 echo "  - Check Watchtower: docker logs watchtower -f"
-echo "  - Monitor health: docker compose -f compose.prod.yml ps"
+echo "  - Monitor health: docker compose -f compose.prod.yml $PROFILE_ARGS ps"
 echo ""
 echo "⚠️  IMPORTANT: Monitor the application for the next few minutes"

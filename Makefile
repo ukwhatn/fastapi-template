@@ -1,99 +1,24 @@
-ENV ?= "dev"
-INCLUDE_DB ?= false
-PROD_PORT ?= 59999
+ENV ?= local
 
-# 環境別設定
 ifeq ($(ENV), prod)
-	ENV_MODE := production
-	SERVER_PORT := 127.0.0.1:$(PROD_PORT)
-	COMPOSE_PROFILES := prod
-	COMPOSE_ENV_FILES := --env-file ./envs/sentry.env
-else ifeq ($(ENV), stg)
-	ENV_MODE := production
-	SERVER_PORT := 127.0.0.1:8000
-	COMPOSE_PROFILES := stg
-	COMPOSE_ENV_FILES := 
-else ifeq ($(ENV), test)
-	ENV_MODE := production
-	SERVER_PORT := 127.0.0.1:8000
-	COMPOSE_PROFILES := test
-	COMPOSE_ENV_FILES := 
+	COMPOSE_FILE := compose.prod.yml
+else ifeq ($(ENV), dev)
+	COMPOSE_FILE := compose.dev.yml
 else
-	ENV_MODE := development
-	SERVER_PORT := 127.0.0.1:8000
-	COMPOSE_PROFILES := dev
-	COMPOSE_ENV_FILES := 
+	COMPOSE_FILE := compose.local.yml
 endif
 
-# プロファイル構築
-PROFILES_LIST := $(COMPOSE_PROFILES)
-ifeq ($(INCLUDE_DB), true)
-	PROFILES_LIST := $(PROFILES_LIST) db
-	# devの場合はdb-devも追加
-	ifeq ($(ENV), prod)
-		PROFILES_LIST := $(PROFILES_LIST) db-prod
-	else ifeq ($(ENV), stg)
-		PROFILES_LIST := $(PROFILES_LIST) db-stg
-	else ifeq ($(ENV), test)
-		PROFILES_LIST := $(PROFILES_LIST) db-test
-	else
-		PROFILES_LIST := $(PROFILES_LIST) db-dev
-	endif
-endif
-
-# profile引数構築
-PROFILE_ARGS := $(foreach profile,$(PROFILES_LIST),--profile $(profile))
-
-# composeコマンド構築
-COMPOSE_CMD := docker compose $(PROFILE_ARGS) $(COMPOSE_ENV_FILES)
-
-# 環境変数
-export ENV_MODE
-export SERVER_PORT
-export INCLUDE_DB
+COMPOSE_CMD := docker compose -f $(COMPOSE_FILE)
 
 # 共通変数
-DB_MIGRATOR_RUN := $(COMPOSE_CMD) build db-migrator && $(COMPOSE_CMD) run --rm db-migrator custom alembic
-DB_DUMPER_RUN := $(COMPOSE_CMD) build && $(COMPOSE_CMD) run --rm db-dumper custom python dump.py
-
-build:
-	$(COMPOSE_CMD) build
-
-build\:no-cache:
-	$(COMPOSE_CMD) build --no-cache
-
-up:
-	$(COMPOSE_CMD) up --build -d
-
-down:
-	$(COMPOSE_CMD) down
-
-reload:
-	$(COMPOSE_CMD) build
-	$(COMPOSE_CMD) down
-	$(COMPOSE_CMD) up -d
-
-reset:
-	$(COMPOSE_CMD) down --volumes --remove-orphans --rmi all
-
-logs:
-	$(COMPOSE_CMD) logs -f
-
-logs\:once:
-	$(COMPOSE_CMD) logs
-
-ps:
-	$(COMPOSE_CMD) ps
+DB_MIGRATOR_RUN := $(COMPOSE_CMD) run --rm db-migrator custom alembic
+DB_DUMPER_RUN := $(COMPOSE_CMD) run --rm db-dumper custom python dump.py
 
 pr\:create:
 	git switch develop
 	git push
 	gh pr create --base main --head $(shell git branch --show-current)
 	gh pr view --web
-
-deploy\:prod:
-	make build ENV=prod
-	make reload ENV=prod
 
 uv\:add:
 	uv add $(packages)

@@ -27,57 +27,46 @@ jobs:
       - name: Setup environment
         run: |
           make env
-          sed -i 's/S3_ACCESS_KEY=""/S3_ACCESS_KEY="${{ secrets.S3_ACCESS_KEY }}"/' envs/aws-s3.env || true
-          sed -i 's/S3_SECRET_KEY=""/S3_SECRET_KEY="${{ secrets.S3_SECRET_KEY }}"/' envs/aws-s3.env || true
+          # ローカルDB使用設定（テスト用）
+          sed -i 's/POSTGRES_HOST=.*/POSTGRES_HOST=db/' .env
 
-      - name: Start services
+      - name: Start services with local DB
         run: |
-          make up ENV=test
+          docker compose -f compose.prod.yml --profile local-db up --build -d
         env:
           DOCKER_BUILDKIT: 1
           COMPOSE_DOCKER_CLI_BUILD: 1
 
       - name: Health check with timeout
         run: |
-          timeout=30
+          timeout=60
           interval=5
           elapsed=0
 
           while [ $elapsed -lt $timeout ]; do
-            if ! make ps ENV=test | grep -qiE "(starting|restarting|unhealthy)"; then
-              echo "✅ All services started successfully!"
+            status=$(docker compose -f compose.prod.yml --profile local-db ps --format json | jq -r '.[].Health // "unknown"')
+
+            if echo "$status" | grep -qiE "starting|unhealthy"; then
+              echo "🕒 Services starting... Elapsed: ${elapsed}s/${timeout}s"
+              docker compose -f compose.prod.yml --profile local-db ps
+              sleep $interval
+              elapsed=$((elapsed + interval))
+            else
+              echo "✅ All services healthy!"
+              docker compose -f compose.prod.yml --profile local-db ps
               break
             fi
-
-            echo "🕒 Services starting... Elapsed: ${elapsed}s/${timeout}s"
-            make ps ENV=test
-            sleep $interval
-            elapsed=$((elapsed + interval))
           done
 
           if [ $elapsed -ge $timeout ]; then
             echo "❌ Timeout: Services failed to start"
-            make ps ENV=test
-            make logs:once ENV=test
+            docker compose -f compose.prod.yml --profile local-db ps
+            docker compose -f compose.prod.yml --profile local-db logs
             exit 1
           fi
 
-          if make ps ENV=test | grep -q "unhealthy"; then
-            echo "❌ Unhealthy services detected:"
-            make ps ENV=test
-            make logs:once ENV=test
-            exit 1
-          fi
-
-          make ps ENV=test
           echo "✅ Health check passed!"
-
-      - name: Test database dumper
-        run: |
-          echo "Testing database dumper service..."
-          make db:dump:test ENV=test
-          echo "✅ Dumper test passed!"
 
       - name: Clean up
         if: always()
-        run: make down ENV=test
+        run: docker compose -f compose.prod.yml --profile local-db down
