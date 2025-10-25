@@ -1,8 +1,7 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, Integer
+from sqlalchemy import DateTime, Integer, func
 from sqlalchemy.orm import Mapped, mapped_column, declarative_base
-from sqlalchemy.sql import text
 
 Base = declarative_base()
 
@@ -13,10 +12,10 @@ class TimeStampMixin:
     """
 
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=text("now()")
+        DateTime(timezone=True), server_default=func.now()
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=text("now()"), onupdate=text("now()")
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
 

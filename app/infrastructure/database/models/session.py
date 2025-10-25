@@ -1,4 +1,4 @@
-from sqlalchemy import Integer, String, DateTime, Text, Index
+from sqlalchemy import String, DateTime, Text
 from sqlalchemy.orm import Mapped, mapped_column
 from datetime import datetime
 
@@ -24,11 +24,6 @@ class Session(Base, TimeStampMixin):
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
     fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)  # SHA256ハッシュ
     csrf_token: Mapped[str] = mapped_column(String(64), nullable=False)
-
-    __table_args__ = (
-        # 期限切れセッションのクリーンアップ用インデックス
-        Index('ix_sessions_expires_at', 'expires_at'),
-    )
 
     def __repr__(self):
         return f"<Session(session_id={self.session_id}, expires_at={self.expires_at})>"
