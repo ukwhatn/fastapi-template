@@ -14,12 +14,10 @@ endif
 
 # POSTGRES_HOSTに基づくprofile自動判定（local環境以外）
 PROFILE_ARGS :=
-ifneq ($(ENV), local)
-	ifeq ($(POSTGRES_HOST), db)
-		PROFILE_ARGS := --profile local-db
-	else ifeq ($(POSTGRES_HOST), localhost)
-		PROFILE_ARGS := --profile local-db
-	endif
+ifeq ($(POSTGRES_HOST), db)
+	PROFILE_ARGS := --profile local-db
+else ifeq ($(POSTGRES_HOST), localhost)
+	PROFILE_ARGS := --profile local-db
 endif
 
 COMPOSE_CMD := docker compose -f $(COMPOSE_FILE) $(PROFILE_ARGS)
