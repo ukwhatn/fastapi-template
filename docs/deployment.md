@@ -80,7 +80,7 @@ make prod:deploy
 ### Localのみ
 
 - uv（Pythonパッケージマネージャー）
-- Python 3.14+
+- Python 3.13+
 
 ### Dev/Prodのみ
 
