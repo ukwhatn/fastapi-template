@@ -3,7 +3,7 @@ name = "fastapi-template"
 version = "1.0.0"
 description = "A template for creating a new application"
 authors = [{ name = "Yuki Watanabe", email = "ukwhatn@gmail.com" }]
-requires-python = "~=3.10"
+requires-python = ">=3.14"
 
 [dependency-groups]
 server = [
