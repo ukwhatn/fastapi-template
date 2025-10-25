@@ -35,6 +35,13 @@ make test                   # Run all tests
 make test:cov               # Run tests with coverage report
 ```
 
+### Pre-commit Hooks (Git Automation)
+```bash
+make pre-commit:install     # Install git hooks (one-time setup)
+make pre-commit:run         # Run all hooks manually on all files
+make pre-commit:update      # Update hook versions
+```
+
 ### Database Operations
 ```bash
 make db:revision:create NAME="description"  # Create new migration
