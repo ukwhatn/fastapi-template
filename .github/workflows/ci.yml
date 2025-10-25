@@ -5,7 +5,7 @@ on:
     branches:
       - main
       - develop
-  pull_request_target:
+  pull_request:
     branches:
       - main
       - develop
@@ -17,38 +17,21 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Authorization check (only for pull_request_target)
-  check-authorization:
-    runs-on: ubuntu-latest
-    if: |
-      (github.event_name == 'push') ||
-      (github.event_name == 'workflow_dispatch') ||
-      (github.event.pull_request.user.login == 'ukwhatn') ||
-      (github.event.pull_request.user.login == 'dependabot[bot]')
-    steps:
-      - name: Authorized
-        run: echo "✅ User authorized to run CI"
-
   # Code quality checks (parallel)
   lint:
-    needs: check-authorization
     uses: ./.github/workflows/lint.yml
 
   type-check:
-    needs: check-authorization
     uses: ./.github/workflows/type-check.yml
 
   security:
-    needs: check-authorization
     uses: ./.github/workflows/security.yml
 
   # Tests (parallel)
   test:
-    needs: check-authorization
     uses: ./.github/workflows/test.yml
 
   docker-test:
-    needs: check-authorization
     uses: ./.github/workflows/docker-test.yml
     secrets: inherit
 
