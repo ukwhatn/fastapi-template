@@ -3,7 +3,7 @@
 # ========================================
 # ビルダーステージ
 # ========================================
-FROM ghcr.io/astral-sh/uv:0.9.5-python3.14-trixie-slim AS builder
+FROM ghcr.io/astral-sh/uv:0.9.5-python3.13-trixie-slim AS builder
 
 WORKDIR /app
 
@@ -37,7 +37,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # ========================================
 # ランタイムステージ
 # ========================================
-FROM ghcr.io/astral-sh/uv:python3.14-trixie-slim AS runtime
+FROM ghcr.io/astral-sh/uv:python3.13-trixie-slim AS runtime
 
 # PYTHONUNBUFFERED: コンテナログでリアルタイム出力を確保するためバッファリング無効化
 # PYTHONDONTWRITEBYTECODE: builderステージで既にバイトコード化済みのため不要な.pycの生成を抑制

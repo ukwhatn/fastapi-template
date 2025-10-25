@@ -153,7 +153,9 @@ class TestSessionEncryption:
         assert encryptor.enabled is False
         assert encryptor.cipher is None
 
-    def test_encryption_with_none_key_and_no_env_disables_encryption(self, monkeypatch: Any) -> None:
+    def test_encryption_with_none_key_and_no_env_disables_encryption(
+        self, monkeypatch: Any
+    ) -> None:
         """キーがNoneかつ環境変数も無い場合、暗号化が無効になること"""
         # 環境変数を削除
         monkeypatch.delenv("SESSION_ENCRYPTION_KEY", raising=False)

@@ -7,7 +7,7 @@ This file provides guidance for Claude Code when working with this repository.
 FastAPI production-ready template using Clean Architecture (4-layer), SQLAlchemy ORM, RDB-based encrypted session management, comprehensive Docker deployment, and Supabase support.
 
 **Tech Stack:**
-- FastAPI 0.120.0+ (Python 3.14+)
+- FastAPI 0.120.0+ (Python 3.13+)
 - SQLAlchemy 2.0+ with PostgreSQL
 - Docker Compose (multi-profile setup)
 - uv for dependency management

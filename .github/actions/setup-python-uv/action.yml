@@ -5,7 +5,7 @@ inputs:
   python-version:
     description: 'Python version to use'
     required: false
-    default: '3.14'
+    default: '3.13'
   cache-dependency-glob:
     description: 'Glob pattern for cache dependency files'
     required: false

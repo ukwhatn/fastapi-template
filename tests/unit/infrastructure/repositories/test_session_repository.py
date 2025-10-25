@@ -193,7 +193,9 @@ class TestSessionServiceEdgeCases:
         # 有効期限を過去に設定（直接DBを操作）
         from app.infrastructure.database.models.session import Session as SessionModel
 
-        session = db_session.query(SessionModel).filter_by(session_id=session_id).first()
+        session = (
+            db_session.query(SessionModel).filter_by(session_id=session_id).first()
+        )
         assert session is not None
         session.expires_at = datetime.now() - timedelta(hours=1)
         db_session.commit()
@@ -219,7 +221,9 @@ class TestSessionServiceEdgeCases:
         # 有効期限を過去に設定
         from app.infrastructure.database.models.session import Session as SessionModel
 
-        session = db_session.query(SessionModel).filter_by(session_id=session_id).first()
+        session = (
+            db_session.query(SessionModel).filter_by(session_id=session_id).first()
+        )
         assert session is not None
         session.expires_at = datetime.now() - timedelta(hours=1)
         db_session.commit()
@@ -273,7 +277,9 @@ class TestSessionServiceEdgeCases:
 class TestCSRFValidation:
     """CSRF検証のテスト"""
 
-    def test_get_session_with_csrf_verification_success(self, db_session: Session) -> None:
+    def test_get_session_with_csrf_verification_success(
+        self, db_session: Session
+    ) -> None:
         """正しいCSRFトークンでセッション取得成功"""
         service = SessionService(db_session)
         data = {"user_id": 123}
@@ -289,7 +295,9 @@ class TestCSRFValidation:
         assert retrieved_data is not None
         assert retrieved_data["user_id"] == 123
 
-    def test_get_session_with_csrf_verification_failure_wrong_token(self, db_session: Session) -> None:
+    def test_get_session_with_csrf_verification_failure_wrong_token(
+        self, db_session: Session
+    ) -> None:
         """間違ったCSRFトークンでセッション取得失敗"""
         service = SessionService(db_session)
         data = {"user_id": 123}
@@ -308,7 +316,9 @@ class TestCSRFValidation:
         )
         assert retrieved_data is None
 
-    def test_get_session_with_csrf_verification_failure_no_token(self, db_session: Session) -> None:
+    def test_get_session_with_csrf_verification_failure_no_token(
+        self, db_session: Session
+    ) -> None:
         """CSRFトークンなしで検証失敗"""
         service = SessionService(db_session)
         data = {"user_id": 123}
