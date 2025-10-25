@@ -7,6 +7,18 @@ updates:
     target-branch: "develop"
     assignees:
       - "ukwhatn"
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "automated"
+    groups:
+      actions:
+        patterns:
+          - "*"
 
   - package-ecosystem: "uv"
     directory: "/"
@@ -16,6 +28,26 @@ updates:
     versioning-strategy: increase-if-necessary
     assignees:
       - "ukwhatn"
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "automated"
+    groups:
+      python-dependencies:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+      python-major:
+        patterns:
+          - "*"
+        update-types:
+          - "major"
 
   - package-ecosystem: "docker"
     directory: "/docker"
@@ -24,3 +56,15 @@ updates:
     target-branch: "develop"
     assignees:
       - "ukwhatn"
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "automated"
+    groups:
+      docker-images:
+        patterns:
+          - "*"
