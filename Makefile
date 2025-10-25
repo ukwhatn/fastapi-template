@@ -1,4 +1,4 @@
-# .envファイルを読み込む（存在する場合）
+# ==== Prepare ====
 -include .env
 export
 
@@ -28,12 +28,30 @@ COMPOSE_CMD := docker compose -f $(COMPOSE_FILE) $(PROFILE_ARGS)
 DB_MIGRATOR_RUN := $(COMPOSE_CMD) run --rm db-migrator custom alembic
 DB_DUMPER_RUN := $(COMPOSE_CMD) run --rm db-dumper custom python dump.py
 
-pr\:create:
-	git switch develop
-	git push
-	gh pr create --base main --head $(shell git branch --show-current)
-	gh pr view --web
+# ==== 環境セットアップ ====
+env:
+	@cp .env.example .env
+	@echo ".env file created. Please edit it with your configuration."
 
+project\:init:
+	@if [ -z "$(NAME)" ]; then \
+		echo "Error: NAME is required"; \
+		echo "Usage: make project:init NAME=\"Your Project Name\""; \
+		exit 1; \
+	fi
+	@UNIX_NAME=$$(echo "$(NAME)" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g' | sed -E 's/^-|-$$//g'); \
+	echo "Initializing project with name: $(NAME) (unix name: $$UNIX_NAME)"; \
+	find . -type f -not -path "*/\.*" -not -path "*/Makefile" -not -path "*/__pycache__/*" -not -path "*/node_modules/*" -not -path "*/venv/*" -exec grep -l "fastapi-template" {} \; | xargs -I{} sed -i '' 's/fastapi-template/'$$UNIX_NAME'/g' {}; \
+	find . -type f -not -path "*/\.*" -not -path "*/Makefile" -not -path "*/__pycache__/*" -not -path "*/node_modules/*" -not -path "*/venv/*" -exec grep -l "FastAPI Template" {} \; | xargs -I{} sed -i '' 's/FastAPI Template/$(NAME)/g' {}
+
+	git add .
+	git commit -m "chore: initialize project with name: $(NAME)"
+	git switch -c develop
+
+dev\:setup:
+	uv sync
+
+# ==== パッケージ管理系 ====
 uv\:add:
 	uv add $(packages)
 	make uv:lock
@@ -51,8 +69,17 @@ uv\:update:
 uv\:update\:all:
 	uv lock --upgrade
 
-dev\:setup:
-	uv sync
+# ==== 開発ツール ====
+openapi\:generate:
+	PYTHONPATH=app uv run python -c "from main import app; import json; from fastapi.openapi.utils import get_openapi; openapi = get_openapi(title=app.title, version=app.version, description=app.description, routes=app.routes); print(json.dumps(openapi, indent=2, ensure_ascii=False))" > docs/openapi.json
+
+# ==== コード品質チェック系 ====
+test:
+	PYTHONPATH=app uv run --active pytest tests/ -v
+
+test\:cov:
+	PYTHONPATH=app uv run --active pytest tests/ -v --cov=. --cov-report=html
+
 
 lint:
 	uv run --active ruff check ./app ./versions ./tests
@@ -64,7 +91,7 @@ format:
 	uv run --active ruff format ./app ./versions ./tests
 
 type-check:
-	uv run --active mypy app versions tests
+	PYTHONPATH=app uv run --active mypy app versions tests
 
 security\:scan:
 	make security:scan:code
@@ -76,6 +103,7 @@ security\:scan\:code:
 security\:scan\:sast:
 	uv run --active semgrep scan --config=p/python --config=p/security-audit --config=p/owasp-top-ten
 
+# ==== DBマイグレーション系 ====
 db\:revision\:create:
 	$(DB_MIGRATOR_RUN) revision --autogenerate -m '${NAME}'
 
@@ -91,7 +119,7 @@ db\:current:
 db\:history:
 	$(DB_MIGRATOR_RUN) history
 
-# データベースダンプ関連コマンド
+# ==== DBバックアップ系 ====
 db\:dump:
 	$(COMPOSE_CMD) run --rm --build -e DB_TOOL_MODE=dumper -e DUMPER_MODE=interactive db-dumper custom python dump.py
 
@@ -107,18 +135,6 @@ db\:dump\:restore:
 db\:dump\:test:
 	$(DB_DUMPER_RUN) test --confirm
 
-env:
-	cp .env.example .env
-	@echo ".env file created. Please edit it with your configuration."
-
-test:
-	uv run --active pytest tests/ -v
-
-test\:cov:
-	uv run --active pytest tests/ -v --cov=app --cov-report=html
-
-openapi\:generate:
-	$(COMPOSE_CMD) exec server python -c "from main import app; import json; from fastapi.openapi.utils import get_openapi; openapi = get_openapi(title=app.title, version=app.version, description=app.description, routes=app.routes); print(json.dumps(openapi, indent=2, ensure_ascii=False))" > docs/openapi.json
 
 # 汎用Docker Composeコマンド
 compose\:up:
@@ -156,7 +172,7 @@ local\:ps:
 	ENV=local $(MAKE) compose:ps
 
 local\:serve:
-	uv run fastapi dev app/main.py --host 0.0.0.0 --port 8000
+	cd app && uv run fastapi dev main.py --host 0.0.0.0 --port 8000
 
 # Dev環境（Watchtower自動デプロイ）
 dev\:deploy:
@@ -244,20 +260,6 @@ secrets\:edit\:prod:
 	fi
 	sops .env.prod.enc
 
-project\:init:
-	@if [ -z "$(NAME)" ]; then \
-		echo "Error: NAME is required"; \
-		echo "Usage: make project:init NAME=\"Your Project Name\""; \
-		exit 1; \
-	fi
-	@UNIX_NAME=$$(echo "$(NAME)" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g' | sed -E 's/^-|-$$//g'); \
-	echo "Initializing project with name: $(NAME) (unix name: $$UNIX_NAME)"; \
-	find . -type f -not -path "*/\.*" -not -path "*/Makefile" -not -path "*/__pycache__/*" -not -path "*/node_modules/*" -not -path "*/venv/*" -exec grep -l "fastapi-template" {} \; | xargs -I{} sed -i '' 's/fastapi-template/'$$UNIX_NAME'/g' {}; \
-	find . -type f -not -path "*/\.*" -not -path "*/Makefile" -not -path "*/__pycache__/*" -not -path "*/node_modules/*" -not -path "*/venv/*" -exec grep -l "FastAPI Template" {} \; | xargs -I{} sed -i '' 's/FastAPI Template/$(NAME)/g' {}
-
-	git add .
-	git commit -m "chore: initialize project with name: $(NAME)"
-	git switch -c develop
 
 # テンプレート更新関連コマンド
 template\:list:
