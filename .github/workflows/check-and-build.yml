@@ -31,7 +31,6 @@ jobs:
   # Build and push Docker image (main push or PR to main opened/reopened)
   build-and-push:
     needs: [lint, type-check, security, test, docker-test]
-    if: (github.event_name == 'push' && github.ref == 'refs/heads/main')
     uses: ./.github/workflows/cd_build-push.yml
     secrets: inherit
 
