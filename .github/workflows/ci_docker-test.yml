@@ -44,7 +44,7 @@ jobs:
           elapsed=0
 
           while [ $elapsed -lt $timeout ]; do
-            status=$(docker compose -f compose.prod.yml --profile local-db ps --format json | jq -r '.[].Health // "unknown"')
+            status=$(docker compose -f compose.prod.yml --profile local-db ps --format json | jq -rs 'map(.Health // "unknown") | join("\n")')
 
             if echo "$status" | grep -qiE "starting|unhealthy"; then
               echo "🕒 Services starting... Elapsed: ${elapsed}s/${timeout}s"

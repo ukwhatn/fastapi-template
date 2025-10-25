@@ -91,11 +91,7 @@ db\:dump\:restore:
 	$(DB_DUMPER_RUN) restore $(FILE)
 
 db\:dump\:test:
-	@if [ "$(INCLUDE_DB)" != "true" ]; then \
-		echo "Skipping database dump test: INCLUDE_DB is not set to true"; \
-	else \
-		$(DB_DUMPER_RUN) test --confirm; \
-	fi
+	$(DB_DUMPER_RUN) test --confirm
 
 env:
 	cp .env.example .env
