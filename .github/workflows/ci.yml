@@ -11,31 +11,99 @@ on:
       - develop
   workflow_dispatch:
 
-# Cancel in-progress runs for the same PR/branch
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
-  # Code quality checks (parallel)
   lint:
-    uses: ./.github/workflows/lint.yml
+    uses: ci_lint.yml
 
   type-check:
-    uses: ./.github/workflows/type-check.yml
+    uses: ci_type-check.yml
 
   security:
-    uses: ./.github/workflows/security.yml
+    uses: ci_security.yml
 
-  # Tests (parallel)
   test:
-    uses: ./.github/workflows/test.yml
+    uses: ci_test.yml
 
   docker-test:
-    uses: ./.github/workflows/docker-test.yml
+    uses: ci_docker-test.yml
     secrets: inherit
 
-  # Summary job (Branch Protection Rules使用時に有効化)
+  # Build and push Docker image (push event only)
+  build-and-push:
+    needs: [lint, type-check, security, test, docker-test]
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      attestations: write
+      id-token: write
+    env:
+      REGISTRY: ghcr.io
+      IMAGE_NAME: ${{ github.repository }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix={{branch}}-sha-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        id: push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./docker/server.Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Generate artifact attestation
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true
+
+      - name: Summary
+        run: |
+          echo "✅ Image built and pushed successfully!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Image:** \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Tags:**" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Digest:** \`${{ steps.push.outputs.digest }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Platforms:** \`linux/amd64, linux/arm64\`" >> $GITHUB_STEP_SUMMARY
+
+  # Branch Protection Rules 用
   # ci-success:
   #   runs-on: ubuntu-latest
   #   needs: [lint, type-check, security, test, docker-test]
