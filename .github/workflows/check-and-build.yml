@@ -31,10 +31,10 @@ jobs:
     uses: ./.github/workflows/ci_docker-test.yml
     secrets: inherit
 
-  # Build and push Docker image (push event only)
+  # Build and push Docker image (main push or PR to main)
   build-and-push:
     needs: [lint, type-check, security, test, docker-test]
-    if: github.event_name == 'push'
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'pull_request' && github.base_ref == 'main')
     uses: ./.github/workflows/cd_build-push.yml
     secrets: inherit
 
