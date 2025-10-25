@@ -14,9 +14,9 @@ from datetime import datetime, timedelta
 from sqlalchemy.orm import Session as DBSession
 from sqlalchemy import delete
 
-from ..models.session import Session
-from ...core.config import get_settings
-from ...core.security import (
+from app.infrastructure.database.models.session import Session
+from app.core.config import get_settings
+from app.infrastructure.security.encryption import (
     get_session_encryption,
     generate_session_id,
     generate_csrf_token,
