@@ -1,50 +1,20 @@
-name: CI
+name: Build & Push to GHCR
 
 on:
-  push:
-    branches:
-      - main
-      - develop
-  pull_request:
-    branches:
-      - main
-      - develop
-  workflow_dispatch:
+  workflow_call:
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  lint:
-    uses: ci_lint.yml
-
-  type-check:
-    uses: ci_type-check.yml
-
-  security:
-    uses: ci_security.yml
-
-  test:
-    uses: ci_test.yml
-
-  docker-test:
-    uses: ci_docker-test.yml
-    secrets: inherit
-
-  # Build and push Docker image (push event only)
   build-and-push:
-    needs: [lint, type-check, security, test, docker-test]
-    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
       attestations: write
       id-token: write
-    env:
-      REGISTRY: ghcr.io
-      IMAGE_NAME: ${{ github.repository }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -102,26 +72,3 @@ jobs:
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           echo "**Digest:** \`${{ steps.push.outputs.digest }}\`" >> $GITHUB_STEP_SUMMARY
           echo "**Platforms:** \`linux/amd64, linux/arm64\`" >> $GITHUB_STEP_SUMMARY
-
-  # Branch Protection Rules 用
-  # ci-success:
-  #   runs-on: ubuntu-latest
-  #   needs: [lint, type-check, security, test, docker-test]
-  #   if: always()
-  #   steps:
-  #     - name: Check all jobs status
-  #       run: |
-  #         if [ "${{ needs.lint.result }}" != "success" ] || \
-  #            [ "${{ needs.type-check.result }}" != "success" ] || \
-  #            [ "${{ needs.security.result }}" != "success" ] || \
-  #            [ "${{ needs.test.result }}" != "success" ] || \
-  #            [ "${{ needs.docker-test.result }}" != "success" ]; then
-  #           echo "❌ One or more CI jobs failed"
-  #           echo "Lint: ${{ needs.lint.result }}"
-  #           echo "Type Check: ${{ needs.type-check.result }}"
-  #           echo "Security: ${{ needs.security.result }}"
-  #           echo "Test: ${{ needs.test.result }}"
-  #           echo "Docker Test: ${{ needs.docker-test.result }}"
-  #           exit 1
-  #         fi
-  #         echo "✅ All CI checks passed successfully!"
