@@ -5,14 +5,10 @@ on:
     branches:
       - main
       - develop
-  pull_request:
-    branches:
-      - develop
-      - main
   workflow_dispatch:
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -35,9 +31,7 @@ jobs:
   # Build and push Docker image (main push or PR to main opened/reopened)
   build-and-push:
     needs: [lint, type-check, security, test, docker-test]
-    if: |
-      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
-      (github.event_name == 'pull_request' && github.base_ref == 'main' && (github.event.action == 'opened' || github.event.action == 'reopened'))
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main')
     uses: ./.github/workflows/cd_build-push.yml
     secrets: inherit
 
