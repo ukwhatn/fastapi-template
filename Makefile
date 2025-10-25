@@ -57,13 +57,13 @@ project\:rename:
 	git commit -m "chore: initialize project with name: $(NAME)"; \
 	git switch -c develop
 
-# ==== パッケージ管理系 ====
+# ==== パッケージ管理 ====
 uv\:add:
 	@uv add $(packages)
 	@$(MAKE) uv:lock
 
 uv\:add\:dev:
-	@uv add --group dev $(packages)
+	@uv add $(packages) --dev
 	@$(MAKE) uv:lock
 
 uv\:lock:
@@ -79,13 +79,12 @@ uv\:update\:all:
 openapi\:generate:
 	@uv run python -c "from app.main import app; import json; from fastapi.openapi.utils import get_openapi; openapi = get_openapi(title=app.title, version=app.version, description=app.description, routes=app.routes); print(json.dumps(openapi, indent=2, ensure_ascii=False))" > docs/openapi.json
 
-# ==== コード品質チェック系 ====
+# ==== コード品質チェック ====
 test:
 	@uv run --active pytest tests/ -v
 
 test\:cov:
 	@uv run --active pytest tests/ -v --cov=app --cov-report=html
-
 
 lint:
 	@uv run --active ruff check ./app ./versions ./tests
@@ -120,7 +119,7 @@ pre-commit\:run:
 pre-commit\:update:
 	@uv run pre-commit autoupdate
 
-# ==== DBマイグレーション系 ====
+# ==== DBマイグレーション ====
 db\:revision\:create:
 	@$(DB_MIGRATOR_RUN) revision --autogenerate -m '${NAME}'
 
@@ -136,7 +135,7 @@ db\:current:
 db\:history:
 	@$(DB_MIGRATOR_RUN) history
 
-# ==== DBバックアップ系 ====
+# ==== DBバックアップ ====
 db\:dump:
 	@$(COMPOSE_CMD) run --rm --build -e DB_TOOL_MODE=dumper -e DUMPER_MODE=interactive db-dumper custom python dump.py
 
@@ -153,7 +152,7 @@ db\:dump\:test:
 	@$(DB_DUMPER_RUN) test --confirm
 
 
-# 汎用Docker Composeコマンド
+# ==== Docker Compose操作 ====
 compose\:up:
 	@$(COMPOSE_CMD) up -d
 
@@ -175,7 +174,7 @@ compose\:restart:
 compose\:build:
 	@$(COMPOSE_CMD) up --build -d
 
-# ローカル開発環境（uv native + Docker DB）
+# ==== local環境操作 ====
 local\:up:
 	@ENV=local $(MAKE) compose:up
 
@@ -191,7 +190,7 @@ local\:ps:
 local\:serve:
 	@uv run fastapi dev app/main.py --host 0.0.0.0 --port 8000
 
-# Dev環境（Watchtower自動デプロイ）
+# ==== dev環境操作 ====
 dev\:deploy:
 	@./scripts/deploy-dev.sh
 
@@ -204,7 +203,7 @@ dev\:ps:
 dev\:down:
 	@ENV=dev $(MAKE) compose:down
 
-# Prod環境（Watchtower自動デプロイ）
+# ==== prod環境操作 ====
 prod\:deploy:
 	@./scripts/deploy-prod.sh
 
@@ -217,7 +216,7 @@ prod\:ps:
 prod\:down:
 	@ENV=prod $(MAKE) compose:down
 
-# Watchtower管理
+# ==== Watchtower管理コマンド ====
 watchtower\:setup:
 	@./scripts/setup-watchtower.sh
 
@@ -230,7 +229,7 @@ watchtower\:status:
 watchtower\:restart:
 	@docker restart watchtower
 
-# シークレット管理（SOPS + age）
+# ==== 秘密情報管理コマンド ====
 secrets\:encrypt\:dev:
 	@if [ ! -f .env.dev ]; then \
 		echo "Error: .env.dev not found. Create it first."; \
@@ -277,8 +276,7 @@ secrets\:edit\:prod:
 	fi
 	@sops .env.prod.enc
 
-
-# テンプレート更新関連コマンド
+# ==== テンプレート適用コマンド ====
 template\:list:
 	@if ! git remote | grep -q "template"; then \
 		git remote add template git@github.com:ukwhatn/fastapi-template.git; \
