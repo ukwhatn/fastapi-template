@@ -41,9 +41,11 @@ FROM ghcr.io/astral-sh/uv:python3.13-trixie-slim AS runtime
 
 # PYTHONUNBUFFERED: コンテナログでリアルタイム出力を確保するためバッファリング無効化
 # PYTHONDONTWRITEBYTECODE: builderステージで既にバイトコード化済みのため不要な.pycの生成を抑制
+# PYTHONPATH: appモジュールを正しく解決するためにプロジェクトルートを設定
 ENV TZ=Asia/Tokyo \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONPATH=/usr/src \
     PATH="/app/.venv/bin:$PATH"
 
 # psycopg2の実行時依存ライブラリ（libpq5）とヘルスチェック用curl
