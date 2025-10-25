@@ -309,7 +309,7 @@ git push origin main           # GitHub Actions builds and pushes
 - Development branch: `develop`
 - Create PRs from feature branches to `develop`
 - Use `make pr:create` to create PR (requires gh CLI)
-- Run `make lint`, `make type-check`, and `make test` before committing
+- Pre-commit hooks automatically run format/lint on commit, tests on push
 - Use conventional commits (e.g., `feat:`, `fix:`, `refactor:`)
 
 ## Documentation
@@ -320,9 +320,58 @@ git push origin main           # GitHub Actions builds and pushes
 - **docs/secrets-management.md** - SOPS + age secrets management guide (Japanese)
 - **CLAUDE.md** - This file, for AI assistance
 
+## Pre-commit Hooks
+
+This project uses [pre-commit](https://pre-commit.com/) framework for automated code quality checks.
+
+### What Gets Checked
+
+**Pre-commit (on `git commit`)**:
+- File validation (large files, YAML/TOML syntax, trailing whitespace)
+- Ruff format (auto-format code)
+- Ruff lint --fix (auto-fix linting issues)
+- uv.lock synchronization
+- OpenAPI spec generation (when `app/*.py` changes)
+
+**Pre-push (on `git push`)**:
+- Type checking (mypy)
+- Unit tests (pytest)
+
+### First-Time Setup
+
+```bash
+# Install git hooks (one-time)
+make pre-commit:install
+```
+
+### Usage
+
+Hooks run automatically on commit/push. To run manually:
+
+```bash
+# Run all hooks on all files
+make pre-commit:run
+
+# Run specific hook
+uv run pre-commit run ruff --all-files
+
+# Skip hooks (not recommended)
+git commit --no-verify
+```
+
+### Performance Optimizations
+
+- ✅ **Ruff**: 150-200x faster than traditional linters
+- ✅ **Parallel execution**: Multiple files processed simultaneously
+- ✅ **Selective execution**: Only changed files checked (except tests/type-check)
+- ✅ **Caching**: Hook environments cached after first run
+
+**Reference**: Configuration in `.pre-commit-config.yaml`
+
 ## Common Gotchas
 
 - mypy requires paths without `./` prefix: use `mypy app tests` not `mypy ./app ./tests`
 - Database migrations must be reviewed before applying (Alembic can miss some changes)
 - Session encryption key must be 32 url-safe base64-encoded bytes
 - Docker Compose profiles must be explicitly enabled via `INCLUDE_DB=true` for database services
+- Pre-commit hooks can be skipped with `--no-verify` but this is not recommended

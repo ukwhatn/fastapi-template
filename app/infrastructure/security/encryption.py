@@ -33,6 +33,10 @@ class SessionEncryption:
             settings = get_settings()
             encryption_key = settings.SESSION_ENCRYPTION_KEY
 
+        # 空文字列もNoneとして扱う
+        if not encryption_key:
+            encryption_key = None
+
         self.encryption_key = encryption_key
         self.cipher: Optional[Fernet]
         self.enabled: bool
