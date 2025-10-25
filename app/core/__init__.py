@@ -1,5 +1,5 @@
 from .config import get_settings, Settings
-from app.domain.exceptions.base import (
+from ..domain.exceptions.base import (
     APIError,
     BadRequestError,
     ErrorResponse,

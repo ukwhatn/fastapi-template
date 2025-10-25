@@ -11,7 +11,7 @@ import logging
 from typing import Any, Optional
 from cryptography.fernet import Fernet, InvalidToken
 
-from app.core.config import get_settings
+from ...core.config import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +32,10 @@ class SessionEncryption:
         if encryption_key is None:
             settings = get_settings()
             encryption_key = settings.SESSION_ENCRYPTION_KEY
+
+        # 空文字列もNoneとして扱う
+        if not encryption_key:
+            encryption_key = None
 
         self.encryption_key = encryption_key
         self.cipher: Optional[Fernet]

@@ -15,11 +15,11 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.presentation import api_router
-from app.core import APIError, ErrorResponse, ValidationError, get_settings
-from app.presentation.middleware.security_headers import SecurityHeadersMiddleware
-from app.infrastructure.database import get_db
-from app.infrastructure.repositories.session_repository import SessionService
+from .presentation import api_router
+from .core import APIError, ErrorResponse, ValidationError, get_settings
+from .presentation.middleware.security_headers import SecurityHeadersMiddleware
+from .infrastructure.database import get_db
+from .infrastructure.repositories.session_repository import SessionService
 
 # 設定読み込み
 settings = get_settings()
@@ -36,18 +36,13 @@ app_params: Dict[str, Any] = {
 }
 
 # ロガー設定
-logging.basicConfig(level=logging.WARN)
 logger = logging.getLogger("uvicorn")
 
-if settings.is_development:
-    logger.setLevel(level=logging.DEBUG)
-else:
-    logger.setLevel(level=logging.INFO)
-    # 本番環境ではドキュメントを無効化
-    if settings.is_production:
-        app_params["docs_url"] = None
-        app_params["redoc_url"] = None
-        app_params["openapi_url"] = None
+# 本番環境ではドキュメントを無効化
+if settings.is_production:
+    app_params["docs_url"] = None
+    app_params["redoc_url"] = None
+    app_params["openapi_url"] = None
 
 # New Relic設定
 if settings.is_production and settings.NEW_RELIC_LICENSE_KEY:

@@ -8,8 +8,8 @@ from typing import Any, Optional
 from fastapi import Request, Response
 from sqlalchemy.orm import Session as DBSession
 
-from app.infrastructure.repositories.session_repository import SessionService
-from app.core.config import get_settings
+from ..infrastructure.repositories.session_repository import SessionService
+from ..core.config import get_settings
 
 settings = get_settings()
 

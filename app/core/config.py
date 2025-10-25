@@ -71,9 +71,7 @@ class Settings(BaseSettings):
     def has_database(self) -> bool:
         """データベース設定有無"""
         return bool(
-            self.POSTGRES_USER
-            and self.POSTGRES_PASSWORD
-            and self.POSTGRES_HOST
+            self.POSTGRES_USER and self.POSTGRES_PASSWORD and self.POSTGRES_HOST
         )
 
     @property

@@ -157,21 +157,30 @@ class TestSessionEncryption:
         self, monkeypatch: Any
     ) -> None:
         """キーがNoneかつ環境変数も無い場合、暗号化が無効になること"""
-        # 環境変数を削除
-        monkeypatch.delenv("SESSION_ENCRYPTION_KEY", raising=False)
+        from app.core.config import Settings
+        from unittest.mock import Mock
 
-        # Settings再読み込みのためにget_settings()のキャッシュをクリア
-        from app.core.config import get_settings
+        # 空の暗号化キーを持つモックSettingsを作成
+        mock_settings = Mock(spec=Settings)
+        mock_settings.SESSION_ENCRYPTION_KEY = ""
 
-        get_settings.cache_clear()
+        # get_settings()をモック
+        monkeypatch.setattr(
+            "app.infrastructure.security.encryption.get_settings",
+            lambda: mock_settings,
+        )
 
         encryptor = SessionEncryption()
 
         assert encryptor.enabled is False
         assert encryptor.cipher is None
 
-        # キャッシュを再度クリア（他のテストへの影響を防ぐ）
-        get_settings.cache_clear()
+    def test_encryption_with_empty_string_key_disables_encryption(self) -> None:
+        """空文字列のキーの場合、暗号化が無効になること"""
+        encryptor = SessionEncryption(encryption_key="")
+
+        assert encryptor.enabled is False
+        assert encryptor.cipher is None
 
     def test_decrypt_invalid_data_fails(self) -> None:
         """無効なデータの復号化は失敗すること"""

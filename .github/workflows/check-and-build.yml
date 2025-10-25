@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - develop
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    uses: ./.github/workflows/ci_lint.yml
+
+  type-check:
+    uses: ./.github/workflows/ci_type-check.yml
+
+  security:
+    uses: ./.github/workflows/ci_security.yml
+
+  test:
+    uses: ./.github/workflows/ci_test.yml
+
+  docker-test:
+    uses: ./.github/workflows/ci_docker-test.yml
+    secrets: inherit
+
+  # Build and push Docker image (main push or PR to main)
+  build-and-push:
+    needs: [lint, type-check, security, test, docker-test]
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'pull_request' && github.base_ref == 'main')
+    uses: ./.github/workflows/cd_build-push.yml
+    secrets: inherit
+
+  # Branch Protection Rules 用
+  # ci-success:
+  #   runs-on: ubuntu-latest
+  #   needs: [lint, type-check, security, test, docker-test]
+  #   if: always()
+  #   steps:
+  #     - name: Check all jobs status
+  #       run: |
+  #         if [ "${{ needs.lint.result }}" != "success" ] || \
+  #            [ "${{ needs.type-check.result }}" != "success" ] || \
+  #            [ "${{ needs.security.result }}" != "success" ] || \
+  #            [ "${{ needs.test.result }}" != "success" ] || \
+  #            [ "${{ needs.docker-test.result }}" != "success" ]; then
+  #           echo "❌ One or more CI jobs failed"
+  #           echo "Lint: ${{ needs.lint.result }}"
+  #           echo "Type Check: ${{ needs.type-check.result }}"
+  #           echo "Security: ${{ needs.security.result }}"
+  #           echo "Test: ${{ needs.test.result }}"
+  #           echo "Docker Test: ${{ needs.docker-test.result }}"
+  #           exit 1
+  #         fi
+  #         echo "✅ All CI checks passed successfully!"

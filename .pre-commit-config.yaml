@@ -1,0 +1,63 @@
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+default_language_version:
+  python: python3.13
+
+repos:
+  # 標準チェック（FastAPI公式参考）
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-added-large-files
+      - id: check-toml
+      - id: check-yaml
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+
+  # Ruff（format + lint:fix）- 並列実行対応
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.14.1
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+
+  # uv lock同期（推奨）
+  - repo: https://github.com/astral-sh/uv-pre-commit
+    rev: 0.9.5
+    hooks:
+      - id: uv-lock
+
+  # Local hooks（uv環境活用）
+  - repo: local
+    hooks:
+      # OpenAPI生成（pre-commitのみ）
+      - id: openapi-generate
+        name: Generate OpenAPI spec
+        entry: make openapi:generate
+        language: system
+        pass_filenames: false
+        files: ^app/.*\.py$
+        stages: [pre-commit]
+
+      # Type check（pre-pushのみ）
+      - id: mypy
+        name: Type check with mypy
+        entry: make type-check
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
+
+      # Tests（pre-pushのみ）
+      - id: pytest
+        name: Run tests
+        entry: make test
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
+
+ci:
+  autofix_commit_msg: 🎨 [pre-commit.ci] Auto format
+  autoupdate_commit_msg: ⬆ [pre-commit.ci] pre-commit autoupdate

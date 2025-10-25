@@ -1,0 +1,84 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "FastAPI Template",
+    "description": "FastAPIアプリケーションのテンプレート",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/v1/": {
+      "get": {
+        "tags": [
+          "root"
+        ],
+        "summary": "Read Root",
+        "description": "ルートエンドポイント",
+        "operationId": "read_root_v1__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Read Root V1  Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/system/healthcheck/": {
+      "get": {
+        "tags": [
+          "system"
+        ],
+        "summary": "Healthcheck",
+        "description": "ヘルスチェックエンドポイント",
+        "operationId": "healthcheck_system_healthcheck__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Healthcheck System Healthcheck  Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/system/views/": {
+      "get": {
+        "tags": [
+          "views"
+        ],
+        "summary": "Index",
+        "description": "インデックスページ（テンプレートが有効な場合）",
+        "operationId": "index_system_views__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

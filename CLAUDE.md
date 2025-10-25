@@ -35,6 +35,13 @@ make test                   # Run all tests
 make test:cov               # Run tests with coverage report
 ```
 
+### Pre-commit Hooks (Git Automation)
+```bash
+make pre-commit:install     # Install git hooks (one-time setup)
+make pre-commit:run         # Run all hooks manually on all files
+make pre-commit:update      # Update hook versions
+```
+
 ### Database Operations
 ```bash
 make db:revision:create NAME="description"  # Create new migration
@@ -78,6 +85,23 @@ make secrets:decrypt:dev    # Decrypt dev secrets
 make secrets:decrypt:prod   # Decrypt prod secrets
 ```
 
+## Important Guidelines
+
+**ALWAYS use Makefile commands when available**:
+- This project uses a comprehensive Makefile with predefined tasks for common operations
+- Using `make` commands ensures consistency, proper environment setup, and adherence to project conventions
+- Before running any direct command (e.g., `pytest`, `mypy`, `ruff`), check if a corresponding `make` target exists
+- Examples:
+  - Use `make test` instead of `uv run pytest tests/`
+  - Use `make type-check` instead of `uv run mypy app versions tests`
+  - Use `make lint` instead of `uv run ruff check ./app`
+  - Use `make format` instead of `uv run ruff format ./app`
+
+**When to use direct commands**:
+- Only when no Makefile target exists for the specific operation
+- When you need to pass special flags not covered by existing targets
+- When explicitly requested by the user to run a command directly
+
 ## Architecture
 
 IMPORTANT: This project follows Clean Architecture with strict layer separation. Always respect dependency rules.
@@ -117,7 +141,7 @@ IMPORTANT: This project follows Clean Architecture with strict layer separation.
 IMPORTANT: Follow these conventions strictly:
 
 - **Type hints**: Always use type hints. Project uses mypy strict mode
-- **Imports**: Use absolute imports (`from app.domain...`), not relative imports
+- **Imports**: Use relative imports within `app/` package (e.g., `from .domain import ...`). Use absolute imports from outside (e.g., tests: `from app.domain import ...`)
 - **Async/await**: Use async for all database operations and API endpoints
 - **Docstrings**: Not required for simple functions, but recommended for complex logic
 - **Naming**:
@@ -302,7 +326,7 @@ git push origin main           # GitHub Actions builds and pushes
 - Development branch: `develop`
 - Create PRs from feature branches to `develop`
 - Use `make pr:create` to create PR (requires gh CLI)
-- Run `make lint`, `make type-check`, and `make test` before committing
+- Pre-commit hooks automatically run format/lint on commit, tests on push
 - Use conventional commits (e.g., `feat:`, `fix:`, `refactor:`)
 
 ## Documentation
@@ -313,9 +337,58 @@ git push origin main           # GitHub Actions builds and pushes
 - **docs/secrets-management.md** - SOPS + age secrets management guide (Japanese)
 - **CLAUDE.md** - This file, for AI assistance
 
+## Pre-commit Hooks
+
+This project uses [pre-commit](https://pre-commit.com/) framework for automated code quality checks.
+
+### What Gets Checked
+
+**Pre-commit (on `git commit`)**:
+- File validation (large files, YAML/TOML syntax, trailing whitespace)
+- Ruff format (auto-format code)
+- Ruff lint --fix (auto-fix linting issues)
+- uv.lock synchronization
+- OpenAPI spec generation (when `app/*.py` changes)
+
+**Pre-push (on `git push`)**:
+- Type checking (mypy)
+- Unit tests (pytest)
+
+### First-Time Setup
+
+```bash
+# Install git hooks (one-time)
+make pre-commit:install
+```
+
+### Usage
+
+Hooks run automatically on commit/push. To run manually:
+
+```bash
+# Run all hooks on all files
+make pre-commit:run
+
+# Run specific hook
+uv run pre-commit run ruff --all-files
+
+# Skip hooks (not recommended)
+git commit --no-verify
+```
+
+### Performance Optimizations
+
+- ✅ **Ruff**: 150-200x faster than traditional linters
+- ✅ **Parallel execution**: Multiple files processed simultaneously
+- ✅ **Selective execution**: Only changed files checked (except tests/type-check)
+- ✅ **Caching**: Hook environments cached after first run
+
+**Reference**: Configuration in `.pre-commit-config.yaml`
+
 ## Common Gotchas
 
 - mypy requires paths without `./` prefix: use `mypy app tests` not `mypy ./app ./tests`
 - Database migrations must be reviewed before applying (Alembic can miss some changes)
 - Session encryption key must be 32 url-safe base64-encoded bytes
 - Docker Compose profiles must be explicitly enabled via `INCLUDE_DB=true` for database services
+- Pre-commit hooks can be skipped with `--no-verify` but this is not recommended

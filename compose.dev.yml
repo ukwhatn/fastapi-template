@@ -4,8 +4,9 @@
 # No port exposure (use Cloudflare Tunnels)
 #
 # Usage:
-#   ローカルDB: docker compose -f compose.dev.yml --profile local-db up -d
-#   外部DBaaS: docker compose -f compose.dev.yml up -d
+#   make dev:deploy  # Initial deployment
+#   make dev:logs    # View logs
+#   make dev:ps      # Check status
 
 services:
   server:
