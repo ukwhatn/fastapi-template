@@ -53,39 +53,33 @@ class Settings(BaseSettings):
     API_KEY: str = "default_api_key_change_me_in_production"
 
     # データベース設定
-    DATABASE_URL: Optional[str] = None  # 優先: 直接指定
-    POSTGRES_USER: str = "user"  # 後方互換
+    POSTGRES_USER: str = "user"
     POSTGRES_PASSWORD: str = "password"
     POSTGRES_DB: str = "main"
     POSTGRES_HOST: str = "db"
     POSTGRES_PORT: str = "5432"
 
     @property
-    def database_uri(self) -> Optional[str]:
-        """データベース接続URL取得（DATABASE_URL優先）"""
-        if self.DATABASE_URL:
-            return self.DATABASE_URL
-
-        # 後方互換: 個別設定から構築
-        if self.POSTGRES_USER and self.POSTGRES_PASSWORD:
-            return (
-                f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
-                f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
-            )
-
-        return None
+    def database_uri(self) -> str:
+        """データベース接続URL取得（POSTGRES_*から構築）"""
+        return (
+            f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
+            f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+        )
 
     @property
     def has_database(self) -> bool:
         """データベース設定有無"""
-        return self.database_uri is not None
+        return bool(
+            self.POSTGRES_USER
+            and self.POSTGRES_PASSWORD
+            and self.POSTGRES_HOST
+        )
 
     @property
     def is_supabase(self) -> bool:
         """Supabase使用判定"""
-        if not self.database_uri:
-            return False
-        return "supabase.co" in self.database_uri
+        return "supabase.co" in self.POSTGRES_HOST
 
     # セッション設定
     SESSION_COOKIE_NAME: str = "session_id"

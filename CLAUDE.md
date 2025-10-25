@@ -175,14 +175,17 @@ IMPORTANT: Follow these conventions strictly:
 - Session fixation protection via User-Agent + IP fingerprinting
 
 ### Database Configuration
-- `DATABASE_URL` takes precedence over individual `POSTGRES_*` variables
-- Supabase auto-detected if URL contains 'supabase.co'
-- Application continues with DB features disabled if DATABASE_URL not set (with warning)
+- Database URL is constructed from individual `POSTGRES_*` variables (POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_HOST, POSTGRES_PORT, POSTGRES_DB)
+- Supabase auto-detected if POSTGRES_HOST contains 'supabase.co'
+- `POSTGRES_HOST` determines database location:
+  - `POSTGRES_HOST=db` → local DB container starts (via --profile local-db)
+  - `POSTGRES_HOST=db.xxx.supabase.co` → external DBaaS, no local container
+- db-migrator and db-dumper ALWAYS run, connecting to whichever DB is configured
 
 ### Docker Profiles
-- Use `INCLUDE_DB=true` to enable database services (db, adminer, db-migrator, db-dumper)
-- Environments: `dev` (default), `stg`, `test`, `prod`
-- Example: `make up ENV=prod INCLUDE_DB=true`
+- Use `--profile local-db` to enable local database container
+- Deployment scripts auto-detect POSTGRES_HOST to determine if --profile local-db is needed
+- db-migrator and db-dumper run regardless of DB location (local or external)
 
 ### Security
 - Sentry integration for error tracking (production)

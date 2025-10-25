@@ -9,31 +9,13 @@ from app.core.config import Settings
 class TestConfigDatabaseURI:
     """database_uriプロパティのテスト"""
 
-    def test_database_uri_from_database_url(self, monkeypatch: Any) -> None:
-        """DATABASE_URLが設定されている場合、それを優先すること"""
-        monkeypatch.setenv(
-            "DATABASE_URL", "postgresql://test:test@localhost:5432/testdb"
-        )
-
-        # キャッシュクリア
-        from app.core.config import get_settings
-
-        get_settings.cache_clear()
-
-        settings = Settings()
-        assert settings.database_uri == "postgresql://test:test@localhost:5432/testdb"
-
-        # クリーンアップ
-        get_settings.cache_clear()
-
     def test_database_uri_from_individual_settings(self) -> None:
-        """DATABASE_URLがない場合、個別設定から構築すること"""
+        """個別設定から接続URLを構築すること"""
         from cryptography.fernet import Fernet
 
         # 直接インスタンス化してテスト（.env読み込みをスキップ）
         settings = Settings(
             _env_file=None,  # .envファイルを読み込まない
-            DATABASE_URL=None,
             POSTGRES_USER="testuser",
             POSTGRES_PASSWORD="testpass",
             POSTGRES_HOST="testhost",
@@ -45,37 +27,38 @@ class TestConfigDatabaseURI:
         expected = "postgresql://testuser:testpass@testhost:5433/testdb"
         assert settings.database_uri == expected
 
-    def test_database_uri_none_when_no_config(self) -> None:
-        """データベース設定がない場合、Noneを返すこと"""
+    def test_database_uri_always_returns_string(self) -> None:
+        """データベース設定が空でも文字列を返すこと（構築は可能）"""
         from cryptography.fernet import Fernet
 
         # 直接インスタンス化してテスト（.env読み込みをスキップ）
         settings = Settings(
             _env_file=None,
-            DATABASE_URL=None,
             POSTGRES_USER="",
             POSTGRES_PASSWORD="",
             SESSION_ENCRYPTION_KEY=Fernet.generate_key().decode(),
         )
 
-        assert settings.database_uri is None
+        # 空の設定でも文字列が構築される（デフォルト値が使用される）
+        assert isinstance(settings.database_uri, str)
+        assert "postgresql://" in settings.database_uri
 
 
 class TestConfigHasDatabase:
     """has_databaseプロパティのテスト"""
 
-    def test_has_database_true(self, monkeypatch: Any) -> None:
+    def test_has_database_true(self) -> None:
         """データベース設定がある場合、Trueを返すこと"""
-        monkeypatch.setenv("DATABASE_URL", "postgresql://user:pass@localhost:5432/db")
+        from cryptography.fernet import Fernet
 
-        from app.core.config import get_settings
-
-        get_settings.cache_clear()
-
-        settings = Settings()
+        settings = Settings(
+            _env_file=None,
+            POSTGRES_USER="testuser",
+            POSTGRES_PASSWORD="testpass",
+            POSTGRES_HOST="localhost",
+            SESSION_ENCRYPTION_KEY=Fernet.generate_key().decode(),
+        )
         assert settings.has_database is True
-
-        get_settings.cache_clear()
 
     def test_has_database_false(self) -> None:
         """データベース設定がない場合、Falseを返すこと"""
@@ -84,9 +67,9 @@ class TestConfigHasDatabase:
         # 直接インスタンス化してテスト（.env読み込みをスキップ）
         settings = Settings(
             _env_file=None,
-            DATABASE_URL=None,
             POSTGRES_USER="",
             POSTGRES_PASSWORD="",
+            POSTGRES_HOST="",
             SESSION_ENCRYPTION_KEY=Fernet.generate_key().decode(),
         )
 
@@ -96,45 +79,35 @@ class TestConfigHasDatabase:
 class TestConfigIsSupabase:
     """is_supabaseプロパティのテスト"""
 
-    def test_is_supabase_true(self, monkeypatch: Any) -> None:
-        """Supabase URLの場合、Trueを返すこと"""
-        monkeypatch.setenv(
-            "DATABASE_URL", "postgresql://user:pass@db.supabase.co:5432/postgres"
+    def test_is_supabase_true(self) -> None:
+        """Supabase HOSTの場合、Trueを返すこと"""
+        from cryptography.fernet import Fernet
+
+        settings = Settings(
+            _env_file=None,
+            POSTGRES_HOST="db.abcdefghijklmnop.supabase.co",
+            SESSION_ENCRYPTION_KEY=Fernet.generate_key().decode(),
         )
-
-        from app.core.config import get_settings
-
-        get_settings.cache_clear()
-
-        settings = Settings()
         assert settings.is_supabase is True
 
-        get_settings.cache_clear()
+    def test_is_supabase_false(self) -> None:
+        """Supabase以外のHOSTの場合、Falseを返すこと"""
+        from cryptography.fernet import Fernet
 
-    def test_is_supabase_false(self, monkeypatch: Any) -> None:
-        """Supabase以外のURLの場合、Falseを返すこと"""
-        monkeypatch.setenv("DATABASE_URL", "postgresql://user:pass@localhost:5432/db")
-
-        from app.core.config import get_settings
-
-        get_settings.cache_clear()
-
-        settings = Settings()
+        settings = Settings(
+            _env_file=None,
+            POSTGRES_HOST="localhost",
+            SESSION_ENCRYPTION_KEY=Fernet.generate_key().decode(),
+        )
         assert settings.is_supabase is False
 
-        get_settings.cache_clear()
+    def test_is_supabase_false_when_host_is_db(self) -> None:
+        """POSTGRES_HOSTがdbの場合、Falseを返すこと"""
+        from cryptography.fernet import Fernet
 
-    def test_is_supabase_false_when_no_database(self, monkeypatch: Any) -> None:
-        """データベース設定がない場合、Falseを返すこと"""
-        monkeypatch.delenv("DATABASE_URL", raising=False)
-        monkeypatch.setenv("POSTGRES_USER", "")
-        monkeypatch.setenv("POSTGRES_PASSWORD", "")
-
-        from app.core.config import get_settings
-
-        get_settings.cache_clear()
-
-        settings = Settings()
+        settings = Settings(
+            _env_file=None,
+            POSTGRES_HOST="db",
+            SESSION_ENCRYPTION_KEY=Fernet.generate_key().decode(),
+        )
         assert settings.is_supabase is False
-
-        get_settings.cache_clear()
