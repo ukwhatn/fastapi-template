@@ -3,19 +3,16 @@
 # ========================================
 # ビルダーステージ
 # ========================================
-FROM python:3.14-slim-trixie AS builder
+FROM ghcr.io/astral-sh/uv:0.9.5-python3.14-trixie-slim AS builder
 
-# uvのインストール（再現性のため特定バージョンに固定）
-COPY --from=ghcr.io/astral-sh/uv:0.5.15 /uv /uvx /bin/
-
-# 作業ディレクトリ設定
 WORKDIR /app
 
-# uv環境変数の設定
+# UV_COMPILE_BYTECODE: 起動時間を30-50%改善するためバイトコードコンパイルを有効化
+# UV_LINK_MODE: マルチステージビルドでのコピー時の一貫性を保つためcopyモードを使用
 ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy
 
-# ビルドに必要なシステム依存パッケージをインストール
+# psycopg2-binaryのビルドに必要（libpq-dev, gcc）
 RUN apt-get update && \
     apt-get upgrade -y && \
     apt-get install -y --no-install-recommends \
@@ -24,30 +21,32 @@ RUN apt-get update && \
         make && \
     rm -rf /var/lib/apt/lists/*
 
-# 依存関係ファイルを先にコピー（レイヤーキャッシングの最適化）
-COPY pyproject.toml uv.lock ./
-
-# 依存関係のみをインストール（プロジェクト本体は除外）
-# 依存関係が変更されない限り、このレイヤーはキャッシュされる
+# pyproject.toml/uv.lockをbind mountで参照し、レイヤーに含めず依存関係を解決
+# キャッシュマウントでuv's cache（/root/.cache/uv）を永続化し、再ビルド時に高速化
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --group server --group db --frozen --no-dev --no-install-project
+    --mount=type=bind,source=uv.lock,target=uv.lock \
+    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
+    uv sync --frozen --no-dev --no-install-project
 
-# プロジェクト全体をコピー
-COPY . .
+COPY . /app
 
-# プロジェクト本体をインストール
+# --no-editableで本番環境用の非編集可能インストール（パフォーマンス最適化）
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --group server --group db --frozen --no-dev
+    uv sync --frozen --no-dev --no-editable
 
 # ========================================
 # ランタイムステージ
 # ========================================
-FROM python:3.14-slim-trixie AS runtime
+FROM ghcr.io/astral-sh/uv:python3.14-trixie-slim AS runtime
 
-# タイムゾーン設定
-ENV TZ=Asia/Tokyo
+# PYTHONUNBUFFERED: コンテナログでリアルタイム出力を確保するためバッファリング無効化
+# PYTHONDONTWRITEBYTECODE: builderステージで既にバイトコード化済みのため不要な.pycの生成を抑制
+ENV TZ=Asia/Tokyo \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PATH="/app/.venv/bin:$PATH"
 
-# ランタイムに必要なシステム依存パッケージをインストール
+# psycopg2の実行時依存ライブラリ（libpq5）とヘルスチェック用curl
 RUN apt-get update && \
     apt-get upgrade -y && \
     apt-get install -y --no-install-recommends \
@@ -55,21 +54,14 @@ RUN apt-get update && \
         curl && \
     rm -rf /var/lib/apt/lists/*
 
-# 非rootユーザーを作成
+# セキュリティ: 非rootユーザーで実行
 RUN adduser --disabled-password --gecos "" nonroot
 
-# 作業ディレクトリ設定
 WORKDIR /usr/src
 
-# ビルダーから仮想環境をコピー
-COPY --from=builder --chown=nonroot:nonroot /app/.venv /usr/src/.venv
+COPY --from=builder --chown=nonroot:nonroot /app /app
 
-# アプリケーションコードをコピー
+# 開発時のホットリロードのため./appをマウント（compose.yml参照）
 COPY --chown=nonroot:nonroot ./app /usr/src/app
 
-# 仮想環境を使用するようにPATHを設定
-ENV PATH="/usr/src/.venv/bin:$PATH" \
-    PYTHONUNBUFFERED=1
-
-# 非rootユーザーに切り替え
 USER nonroot

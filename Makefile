@@ -1,5 +1,4 @@
 ENV ?= "dev"
-UV_GROUPS = server db dev
 INCLUDE_DB ?= false
 INCLUDE_REDIS ?= false
 PROD_PORT ?= 59999
@@ -48,9 +47,6 @@ endif
 
 # profile引数構築
 PROFILE_ARGS := $(foreach profile,$(PROFILES_LIST),--profile $(profile))
-
-# uv group引数構築
-UV_GROUP_ARGS := $(foreach group,$(UV_GROUPS),--group $(group))
 
 # composeコマンド構築
 COMPOSE_CMD := docker compose $(PROFILE_ARGS) $(COMPOSE_ENV_FILES)
@@ -104,7 +100,11 @@ uv\:install:
 	curl -LsSf https://astral.sh/uv/install.sh | sh
 
 uv\:add:
-	uv add --group=$(group) $(packages)
+	uv add $(packages)
+	make uv:lock
+
+uv\:add\:dev:
+	uv add --group dev $(packages)
 	make uv:lock
 
 uv\:lock:
@@ -117,10 +117,10 @@ uv\:update\:all:
 	uv lock --upgrade
 
 uv\:sync:
-	uv sync --group $(group)
+	uv sync
 
 dev\:setup:
-	uv sync $(UV_GROUP_ARGS)
+	uv sync
 
 lint:
 	uv run ruff check ./app ./versions
@@ -256,4 +256,4 @@ template\:apply\:force:
 	git checkout $$commit_hash -- . && \
 	echo "テンプレートの変更が強制的に適用されました。変更を確認しgit add/commitしてください。"
 
-.PHONY: build up down logs ps pr\:create deploy\:prod uv\:install uv\:add uv\:lock uv\:update uv\:update\:all uv\:sync dev\:setup lint lint\:fix format security\:scan security\:scan\:code security\:scan\:sast test test\:cov test\:setup db\:revision\:create db\:migrate db\:downgrade db\:current db\:history db\:dump db\:backup\:test db\:dump\:oneshot db\:dump\:list db\:dump\:restore db\:dump\:test envs\:setup openapi\:generate project\:init template\:list template\:apply template\:apply\:range template\:apply\:force
+.PHONY: build up down logs ps pr\:create deploy\:prod uv\:install uv\:add uv\:add\:dev uv\:lock uv\:update uv\:update\:all uv\:sync dev\:setup lint lint\:fix format security\:scan security\:scan\:code security\:scan\:sast test test\:cov test\:setup db\:revision\:create db\:migrate db\:downgrade db\:current db\:history db\:dump db\:backup\:test db\:dump\:oneshot db\:dump\:list db\:dump\:restore db\:dump\:test envs\:setup openapi\:generate project\:init template\:list template\:apply template\:apply\:range template\:apply\:force
