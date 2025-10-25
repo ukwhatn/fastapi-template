@@ -93,6 +93,9 @@ lint\:fix:
 format:
 	@uv run --active ruff format ./app ./versions ./tests
 
+format\:check:
+	@uv run --active ruff format --check ./app ./versions ./tests
+
 type-check:
 	@uv run --active mypy app versions tests
 
@@ -103,8 +106,17 @@ security\:scan:
 security\:scan\:code:
 	@uv run --active bandit -r app/ -x tests/,app/db/dump.py
 
+security\:scan\:code\:critical:
+	@uv run --active bandit -r app/ -x tests/,app/db/dump.py -ll
+
 security\:scan\:sast:
 	@uv run --active semgrep scan --config=p/python --config=p/security-audit --config=p/owasp-top-ten
+
+security\:scan\:sast\:critical:
+	@uv run --active semgrep scan --config=p/python --config=p/security-audit --config=p/owasp-top-ten --severity ERROR --error
+
+security\:scan\:trivy:
+	@trivy config --exit-code 1 --severity CRITICAL ./docker/server.Dockerfile
 
 # ==== Pre-commit ====
 pre-commit\:install:
@@ -319,4 +331,4 @@ template\:apply\:force:
 	git checkout $$commit_hash -- . && \
 	echo "テンプレートの変更が強制的に適用されました。変更を確認しgit add/commitしてください。"
 
-.PHONY: build build\:no-cache up down reload reset logs logs\:once ps pr\:create deploy\:prod uv\:add uv\:add\:dev uv\:lock uv\:update uv\:update\:all dev\:setup lint lint\:fix format type-check security\:scan security\:scan\:code security\:scan\:sast test test\:cov db\:revision\:create db\:migrate db\:downgrade db\:current db\:history db\:dump db\:dump\:oneshot db\:dump\:list db\:dump\:restore db\:dump\:test env openapi\:generate compose\:up compose\:down compose\:logs compose\:ps compose\:pull compose\:restart compose\:build local\:up local\:down local\:logs local\:ps local\:serve dev\:deploy dev\:logs dev\:ps dev\:down prod\:deploy prod\:logs prod\:ps prod\:down watchtower\:setup watchtower\:logs watchtower\:status watchtower\:restart secrets\:encrypt\:dev secrets\:encrypt\:prod secrets\:decrypt\:dev secrets\:decrypt\:prod secrets\:edit\:dev secrets\:edit\:prod project\:rename project\:init template\:list template\:apply template\:apply\:range template\:apply\:force pre-commit\:install pre-commit\:run pre-commit\:update
+.PHONY: build build\:no-cache up down reload reset logs logs\:once ps pr\:create deploy\:prod uv\:add uv\:add\:dev uv\:lock uv\:update uv\:update\:all dev\:setup lint lint\:fix format format\:check type-check security\:scan security\:scan\:code security\:scan\:code\:critical security\:scan\:sast security\:scan\:sast\:critical security\:scan\:trivy test test\:cov db\:revision\:create db\:migrate db\:downgrade db\:current db\:history db\:dump db\:dump\:oneshot db\:dump\:list db\:dump\:restore db\:dump\:test env openapi\:generate compose\:up compose\:down compose\:logs compose\:ps compose\:pull compose\:restart compose\:build local\:up local\:down local\:logs local\:ps local\:serve dev\:deploy dev\:logs dev\:ps dev\:down prod\:deploy prod\:logs prod\:ps prod\:down watchtower\:setup watchtower\:logs watchtower\:status watchtower\:restart secrets\:encrypt\:dev secrets\:encrypt\:prod secrets\:decrypt\:dev secrets\:decrypt\:prod secrets\:edit\:dev secrets\:edit\:prod project\:rename project\:init template\:list template\:apply template\:apply\:range template\:apply\:force pre-commit\:install pre-commit\:run pre-commit\:update

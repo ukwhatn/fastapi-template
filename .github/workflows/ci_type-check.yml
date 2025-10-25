@@ -18,6 +18,4 @@ jobs:
 
       - name: Run mypy type checking
         run: |
-          echo "Running mypy strict type checking..."
-          uv run --active mypy app versions tests
-          echo "✅ Type checking passed!"
+          make type-check
