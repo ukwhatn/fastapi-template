@@ -34,15 +34,11 @@ services:
       db:
         condition: service_healthy
         required: false
-      redis:
-        condition: service_healthy
-        required: false
       db-migrator:
         condition: service_completed_successfully
         required: false
     networks:
       - db
-      - redis
     profiles:
       - dev
       - stg
@@ -88,22 +84,6 @@ services:
       - db
     profiles:
       - db
-
-  redis:
-    container_name: fastapi-template-redis
-    image: redis:7.4.1
-    volumes:
-      - redis_data:/data
-    restart: unless-stopped
-    healthcheck:
-      test: redis-cli ping
-      interval: 2s
-      timeout: 5s
-      retries: 30
-    networks:
-      - redis
-    profiles:
-      - redis
 
   db-migrator:
     container_name: fastapi-template-db-migrator
@@ -163,10 +143,7 @@ services:
 
 volumes:
   pg_data:
-  redis_data:
 
 networks:
   db:
-    driver: bridge
-  redis:
     driver: bridge 

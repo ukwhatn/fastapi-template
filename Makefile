@@ -1,6 +1,5 @@
 ENV ?= "dev"
 INCLUDE_DB ?= false
-INCLUDE_REDIS ?= false
 PROD_PORT ?= 59999
 
 # 環境別設定
@@ -41,9 +40,6 @@ ifeq ($(INCLUDE_DB), true)
 		PROFILES_LIST := $(PROFILES_LIST) db-dev
 	endif
 endif
-ifeq ($(INCLUDE_REDIS), true)
-	PROFILES_LIST := $(PROFILES_LIST) redis
-endif
 
 # profile引数構築
 PROFILE_ARGS := $(foreach profile,$(PROFILES_LIST),--profile $(profile))
@@ -55,7 +51,6 @@ COMPOSE_CMD := docker compose $(PROFILE_ARGS) $(COMPOSE_ENV_FILES)
 export ENV_MODE
 export SERVER_PORT
 export INCLUDE_DB
-export INCLUDE_REDIS
 
 build:
 	$(COMPOSE_CMD) build
