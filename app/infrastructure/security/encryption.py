@@ -11,7 +11,7 @@ import logging
 from typing import Any, Optional
 from cryptography.fernet import Fernet, InvalidToken
 
-from app.core.config import get_settings
+from ...core.config import get_settings
 
 logger = logging.getLogger(__name__)
 

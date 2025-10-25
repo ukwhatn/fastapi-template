@@ -71,14 +71,14 @@ uv\:update\:all:
 
 # ==== 開発ツール ====
 openapi\:generate:
-	PYTHONPATH=app uv run python -c "from main import app; import json; from fastapi.openapi.utils import get_openapi; openapi = get_openapi(title=app.title, version=app.version, description=app.description, routes=app.routes); print(json.dumps(openapi, indent=2, ensure_ascii=False))" > docs/openapi.json
+	uv run python -c "from app.main import app; import json; from fastapi.openapi.utils import get_openapi; openapi = get_openapi(title=app.title, version=app.version, description=app.description, routes=app.routes); print(json.dumps(openapi, indent=2, ensure_ascii=False))" > docs/openapi.json
 
 # ==== コード品質チェック系 ====
 test:
-	PYTHONPATH=app uv run --active pytest tests/ -v
+	uv run --active pytest tests/ -v
 
 test\:cov:
-	PYTHONPATH=app uv run --active pytest tests/ -v --cov=. --cov-report=html
+	uv run --active pytest tests/ -v --cov=app --cov-report=html
 
 
 lint:
@@ -91,7 +91,7 @@ format:
 	uv run --active ruff format ./app ./versions ./tests
 
 type-check:
-	PYTHONPATH=app uv run --active mypy app versions tests
+	uv run --active mypy app versions tests
 
 security\:scan:
 	make security:scan:code
@@ -172,7 +172,7 @@ local\:ps:
 	ENV=local $(MAKE) compose:ps
 
 local\:serve:
-	cd app && uv run fastapi dev main.py --host 0.0.0.0 --port 8000
+	uv run fastapi dev app/main.py --host 0.0.0.0 --port 8000
 
 # Dev環境（Watchtower自動デプロイ）
 dev\:deploy:

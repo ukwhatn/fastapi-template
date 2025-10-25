@@ -1,6 +1,6 @@
 """Domain layer - Business rules and entities"""
 
-from app.domain.exceptions.base import (
+from .exceptions.base import (
     APIError,
     ErrorResponse,
     ValidationError,

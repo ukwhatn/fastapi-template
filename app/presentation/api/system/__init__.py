@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.presentation.api.system import healthcheck, views
+from . import healthcheck, views
 
 router = APIRouter()
 router.include_router(healthcheck.router, prefix="/healthcheck", tags=["system"])

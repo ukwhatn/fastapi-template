@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Request, HTTPException
 from fastapi.responses import HTMLResponse
-from app.utils.templates import get_templates
+from ....utils.templates import get_templates
 
 router = APIRouter()
 

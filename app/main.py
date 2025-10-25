@@ -15,11 +15,11 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.presentation import api_router
-from app.core import APIError, ErrorResponse, ValidationError, get_settings
-from app.presentation.middleware.security_headers import SecurityHeadersMiddleware
-from app.infrastructure.database import get_db
-from app.infrastructure.repositories.session_repository import SessionService
+from .presentation import api_router
+from .core import APIError, ErrorResponse, ValidationError, get_settings
+from .presentation.middleware.security_headers import SecurityHeadersMiddleware
+from .infrastructure.database import get_db
+from .infrastructure.repositories.session_repository import SessionService
 
 # 設定読み込み
 settings = get_settings()

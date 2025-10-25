@@ -117,7 +117,7 @@ IMPORTANT: This project follows Clean Architecture with strict layer separation.
 IMPORTANT: Follow these conventions strictly:
 
 - **Type hints**: Always use type hints. Project uses mypy strict mode
-- **Imports**: Use absolute imports (`from app.domain...`), not relative imports
+- **Imports**: Use relative imports within `app/` package (e.g., `from .domain import ...`). Use absolute imports from outside (e.g., tests: `from app.domain import ...`)
 - **Async/await**: Use async for all database operations and API endpoints
 - **Docstrings**: Not required for simple functions, but recommended for complex logic
 - **Naming**:

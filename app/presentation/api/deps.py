@@ -6,9 +6,9 @@ from fastapi.security import APIKeyHeader
 from sqlalchemy.orm import Session
 from starlette.status import HTTP_403_FORBIDDEN
 
-from app.core.config import get_settings
-from app.infrastructure.database import get_db
-from app.utils.schemas import SessionSchema
+from ...core.config import get_settings
+from ...infrastructure.database import get_db
+from ...utils.schemas import SessionSchema
 
 
 @dataclass
