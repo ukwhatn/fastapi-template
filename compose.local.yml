@@ -28,23 +28,6 @@ services:
     networks:
       - db-local
 
-  db-migrator:
-    container_name: ${COMPOSE_PROJECT_NAME:-fastapi-template}-db-migrator-local
-    image: ghcr.io/ukwhatn/psql-migrator:latest
-    volumes:
-      - ./versions:/app/versions
-      - ./app/infrastructure/database/models:/app/migrations/models
-    env_file:
-      - .env
-    environment:
-      - POSTGRES_HOST=db
-    restart: no
-    depends_on:
-      db:
-        condition: service_healthy
-    networks:
-      - db-local
-
   adminer:
     container_name: ${COMPOSE_PROJECT_NAME:-fastapi-template}-adminer-local
     image: adminer:latest
@@ -57,8 +40,6 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      db-migrator:
-        condition: service_completed_successfully
     networks:
       - db-local
 

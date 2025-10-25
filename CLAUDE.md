@@ -45,10 +45,13 @@ make pre-commit:update      # Update hook versions
 ### Database Operations
 ```bash
 make db:revision:create NAME="description"  # Create new migration
-make db:migrate                             # Apply migrations
+make db:migrate                             # Apply migrations manually
+make db:downgrade REV=-1                    # Rollback one migration
 make db:current                             # Show current revision
 make db:history                             # Show migration history
 ```
+
+**Note**: Migrations run automatically on application startup (lifespan). `make db:migrate` is for manual execution only.
 
 ### Docker Operations
 ```bash
@@ -129,10 +132,12 @@ IMPORTANT: This project follows Clean Architecture with strict layer separation.
 
 ### Key Files
 
-- `app/main.py` - Application entry point with middleware setup
+- `app/main.py` - Application entry point with middleware setup and auto-migration
 - `app/core/config.py` - Settings management (Pydantic Settings)
 - `app/infrastructure/database/connection.py` - Database connection management
 - `app/infrastructure/database/models/base.py` - Base model with timestamp mixin
+- `app/infrastructure/database/migration.py` - Programmatic Alembic migration runner
+- `app/infrastructure/database/alembic/` - Alembic migration configuration and versions
 - `app/infrastructure/repositories/session_repository.py` - Session service implementation
 - `app/infrastructure/security/encryption.py` - Fernet encryption for sessions
 
@@ -177,11 +182,13 @@ IMPORTANT: Follow these conventions strictly:
 
 1. Create model class inheriting from `Base` in `app/infrastructure/database/models/`
 2. Import in `app/infrastructure/database/models/__init__.py`
-3. Create corresponding Pydantic schema
-4. Create repository implementation
-5. Generate migration: `make db:revision:create NAME="description"`
-6. Review migration file in `versions/`
-7. Apply: `make db:migrate`
+3. Import in `app/infrastructure/database/alembic/env.py` (for autogenerate detection)
+4. Create corresponding Pydantic schema
+5. Create repository implementation
+6. Generate migration: `make db:revision:create NAME="description"`
+7. Review migration file in `app/infrastructure/database/alembic/versions/`
+8. Migrations apply automatically on next `uv run fastapi dev` or container restart
+9. For manual apply: `make db:migrate`
 
 ### Modifying Environment Configuration
 
@@ -204,12 +211,21 @@ IMPORTANT: Follow these conventions strictly:
 - `POSTGRES_HOST` determines database location:
   - `POSTGRES_HOST=db` → local DB container starts (via --profile local-db)
   - `POSTGRES_HOST=db.xxx.supabase.co` → external DBaaS, no local container
-- db-migrator and db-dumper ALWAYS run, connecting to whichever DB is configured
+- db-dumper ALWAYS runs, connecting to whichever DB is configured
+
+### Database Migrations
+- **Automatic execution**: Migrations run on application startup (FastAPI lifespan event)
+- **Location**: `app/infrastructure/database/alembic/versions/`
+- **Safety**: If migration fails, application startup stops (prevents data corruption)
+- **Watchtower compatibility**: When Watchtower updates the server image, migrations run automatically
+- **Idempotency**: Alembic ensures migrations only run once (safe to restart)
+- **Manual rollback**: Use `make db:downgrade REV=-1` if needed
+- **Legacy db-migrator**: Removed (migrations now embedded in server container)
 
 ### Docker Profiles
 - Use `--profile local-db` to enable local database container
 - Deployment scripts auto-detect POSTGRES_HOST to determine if --profile local-db is needed
-- db-migrator and db-dumper run regardless of DB location (local or external)
+- db-dumper runs regardless of DB location (local or external)
 
 ### Security
 - Sentry integration for error tracking (production)
