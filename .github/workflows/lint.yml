@@ -1,0 +1,32 @@
+name: Lint
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+
+      - name: Setup Python with uv
+        uses: ./.github/actions/setup-python-uv
+
+      - name: Run linting checks
+        run: |
+          echo "Running Ruff linter..."
+          uv run --active ruff check ./app ./versions ./tests &
+          LINT_PID=$!
+
+          echo "Running Ruff formatter check..."
+          uv run --active ruff format --check ./app ./versions ./tests &
+          FORMAT_PID=$!
+
+          wait $LINT_PID || { echo "❌ Linting failed"; exit 1; }
+          wait $FORMAT_PID || { echo "❌ Format check failed"; exit 1; }
+
+          echo "✅ All linting checks passed!"

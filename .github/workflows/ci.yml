@@ -7,121 +7,65 @@ on:
       - develop
   workflow_dispatch:
 
+# Cancel in-progress runs for the same PR/branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  quality-checks:
+  # Authorization check
+  check-authorization:
     runs-on: ubuntu-latest
     if: |
       (github.event_name == 'workflow_dispatch') ||
       (github.event.pull_request.user.login == 'ukwhatn') ||
       (github.event.pull_request.user.login == 'dependabot[bot]')
     steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.ref }}
+      - name: Authorized
+        run: echo "✅ User authorized to run CI"
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v7
-        with:
-          enable-cache: true
-          cache-dependency-glob: "uv.lock"
+  # Code quality checks (parallel)
+  lint:
+    needs: check-authorization
+    uses: ./.github/workflows/lint.yml
 
-      - name: Set up Python
-        run: |
-          uv python install
+  type-check:
+    needs: check-authorization
+    uses: ./.github/workflows/type-check.yml
 
-      - name: Install dependencies
-        run: |
-          uv sync --group dev --group server --group db
+  security:
+    needs: check-authorization
+    uses: ./.github/workflows/security.yml
 
-      - name: Run Quality and Security Checks
-        run: |
-          echo "Running linting and security checks..."
-          make lint &
-          LINT_PID=$!
-          
-          echo "Installing Trivy Scanner..."
-          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin v0.46.1 &
-          TRIVY_INSTALL_PID=$!
-          
-          echo "Running critical Bandit scan..."
-          uv run bandit -r app/ -x tests/,app/db/dump.py -ll &
-          BANDIT_PID=$!
-          
-          echo "Running critical Semgrep scan..."
-          uv run semgrep scan --config=p/python --config=p/security-audit --config=p/owasp-top-ten --severity ERROR --error &
-          SEMGREP_PID=$!
-          
-          wait $TRIVY_INSTALL_PID
-          echo "Scanning Dockerfiles..."
-          trivy config --exit-code 1 --severity CRITICAL ./docker/server.Dockerfile &
-          TRIVY_PID=$!
-          
-          wait $LINT_PID || { echo "Linting failed"; exit 1; }
-          wait $BANDIT_PID || { echo "Bandit scan failed"; exit 1; }
-          wait $SEMGREP_PID || { echo "Semgrep scan failed"; exit 1; }
-          wait $TRIVY_PID || { echo "Trivy scan failed"; exit 1; }
-          
-          echo "All quality and security checks passed!"
+  # Tests (parallel)
+  test:
+    needs: check-authorization
+    uses: ./.github/workflows/test.yml
 
-  docker-tests:
+  docker-test:
+    needs: check-authorization
+    uses: ./.github/workflows/docker-test.yml
+    secrets: inherit
+
+  # Summary job
+  ci-success:
     runs-on: ubuntu-latest
-    if: |
-      (github.event_name == 'workflow_dispatch') ||
-      (github.event.pull_request.user.login == 'ukwhatn') ||
-      (github.event.pull_request.user.login == 'dependabot[bot]')
+    needs: [lint, type-check, security, test, docker-test]
+    if: always()
     steps:
-      - uses: actions/checkout@v5
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.ref }}
-
-      - name: Setup environment
+      - name: Check all jobs status
         run: |
-          make envs:setup
-          sed -i 's/S3_ACCESS_KEY=""/S3_ACCESS_KEY="${{ secrets.S3_ACCESS_KEY }}"/' envs/aws-s3.env
-          sed -i 's/S3_SECRET_KEY=""/S3_SECRET_KEY="${{ secrets.S3_SECRET_KEY }}"/' envs/aws-s3.env
-
-      - name: Start services
-        run: make up ENV=test
-
-      - name: Health check with timeout
-        run: |
-          timeout=30
-          interval=5
-          elapsed=0
-          
-          while [ $elapsed -lt $timeout ]; do
-            if ! make ps ENV=test | grep -qiE "(starting|restarting|unhealthy)"; then
-              echo "✅ すべてのサービスが正常に起動しました！"
-              break
-            fi
-          
-            echo "🕒 サービス起動中... 経過時間: ${elapsed}秒/${timeout}秒"
-            make ps ENV=test
-            sleep $interval
-            elapsed=$((elapsed + interval))
-          done
-          
-          if [ $elapsed -ge $timeout ]; then
-            echo "❌ タイムアウト: サービスが起動しませんでした"
-            make ps ENV=test
-            make logs:once ENV=test
+          if [ "${{ needs.lint.result }}" != "success" ] || \
+             [ "${{ needs.type-check.result }}" != "success" ] || \
+             [ "${{ needs.security.result }}" != "success" ] || \
+             [ "${{ needs.test.result }}" != "success" ] || \
+             [ "${{ needs.docker-test.result }}" != "success" ]; then
+            echo "❌ One or more CI jobs failed"
+            echo "Lint: ${{ needs.lint.result }}"
+            echo "Type Check: ${{ needs.type-check.result }}"
+            echo "Security: ${{ needs.security.result }}"
+            echo "Test: ${{ needs.test.result }}"
+            echo "Docker Test: ${{ needs.docker-test.result }}"
             exit 1
           fi
-          
-          if make ps ENV=test | grep -q "unhealthy"; then
-            echo "❌ 不健全なサービスがあります:"
-            make ps ENV=test
-            make logs:once ENV=test
-            exit 1
-          fi
-          
-          make ps ENV=test
-
-      - name: Check Dumper service
-        run: |
-          make db:dump:test ENV=test
-
-      - name: Clean up
-        if: always()
-        run: make down ENV=test
+          echo "✅ All CI checks passed successfully!"

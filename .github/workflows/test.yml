@@ -1,0 +1,39 @@
+name: Unit Tests
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+
+      - name: Setup Python with uv
+        uses: ./.github/actions/setup-python-uv
+
+      - name: Run tests with coverage
+        run: |
+          echo "Running pytest with coverage..."
+          uv run --active pytest tests/ -v --cov=app --cov-report=xml --cov-report=term
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: ./coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false
+        continue-on-error: true
+
+      - name: Coverage summary
+        if: always()
+        run: |
+          echo "✅ Tests completed!"
+          if [ -f coverage.xml ]; then
+            echo "Coverage report generated successfully"
+          fi
