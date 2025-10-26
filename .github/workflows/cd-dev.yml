@@ -13,8 +13,6 @@ jobs:
 
   deploy:
     needs: build-and-push
-    # Skip deployment if SSH secrets are not configured
-    if: ${{ secrets.DEV_SSH_HOST != '' && secrets.DEV_SSH_USER != '' && secrets.DEV_SSH_PORT != '' && secrets.DEV_SSH_PRIVATE_KEY != '' }}
     uses: ./.github/workflows/cd_deliverer.yml
     with:
       environment: dev
