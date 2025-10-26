@@ -6,7 +6,16 @@ from pathlib import Path
 from typing import Any
 
 from alembic.config import Config
-from sqlalchemy import create_engine, inspect, text
+from sqlalchemy import (
+    MetaData,
+    Table,
+    create_engine,
+    delete,
+    func,
+    inspect,
+    select,
+    text,
+)
 
 from app.core.config import Settings, get_settings
 from app.core.logging import get_logger
@@ -157,8 +166,13 @@ def create_backup(output_dir: Path | None = None) -> Path:
                 # カラム情報を取得
                 columns = [col["name"] for col in inspector.get_columns(table_name)]
 
+                # 動的にTableオブジェクトを作成（安全なクエリ構築のため）
+                table_meta = MetaData()
+                table_obj = Table(table_name, table_meta, autoload_with=engine)
+
                 # 全行を取得
-                result = conn.execute(text(f"SELECT * FROM {table_name}"))
+                stmt = select(table_obj)
+                result = conn.execute(stmt)
                 rows = result.fetchall()
 
                 # データをシリアライズ
@@ -259,9 +273,11 @@ def calculate_diff(backup_path: Path) -> DiffSummary:
             # 現在のテーブルの行数を取得
             if table_name in inspector.get_table_names():
                 with engine.connect() as conn:
-                    result = conn.execute(
-                        text(f"SELECT COUNT(*) FROM {table_name}")
-                    ).fetchone()
+                    # 動的にTableオブジェクトを作成（安全なクエリ構築のため）
+                    table_meta = MetaData()
+                    table_obj = Table(table_name, table_meta, autoload_with=engine)
+                    stmt = select(func.count()).select_from(table_obj)
+                    result = conn.execute(stmt).fetchone()
                     current_rows = result[0] if result else 0
             else:
                 # テーブルが存在しない場合
@@ -283,9 +299,11 @@ def calculate_diff(backup_path: Path) -> DiffSummary:
 
         for table_name in only_in_current:
             with engine.connect() as conn:
-                result = conn.execute(
-                    text(f"SELECT COUNT(*) FROM {table_name}")
-                ).fetchone()
+                # 動的にTableオブジェクトを作成（安全なクエリ構築のため）
+                table_meta = MetaData()
+                table_obj = Table(table_name, table_meta, autoload_with=engine)
+                stmt = select(func.count()).select_from(table_obj)
+                result = conn.execute(stmt).fetchone()
                 current_rows = result[0] if result else 0
 
             table_diffs[table_name] = TableDiff(
@@ -398,7 +416,12 @@ def restore_backup(backup_path: Path, show_diff: bool = True) -> RestoreResult:
                 if table_name == "alembic_version":
                     continue
                 logger.info(f"Truncating table: {table_name}")
-                conn.execute(text(f"TRUNCATE TABLE {table_name} CASCADE"))
+                # 動的にTableオブジェクトを作成（安全なクエリ構築のため）
+                table_meta = MetaData()
+                table_obj = Table(table_name, table_meta, autoload_with=engine)
+                # DELETEを使用（TRUNCATEのSQLAlchemy代替）
+                delete_stmt = delete(table_obj)
+                conn.execute(delete_stmt)
 
             # 2. マイグレーションバージョンを調整
             target_version = backup_data.metadata.migration_version
@@ -439,20 +462,20 @@ def restore_backup(backup_path: Path, show_diff: bool = True) -> RestoreResult:
                 # カラム名を取得
                 columns = table_backup.columns
 
-                # プレースホルダーを生成
-                placeholders = ", ".join([f":{col}" for col in columns])
-                column_list = ", ".join(columns)
+                # 動的にTableオブジェクトを作成（安全なクエリ構築のため）
+                table_meta = MetaData()
+                table_obj = Table(table_name, table_meta, autoload_with=engine)
 
-                # INSERT文を作成
-                insert_sql = (
-                    f"INSERT INTO {table_name} ({column_list}) VALUES ({placeholders})"
-                )
-
-                # 各行をINSERT
+                # 各行をINSERT（SQLAlchemyのinsert()を使用）
                 for row_data in table_backup.data:
                     # 辞書形式に変換
                     row_dict = dict(zip(columns, row_data))
-                    conn.execute(text(insert_sql), row_dict)
+                    # デシリアライズ（バックアップ時にシリアライズされた値を復元）
+                    deserialized_dict = {
+                        k: _deserialize_value(v) for k, v in row_dict.items()
+                    }
+                    insert_stmt = table_obj.insert().values(**deserialized_dict)
+                    conn.execute(insert_stmt)
 
                 total_restored_rows += table_backup.row_count
                 total_restored_tables += 1
