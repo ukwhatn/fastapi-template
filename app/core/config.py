@@ -62,7 +62,8 @@ class Settings(BaseSettings):
 
     @property
     def database_uri(self) -> str:
-        """データベース接続URL取得（POSTGRES_*から構築）"""
+        """データベース接続URL"""
+        # Kerberos設定済み環境だとタイムアウト待ちにハマるので、gssencmode=disableを設定
         return (
             f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
             f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
