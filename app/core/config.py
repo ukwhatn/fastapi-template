@@ -1,3 +1,4 @@
+import os
 from functools import lru_cache
 from typing import Literal, Optional
 
@@ -21,7 +22,7 @@ class Settings(BaseSettings):
         extra="ignore",  # 未定義のフィールドを無視
     )
 
-    ENV_MODE: Literal["development", "production", "test"] = "development"
+    ENV_MODE: Literal["local", "dev", "prod", "test"] = "test"
 
     BACKEND_CORS_ORIGINS: str | list[str] = []
 
@@ -78,15 +79,20 @@ class Settings(BaseSettings):
 
     SESSION_ENCRYPTION_KEY: str = ""
 
-    @field_validator("SESSION_ENCRYPTION_KEY")
+    @field_validator("SESSION_ENCRYPTION_KEY", mode="before")
     @classmethod
-    def validate_encryption_key(cls, v: str) -> str:
+    def validate_encryption_key(cls, v: str, info) -> str:
         """暗号化キー検証"""
         if not v:
-            logger.warning(
-                "SESSION_ENCRYPTION_KEY is not set. Session encryption disabled."
-            )
-            return ""
+            env_mode = info.data.get("ENV_MODE") or os.getenv("ENV_MODE", "test")
+
+            if env_mode != "prod":
+                logger.warning(
+                    "SESSION_ENCRYPTION_KEY is not set. Session encryption disabled."
+                )
+                return ""
+            else:
+                raise ValueError("SESSION_ENCRYPTION_KEY is not set.")
 
         try:
             from cryptography.fernet import Fernet
@@ -124,14 +130,19 @@ class Settings(BaseSettings):
     S3_REGION: Optional[str] = None
 
     @property
+    def is_local(self) -> bool:
+        """ローカル環境かどうか"""
+        return self.ENV_MODE == "local"
+
+    @property
     def is_development(self) -> bool:
         """開発環境かどうか"""
-        return self.ENV_MODE == "development"
+        return self.ENV_MODE == "dev"
 
     @property
     def is_production(self) -> bool:
         """本番環境かどうか"""
-        return self.ENV_MODE == "production"
+        return self.ENV_MODE == "prod"
 
     @property
     def is_test(self) -> bool:
