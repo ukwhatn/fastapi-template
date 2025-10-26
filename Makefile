@@ -115,7 +115,7 @@ security\:scan\:sast\:critical:
 	@uv run --active semgrep scan --config=p/python --config=p/security-audit --config=p/owasp-top-ten --severity ERROR --error
 
 security\:scan\:trivy:
-	@trivy config --exit-code 1 --severity CRITICAL .Dockerfile
+	@trivy config --exit-code 1 --severity CRITICAL Dockerfile
 
 # ==== Pre-commit ====
 pre-commit\:install:
