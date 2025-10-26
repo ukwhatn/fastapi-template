@@ -11,7 +11,14 @@ from sqlalchemy import create_engine, inspect, text
 from app.core.config import Settings, get_settings
 from app.core.logging import get_logger
 
-from .models import BackupData, BackupMetadata, DiffSummary, TableBackup, TableDiff
+from .models import (
+    BackupData,
+    BackupMetadata,
+    DiffSummary,
+    RestoreResult,
+    TableBackup,
+    TableDiff,
+)
 
 logger = get_logger(__name__)
 
@@ -300,3 +307,178 @@ def calculate_diff(backup_path: Path) -> DiffSummary:
     except Exception as e:
         logger.error(f"Failed to calculate diff: {e}")
         raise RuntimeError(f"Failed to calculate diff: {e}") from e
+
+
+def _deserialize_value(value: Any, column_type: str | None = None) -> Any:
+    """
+    JSON化された値をデータベース用の値に変換する
+
+    Args:
+        value: JSON化された値
+        column_type: カラムの型情報（オプション）
+
+    Returns:
+        データベース用の値
+    """
+    if value is None:
+        return None
+
+    # バイナリデータの復元
+    if isinstance(value, dict) and value.get("__type__") == "bytes":
+        import base64
+
+        return base64.b64decode(value["data"])
+
+    # datetimeの復元（文字列からdatetimeオブジェクトへ）
+    if isinstance(value, str) and column_type and "timestamp" in column_type.lower():
+        from datetime import datetime
+
+        try:
+            return datetime.fromisoformat(value)
+        except ValueError:
+            pass
+
+    return value
+
+
+def restore_backup(backup_path: Path, show_diff: bool = True) -> RestoreResult:
+    """
+    バックアップからデータベースをリストアする
+
+    Args:
+        backup_path: バックアップファイルのパス
+        show_diff: リストア前にdiffを計算して表示するか
+
+    Returns:
+        RestoreResult: リストア結果
+
+    Raises:
+        RuntimeError: リストアに失敗した場合
+    """
+    diff_summary = None
+
+    try:
+        settings = get_settings()
+
+        # バックアップファイルを読み込み
+        if not backup_path.exists():
+            raise FileNotFoundError(f"Backup file not found: {backup_path}")
+
+        compressed_data = backup_path.read_bytes()
+        json_data = gzip.decompress(compressed_data).decode("utf-8")
+        backup_data = BackupData.model_validate_json(json_data)
+
+        logger.info(f"Restoring from backup: {backup_path.name}")
+        logger.info(f"Backup created at: {backup_data.metadata.timestamp.isoformat()}")
+        logger.info(f"Migration version: {backup_data.metadata.migration_version}")
+
+        # Diffを計算（オプション）
+        if show_diff:
+            logger.info("Calculating diff before restore...")
+            diff_summary = calculate_diff(backup_path)
+
+            for table_name, table_diff in diff_summary.tables.items():
+                sign = "+" if table_diff.diff > 0 else ""
+                logger.info(
+                    f"  {table_name}: {table_diff.current_rows} → {table_diff.backup_rows} ({sign}{table_diff.diff})"
+                )
+
+        # データベースに接続してリストアを実行
+
+        engine = create_engine(settings.database_uri)
+
+        with engine.begin() as conn:  # トランザクション開始
+            logger.info("Starting restore transaction...")
+
+            # 1. 全テーブルをTRUNCATE
+            inspector = inspect(engine)
+            table_names = inspector.get_table_names()
+
+            for table_name in table_names:
+                if table_name == "alembic_version":
+                    continue
+                logger.info(f"Truncating table: {table_name}")
+                conn.execute(text(f"TRUNCATE TABLE {table_name} CASCADE"))
+
+            # 2. マイグレーションバージョンを調整
+            target_version = backup_data.metadata.migration_version
+            current_version = get_current_migration_version()
+
+            if target_version != current_version:
+                logger.info(
+                    f"Adjusting migration version: {current_version} → {target_version}"
+                )
+
+                # alembic_versionテーブルを更新
+                if target_version:
+                    conn.execute(text("DELETE FROM alembic_version"))
+                    conn.execute(
+                        text(
+                            "INSERT INTO alembic_version (version_num) VALUES (:version)"
+                        ),
+                        {"version": target_version},
+                    )
+                    logger.info(f"Migration version set to: {target_version}")
+                else:
+                    conn.execute(text("DELETE FROM alembic_version"))
+                    logger.info("Migration version cleared")
+
+            # 3. データを投入
+            total_restored_rows = 0
+            total_restored_tables = 0
+
+            for table_name, table_backup in backup_data.tables.items():
+                if table_backup.row_count == 0:
+                    logger.info(f"Skipping empty table: {table_name}")
+                    continue
+
+                logger.info(
+                    f"Restoring table: {table_name} ({table_backup.row_count} rows)"
+                )
+
+                # カラム名を取得
+                columns = table_backup.columns
+
+                # プレースホルダーを生成
+                placeholders = ", ".join([f":{col}" for col in columns])
+                column_list = ", ".join(columns)
+
+                # INSERT文を作成
+                insert_sql = (
+                    f"INSERT INTO {table_name} ({column_list}) VALUES ({placeholders})"
+                )
+
+                # 各行をINSERT
+                for row_data in table_backup.data:
+                    # 辞書形式に変換
+                    row_dict = dict(zip(columns, row_data))
+                    conn.execute(text(insert_sql), row_dict)
+
+                total_restored_rows += table_backup.row_count
+                total_restored_tables += 1
+
+            logger.info("Committing transaction...")
+
+        # トランザクションコミット成功
+        logger.info(
+            f"Restore completed: {total_restored_tables} tables, {total_restored_rows} rows"
+        )
+
+        return RestoreResult(
+            success=True,
+            message=f"Restored {total_restored_tables} tables with {total_restored_rows} rows",
+            diff_summary=diff_summary,
+            restored_tables=total_restored_tables,
+            restored_rows=total_restored_rows,
+        )
+
+    except Exception as e:
+        logger.error(f"Failed to restore backup: {e}")
+        # トランザクションは自動的にロールバックされる
+        return RestoreResult(
+            success=False,
+            message=f"Restore failed: {e}",
+            diff_summary=diff_summary,
+            restored_tables=0,
+            restored_rows=0,
+        )
