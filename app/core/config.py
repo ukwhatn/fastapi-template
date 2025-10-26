@@ -21,39 +21,30 @@ class Settings(BaseSettings):
         extra="ignore",  # 未定義のフィールドを無視
     )
 
-    # 環境設定
     ENV_MODE: Literal["development", "production", "test"] = "development"
 
-    # CORS設定
     BACKEND_CORS_ORIGINS: str | list[str] = []
 
     @classmethod
     @field_validator("BACKEND_CORS_ORIGINS")
     def assemble_cors_origins(cls, v: str | list[str]) -> list[str] | str:
-        # 設定されていない場合は空リストを返す
         if v == "":
             return []
-        # "*"が設定されている場合は全てのオリジンを許可
         if v == "*":
             return ["*"]
-        # カンマ区切りの文字列をリストに変換
         if isinstance(v, str) and not v.startswith("["):
             return [i.strip() for i in v.split(",")]
-        # リストの場合はそのまま返す
         if isinstance(v, (list, str)):
             return v
         raise ValueError(v)
 
-    # セキュリティヘッダー設定
     SECURITY_HEADERS: bool = False
     CSP_POLICY: str = (
         "default-src 'self'; img-src 'self' data:; script-src 'self'; style-src 'self'"
     )
 
-    # APIキー設定
     API_KEY: str = "default_api_key_change_me_in_production"
 
-    # データベース設定
     POSTGRES_USER: str = "user"
     POSTGRES_PASSWORD: str = "password"
     POSTGRES_DB: str = "main"
@@ -82,11 +73,9 @@ class Settings(BaseSettings):
         """Supabase使用判定"""
         return "supabase.co" in self.POSTGRES_HOST
 
-    # セッション設定
     SESSION_COOKIE_NAME: str = "session_id"
     SESSION_EXPIRE: int = 60 * 60 * 24  # 1 day
 
-    # セッション暗号化キー
     SESSION_ENCRYPTION_KEY: str = ""
 
     @field_validator("SESSION_ENCRYPTION_KEY")
@@ -99,7 +88,6 @@ class Settings(BaseSettings):
             )
             return ""
 
-        # Fernet鍵の形式チェック
         try:
             from cryptography.fernet import Fernet
 
@@ -111,7 +99,6 @@ class Settings(BaseSettings):
 
         return v
 
-    # Sentry設定
     SENTRY_DSN: Optional[str] = None
     SENTRY_TRACES_SAMPLE_RATE: float = 1.0
 
@@ -122,17 +109,14 @@ class Settings(BaseSettings):
             return None
         return v
 
-    # New Relic設定
     NEW_RELIC_LICENSE_KEY: Optional[str] = None
     NEW_RELIC_APP_NAME: str = "FastAPI Template"
     NEW_RELIC_HIGH_SECURITY: bool = False
     NEW_RELIC_MONITOR_MODE: bool = True
 
-    # バックアップ設定
     BACKUP_SCHEDULE: Optional[str] = None  # cron形式 (例: "0 3 * * *")
     BACKUP_RETENTION_DAYS: int = 7
 
-    # S3互換ストレージ設定
     S3_ENDPOINT: Optional[str] = None
     S3_BUCKET: Optional[str] = None
     S3_ACCESS_KEY: Optional[str] = None

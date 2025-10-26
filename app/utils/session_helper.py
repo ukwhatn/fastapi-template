@@ -69,7 +69,6 @@ def create_session(
 
     session_id, csrf_token = service.create_session(data, user_agent, client_ip)
 
-    # Cookieに設定
     response.set_cookie(
         key=settings.SESSION_COOKIE_NAME,
         value=session_id,
@@ -165,7 +164,6 @@ def delete_session(
     service = SessionService(db)
     result = service.delete_session(session_id)
 
-    # Cookieを削除
     response.delete_cookie(key=settings.SESSION_COOKIE_NAME)
 
     return result
@@ -202,7 +200,6 @@ def regenerate_session_id(
 
     new_session_id, new_csrf_token = result
 
-    # Cookieを更新
     response.set_cookie(
         key=settings.SESSION_COOKIE_NAME,
         value=new_session_id,
