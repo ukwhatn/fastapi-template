@@ -1,7 +1,7 @@
 """データベースバックアップ・リストアのコアロジック"""
 
 import gzip
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -128,7 +128,7 @@ def create_backup(output_dir: Path | None = None) -> Path:
 
         # メタデータ作成
         metadata = BackupMetadata(
-            timestamp=datetime.now(),
+            timestamp=datetime.now(UTC),
             migration_version=migration_version,
             database_name=settings.POSTGRES_DB,
             database_host=settings.POSTGRES_HOST,
