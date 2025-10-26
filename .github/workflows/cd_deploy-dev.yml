@@ -1,0 +1,25 @@
+name: Deploy to Dev
+
+on:
+  push:
+    branches:
+      - develop
+  workflow_dispatch:
+
+jobs:
+  build-and-push:
+    uses: ./.github/workflows/cd_build-push.yml
+    secrets: inherit
+
+  deploy:
+    needs: build-and-push
+    uses: ./.github/workflows/cd_deploy.yml
+    with:
+      environment: dev
+      branch: develop
+      image_tag: develop
+    secrets:
+      SSH_HOST: ${{ secrets.DEV_SSH_HOST }}
+      SSH_USER: ${{ secrets.DEV_SSH_USER }}
+      SSH_PORT: ${{ secrets.DEV_SSH_PORT }}
+      SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_PRIVATE_KEY }}
