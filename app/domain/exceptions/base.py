@@ -25,7 +25,7 @@ class DomainError(Exception):
         self,
         message: str,
         code: str,
-        details: Optional[dict[str, Any]] = None,
+        details: Optional[dict[str, Any] | list[dict[str, Any]]] = None,
     ) -> None:
         """
         Args:
@@ -45,7 +45,7 @@ class NotFoundError(DomainError):
     def __init__(
         self,
         message: str = "Resource not found",
-        details: Optional[dict[str, Any]] = None,
+        details: Optional[dict[str, Any] | list[dict[str, Any]]] = None,
     ) -> None:
         """
         Args:
@@ -61,7 +61,7 @@ class BadRequestError(DomainError):
     def __init__(
         self,
         message: str = "Bad request",
-        details: Optional[dict[str, Any]] = None,
+        details: Optional[dict[str, Any] | list[dict[str, Any]]] = None,
     ) -> None:
         """
         Args:
@@ -77,7 +77,7 @@ class UnauthorizedError(DomainError):
     def __init__(
         self,
         message: str = "Authentication required",
-        details: Optional[dict[str, Any]] = None,
+        details: Optional[dict[str, Any] | list[dict[str, Any]]] = None,
     ) -> None:
         """
         Args:
@@ -93,7 +93,7 @@ class ForbiddenError(DomainError):
     def __init__(
         self,
         message: str = "Access forbidden",
-        details: Optional[dict[str, Any]] = None,
+        details: Optional[dict[str, Any] | list[dict[str, Any]]] = None,
     ) -> None:
         """
         Args:
