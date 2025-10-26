@@ -303,8 +303,4 @@ class TestModelValidation:
     def test_table_backup_invalid_data_type(self) -> None:
         """不正なデータ型でValidationErrorが発生すること"""
         with pytest.raises(ValidationError):
-            TableBackup(
-                row_count="invalid",  # should be int  # type: ignore[arg-type]
-                columns=["id"],
-                data=[[1]],
-            )
+            TableBackup(row_count="invalid", columns=["id"], data=[[1]])
