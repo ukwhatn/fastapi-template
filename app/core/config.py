@@ -1,5 +1,5 @@
 from functools import lru_cache
-from typing import List, Literal, Optional, Union
+from typing import Literal, Optional
 
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -25,11 +25,11 @@ class Settings(BaseSettings):
     ENV_MODE: Literal["development", "production", "test"] = "development"
 
     # CORS設定
-    BACKEND_CORS_ORIGINS: Union[str, List[str]] = []
+    BACKEND_CORS_ORIGINS: str | list[str] = []
 
     @classmethod
     @field_validator("BACKEND_CORS_ORIGINS")
-    def assemble_cors_origins(cls, v: Union[str, List[str]]) -> Union[List[str], str]:
+    def assemble_cors_origins(cls, v: str | list[str]) -> list[str] | str:
         # 設定されていない場合は空リストを返す
         if v == "":
             return []

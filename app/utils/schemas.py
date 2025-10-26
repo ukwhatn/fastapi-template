@@ -1,4 +1,4 @@
-from typing import Dict, Any
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
@@ -10,4 +10,4 @@ class SessionSchema(BaseModel):
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    data: Dict[str, Any] = {}
+    data: dict[str, Any] = {}

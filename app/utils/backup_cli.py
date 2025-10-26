@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional
+from typing import Optional
 
 import click
 import opendal
@@ -13,7 +13,7 @@ from app.core.logging import get_logger
 logger = get_logger(__name__)
 
 
-def get_local_backups() -> List[Path]:
+def get_local_backups() -> list[Path]:
     """
     ローカルバックアップファイルのリストを取得する。
 
@@ -32,7 +32,7 @@ def get_local_backups() -> List[Path]:
     return backups
 
 
-def get_s3_backups() -> List[str]:
+def get_s3_backups() -> list[str]:
     """
     S3バックアップファイルのリストを取得する。
 

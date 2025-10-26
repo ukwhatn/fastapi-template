@@ -1,7 +1,7 @@
 """バックアップデータのモデル定義"""
 
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -38,8 +38,8 @@ class TableBackup(BaseModel):
     """
 
     row_count: int = Field(description="行数")
-    columns: List[str] = Field(description="カラム名のリスト")
-    data: List[List[Any]] = Field(description="行データのリスト")
+    columns: list[str] = Field(description="カラム名のリスト")
+    data: list[list[Any]] = Field(description="行データのリスト")
 
 
 class BackupData(BaseModel):
@@ -52,7 +52,7 @@ class BackupData(BaseModel):
     """
 
     metadata: BackupMetadata = Field(description="メタデータ")
-    tables: Dict[str, TableBackup] = Field(description="テーブルデータ")
+    tables: dict[str, TableBackup] = Field(description="テーブルデータ")
 
 
 class TableDiff(BaseModel):
@@ -81,7 +81,7 @@ class DiffSummary(BaseModel):
         total_diff: 総差分
     """
 
-    tables: Dict[str, TableDiff] = Field(description="テーブルごとの差分")
+    tables: dict[str, TableDiff] = Field(description="テーブルごとの差分")
     total_current_rows: int = Field(description="現在の総行数")
     total_backup_rows: int = Field(description="バックアップの総行数")
     total_diff: int = Field(description="総差分")

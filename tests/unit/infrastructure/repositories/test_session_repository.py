@@ -2,7 +2,7 @@
 セッションリポジトリの単体テスト
 """
 
-from typing import Any, Dict
+from typing import Any
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from app.infrastructure.repositories.session_repository import SessionService
@@ -28,7 +28,7 @@ class TestSessionService:
     def test_get_session(self, db_session: Session) -> None:
         """セッションが取得できること"""
         service = SessionService(db_session)
-        data: Dict[str, int] = {"user_id": 123}
+        data: dict[str, int] = {"user_id": 123}
         user_agent = "Mozilla/5.0"
         client_ip = "127.0.0.1"
 
@@ -41,7 +41,7 @@ class TestSessionService:
     def test_get_session_with_wrong_fingerprint(self, db_session: Session) -> None:
         """フィンガープリントが異なる場合、セッションが取得できないこと"""
         service = SessionService(db_session)
-        data: Dict[str, int] = {"user_id": 123}
+        data: dict[str, int] = {"user_id": 123}
         user_agent = "Mozilla/5.0"
         client_ip = "127.0.0.1"
 
@@ -54,14 +54,14 @@ class TestSessionService:
     def test_update_session(self, db_session: Session) -> None:
         """セッションが更新されること"""
         service = SessionService(db_session)
-        data: Dict[str, int] = {"user_id": 123}
+        data: dict[str, int] = {"user_id": 123}
         user_agent = "Mozilla/5.0"
         client_ip = "127.0.0.1"
 
         session_id, _ = service.create_session(data, user_agent, client_ip)
 
         # データ更新
-        new_data: Dict[str, Any] = {"user_id": 123, "username": "updated"}
+        new_data: dict[str, Any] = {"user_id": 123, "username": "updated"}
         result = service.update_session(session_id, new_data, user_agent, client_ip)
         assert result is True
 
@@ -73,7 +73,7 @@ class TestSessionService:
     def test_delete_session(self, db_session: Session) -> None:
         """セッションが削除されること"""
         service = SessionService(db_session)
-        data: Dict[str, int] = {"user_id": 123}
+        data: dict[str, int] = {"user_id": 123}
         user_agent = "Mozilla/5.0"
         client_ip = "127.0.0.1"
 
@@ -235,7 +235,7 @@ class TestSessionServiceEdgeCases:
     def test_create_session_with_empty_data(self, db_session: Session) -> None:
         """空のデータでセッション作成できること"""
         service = SessionService(db_session)
-        data: Dict[str, Any] = {}
+        data: dict[str, Any] = {}
         user_agent = "Mozilla/5.0"
         client_ip = "127.0.0.1"
 

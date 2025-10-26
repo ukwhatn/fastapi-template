@@ -3,7 +3,7 @@ import json
 import logging
 import os
 from pathlib import Path
-from typing import Any, Dict, AsyncIterator
+from typing import Any, AsyncIterator
 from collections.abc import Callable, Awaitable
 
 import sentry_sdk
@@ -37,7 +37,7 @@ STATIC_DIR = Path(__file__).parent / "static"
 TEMPLATES_DIR = Path(__file__).parent / "templates"
 
 # アプリケーション設定
-app_params: Dict[str, Any] = {
+app_params: dict[str, Any] = {
     "title": "FastAPI Template",
     "description": "FastAPIアプリケーションのテンプレート",
     "version": "0.1.0",
