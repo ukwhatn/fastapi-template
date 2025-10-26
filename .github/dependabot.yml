@@ -50,7 +50,7 @@ updates:
           - "major"
 
   - package-ecosystem: "docker"
-    directory: "/docker"
+    directory: "/"
     schedule:
       interval: "daily"
     target-branch: "develop"
@@ -64,7 +64,3 @@ updates:
     labels:
       - "dependencies"
       - "automated"
-    groups:
-      docker-images:
-        patterns:
-          - "*"
