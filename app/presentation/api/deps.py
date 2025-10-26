@@ -36,11 +36,10 @@ def get_db_with_session(
 ) -> Generator[DBWithSession, None, None]:
     """
     DBとセッションの両方を取得するdependency
+
+    Note: db.close()は不要。get_db()が既にセッションのクローズを管理している
     """
-    try:
-        yield DBWithSession(db=db, session=session)
-    finally:
-        db.close()
+    yield DBWithSession(db=db, session=session)
 
 
 # API認証用のヘッダーハンドラーを作成
