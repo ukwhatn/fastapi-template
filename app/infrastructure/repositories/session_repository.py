@@ -8,14 +8,14 @@ RDBベースのセッション管理を提供
 - 期限切れセッションの自動削除
 """
 
-import logging
 from typing import Any, Optional, cast
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from sqlalchemy.orm import Session as DBSession
 from sqlalchemy import delete
 
 from ..database.models.session import Session
 from ...core.config import get_settings
+from ...core.logging import get_logger
 from ..security.encryption import (
     SessionEncryption,
     get_session_encryption,
@@ -25,7 +25,7 @@ from ..security.encryption import (
     verify_fingerprint,
 )
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 settings = get_settings()
 
 
@@ -72,7 +72,7 @@ class SessionService:
         # 有効期限計算
         if expire_seconds is None:
             expire_seconds = settings.SESSION_EXPIRE
-        expires_at = datetime.now() + timedelta(seconds=expire_seconds)
+        expires_at = datetime.now(UTC) + timedelta(seconds=expire_seconds)
 
         # データ暗号化
         encrypted_data = self.encryption.encrypt(data)
@@ -122,7 +122,7 @@ class SessionService:
             return None
 
         # 有効期限チェック
-        if session.expires_at < datetime.now():
+        if session.expires_at < datetime.now(UTC):
             logger.info(f"Session expired: {session_id}")
             self.delete_session(session_id)
             return None
@@ -181,7 +181,7 @@ class SessionService:
             return False
 
         # 有効期限チェック
-        if session.expires_at < datetime.now():
+        if session.expires_at < datetime.now(UTC):
             logger.info(f"Cannot update expired session: {session_id}")
             self.delete_session(session_id)
             return False
@@ -198,7 +198,7 @@ class SessionService:
         try:
             encrypted_data = self.encryption.encrypt(data)
             session.data = encrypted_data
-            session.updated_at = datetime.now()
+            session.updated_at = datetime.now(UTC)
             self.db.commit()
             logger.info(f"Session updated: {session_id}")
             return True
@@ -241,7 +241,7 @@ class SessionService:
         """
         try:
             result = self.db.execute(
-                delete(Session).where(Session.expires_at < datetime.now())
+                delete(Session).where(Session.expires_at < datetime.now(UTC))
             )
             self.db.commit()
             count = cast(int, getattr(result, "rowcount", 0))

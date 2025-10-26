@@ -17,6 +17,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from .presentation import api_router
 from .core import APIError, ErrorResponse, ValidationError, get_settings
+from .core.logging import get_logger
 from .presentation.middleware.security_headers import SecurityHeadersMiddleware
 from .infrastructure.database import get_db
 from .infrastructure.repositories.session_repository import SessionService
@@ -36,7 +37,7 @@ app_params: Dict[str, Any] = {
 }
 
 # ロガー設定
-logger = logging.getLogger("uvicorn")
+logger = get_logger(__name__)
 
 # 本番環境ではドキュメントを無効化
 if settings.is_production:
@@ -107,6 +108,26 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """
     アプリケーションのライフサイクル管理
     """
+    # データベースマイグレーション実行
+    if settings.has_database:
+        from .infrastructure.database.migration import run_migrations
+
+        run_migrations(logger_key="uvicorn")
+    else:
+        logger.info("Database migrations are disabled")
+
+    # バッチスケジューラー起動
+    from .infrastructure.batch.scheduler import (
+        create_scheduler,
+        start_scheduler,
+        stop_scheduler,
+    )
+    from .infrastructure.batch import tasks  # タスク自動登録  # noqa: F401
+
+    scheduler = create_scheduler()
+    app.state.scheduler = scheduler
+    start_scheduler(scheduler)
+
     # 静的ファイルとテンプレートの自動設定
     if has_content(STATIC_DIR):
         app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
@@ -122,6 +143,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         logger.info(f"Jinja2 templates disabled: {TEMPLATES_DIR}")
 
     yield  # アプリケーションの実行
+
+    # バッチスケジューラー停止
+    stop_scheduler(scheduler)
 
 
 app_params["lifespan"] = lifespan
@@ -231,12 +255,24 @@ async def session_middleware(
             if session_id:
                 # 既存セッション取得
                 service = SessionService(db)
+                # UA取得
                 user_agent = request.headers.get("User-Agent")
-                client_ip = request.headers.get("X-Forwarded-For", "").split(",")[
-                    0
-                ].strip() or (request.client.host if request.client else None)
+                # IP取得
+                client_ip_headers = ["CF-Connecting-IP", "X-Forwarded-For"]
+                client_ip = None
+                for header in client_ip_headers:
+                    client_ip = request.headers.get(header)
+                    if client_ip:
+                        break
+                if not client_ip:
+                    client_ip = request.client.host if request.client else None
+
                 session_data = service.get_session(session_id, user_agent, client_ip)
+
                 request.state.session = session_data or {}
+                request.state.session_id = session_id
+                request.state.client_ip = client_ip
+                request.state.user_agent = user_agent
             else:
                 request.state.session = {}
 

@@ -7,13 +7,13 @@
 import hashlib
 import secrets
 import json
-import logging
 from typing import Any, Optional
 from cryptography.fernet import Fernet, InvalidToken
 
 from ...core.config import get_settings
+from ...core.logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class SessionEncryption:

@@ -1,11 +1,12 @@
 from functools import lru_cache
 from typing import List, Literal, Optional, Union
-import logging
 
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-logger = logging.getLogger(__name__)
+from .logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class Settings(BaseSettings):
@@ -61,10 +62,12 @@ class Settings(BaseSettings):
 
     @property
     def database_uri(self) -> str:
-        """データベース接続URL取得（POSTGRES_*から構築）"""
+        """データベース接続URL"""
+        # Kerberos設定済み環境だとタイムアウト待ちにハマるので、gssencmode=disableを設定
         return (
             f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
             f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+            f"?gssencmode=disable"
         )
 
     @property
@@ -124,6 +127,17 @@ class Settings(BaseSettings):
     NEW_RELIC_APP_NAME: str = "FastAPI Template"
     NEW_RELIC_HIGH_SECURITY: bool = False
     NEW_RELIC_MONITOR_MODE: bool = True
+
+    # バックアップ設定
+    BACKUP_SCHEDULE: Optional[str] = None  # cron形式 (例: "0 3 * * *")
+    BACKUP_RETENTION_DAYS: int = 7
+
+    # S3互換ストレージ設定
+    S3_ENDPOINT: Optional[str] = None
+    S3_BUCKET: Optional[str] = None
+    S3_ACCESS_KEY: Optional[str] = None
+    S3_SECRET_KEY: Optional[str] = None
+    S3_REGION: Optional[str] = None
 
     @property
     def is_development(self) -> bool:
