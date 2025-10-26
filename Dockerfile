@@ -56,7 +56,7 @@ RUN apt-get update && \
         curl && \
     rm -rf /var/lib/apt/lists/*
 
-# セキュリティ: 非rootユーザーで実行
+# 非rootユーザーで実行
 RUN adduser --disabled-password --gecos "" nonroot
 
 WORKDIR /usr/src
