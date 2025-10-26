@@ -277,19 +277,6 @@ prod\:ps:
 prod\:down:
 	@ENV=prod $(MAKE) compose:down
 
-# ==== Watchtower管理コマンド ====
-watchtower\:setup:
-	@./scripts/setup-watchtower.sh
-
-watchtower\:logs:
-	@docker logs watchtower -f
-
-watchtower\:status:
-	@docker ps --filter "name=watchtower"
-
-watchtower\:restart:
-	@docker restart watchtower
-
 # ==== 秘密情報管理コマンド ====
 secrets\:encrypt\:dev:
 	@if [ ! -f .env.dev ]; then \
@@ -380,4 +367,4 @@ template\:apply\:force:
 	git checkout $$commit_hash -- . && \
 	echo "テンプレートの変更が強制的に適用されました。変更を確認しgit add/commitしてください。"
 
-.PHONY: build build\:no-cache up down reload reset logs logs\:once ps pr\:create deploy\:prod uv\:add uv\:add\:dev uv\:lock uv\:update uv\:update\:all dev\:setup lint lint\:fix format format\:check type-check security\:scan security\:scan\:code security\:scan\:code\:critical security\:scan\:sast security\:scan\:sast\:critical security\:scan\:trivy test test\:cov db\:revision\:create db\:migrate db\:downgrade db\:current db\:history db\:backup\:oneshot db\:backup\:list db\:backup\:list\:remote db\:backup\:diff db\:backup\:diff\:s3 db\:backup\:restore db\:backup\:restore\:s3 db\:backup\:restore\:dry-run env openapi\:generate compose\:up compose\:down compose\:down\:v compose\:logs compose\:ps compose\:pull compose\:restart compose\:build local\:up local\:down local\:down\:v local\:logs local\:ps local\:serve dev\:deploy dev\:logs dev\:ps dev\:down prod\:deploy prod\:logs prod\:ps prod\:down watchtower\:setup watchtower\:logs watchtower\:status watchtower\:restart secrets\:encrypt\:dev secrets\:encrypt\:prod secrets\:decrypt\:dev secrets\:decrypt\:prod secrets\:edit\:dev secrets\:edit\:prod project\:rename project\:init template\:list template\:apply template\:apply\:range template\:apply\:force pre-commit\:install pre-commit\:run pre-commit\:update
+.PHONY: build build\:no-cache up down reload reset logs logs\:once ps pr\:create deploy\:prod uv\:add uv\:add\:dev uv\:lock uv\:update uv\:update\:all dev\:setup lint lint\:fix format format\:check type-check security\:scan security\:scan\:code security\:scan\:code\:critical security\:scan\:sast security\:scan\:sast\:critical security\:scan\:trivy test test\:cov db\:revision\:create db\:migrate db\:downgrade db\:current db\:history db\:backup\:oneshot db\:backup\:list db\:backup\:list\:remote db\:backup\:diff db\:backup\:diff\:s3 db\:backup\:restore db\:backup\:restore\:s3 db\:backup\:restore\:dry-run env openapi\:generate compose\:up compose\:down compose\:down\:v compose\:logs compose\:ps compose\:pull compose\:restart compose\:build local\:up local\:down local\:down\:v local\:logs local\:ps local\:serve dev\:deploy dev\:logs dev\:ps dev\:down prod\:deploy prod\:logs prod\:ps prod\:down secrets\:encrypt\:dev secrets\:encrypt\:prod secrets\:decrypt\:dev secrets\:decrypt\:prod secrets\:edit\:dev secrets\:edit\:prod project\:rename project\:init template\:list template\:apply template\:apply\:range template\:apply\:force pre-commit\:install pre-commit\:run pre-commit\:update

@@ -1,0 +1,77 @@
+name: Deploy (Reusable)
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string  # dev or prod
+      branch:
+        required: true
+        type: string  # develop or main
+      image_tag:
+        required: true
+        type: string  # develop or latest
+    secrets:
+      SSH_HOST:
+        required: false
+      SSH_USER:
+        required: false
+      SSH_PORT:
+        required: false
+      SSH_PRIVATE_KEY:
+        required: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - name: Check SSH secrets
+        id: check-secrets
+        run: |
+          if [ -z "${{ secrets.SSH_HOST }}" ] || [ -z "${{ secrets.SSH_USER }}" ] || \
+             [ -z "${{ secrets.SSH_PORT }}" ] || [ -z "${{ secrets.SSH_PRIVATE_KEY }}" ]; then
+            echo "SSH secrets not configured. Skipping deployment."
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "SSH secrets configured. Proceeding with deployment."
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Deploy to ${{ inputs.environment }}
+        if: steps.check-secrets.outputs.skip != 'true'
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          port: ${{ secrets.SSH_PORT }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            # ディレクトリ存在チェック
+            cd ${{ github.event.repository.name }} || { echo "Directory not found. Run initial setup first."; exit 1; }
+
+            # 最新コード取得
+            git pull origin ${{ inputs.branch }}
+
+            # .env存在チェック
+            [ -f .env ] || { echo ".env not found. Decrypt .env.${{ inputs.environment }}.enc first."; exit 1; }
+
+            # イメージ取得＆再起動
+            ENV=${{ inputs.environment }} make compose:pull
+            ENV=${{ inputs.environment }} docker compose -f compose.${{ inputs.environment }}.yml up -d --force-recreate --remove-orphans
+
+            # ヘルスチェック
+            echo "Waiting for health check..."
+            for i in {1..12}; do
+              if ENV=${{ inputs.environment }} make compose:ps | grep -q "healthy"; then
+                echo "Deployment successful!"
+                exit 0
+              fi
+              echo "Waiting... ($((i*5))s/60s)"
+              sleep 5
+            done
+
+            echo "Health check timeout. Check logs:"
+            ENV=${{ inputs.environment }} make compose:logs
+            exit 1
