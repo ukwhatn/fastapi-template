@@ -5,7 +5,7 @@ FastAPI/Pydanticに依存するAPIエラークラス。
 ドメインエラーをHTTPレスポンスに変換する。
 """
 
-from typing import Any, Optional, Union
+from typing import Any, Optional
 
 from fastapi import HTTPException, status
 from pydantic import BaseModel
@@ -36,7 +36,7 @@ class ErrorResponse(BaseModel):
     status: str = "error"
     code: str
     message: str
-    details: Optional[Union[list[dict[str, Any]], dict[str, Any]]] = None
+    details: Optional[list[dict[str, Any]] | dict[str, Any]] = None
 
 
 class APIError(HTTPException):
@@ -60,7 +60,7 @@ class APIError(HTTPException):
     def __init__(
         self,
         message: Optional[str] = None,
-        details: Optional[Union[list[dict[str, Any]], dict[str, Any]]] = None,
+        details: Optional[list[dict[str, Any]] | dict[str, Any]] = None,
     ) -> None:
         """
         Args:

@@ -29,6 +29,8 @@ from .presentation.middleware.security_headers import SecurityHeadersMiddleware
 from .infrastructure.database import get_db
 from .infrastructure.repositories.session_repository import SessionService
 
+# モジュールレベルでsettingsを取得（エントリーポイントのため許容）
+# アプリケーション起動時に一度だけ評価される
 settings = get_settings()
 
 STATIC_DIR = Path(__file__).parent / "static"

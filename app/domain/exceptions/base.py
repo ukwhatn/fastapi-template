@@ -117,11 +117,5 @@ class ValidationError(BadRequestError):
             details: エラーの詳細情報（オプション）
                     リストまたは辞書形式で複数のバリデーションエラーを含められる
         """
-        # 親クラスのcode="bad_request"を明示的に設定しつつ、
-        # ValidationError固有のcodeで上書きするために、
-        # まず親クラスのconstructorを呼ぶ
-        super().__init__(message=message, details=None)
-        # code を "validation_error" に上書き
+        super().__init__(message=message, details=details)
         self.code = "validation_error"
-        # details を再設定（list[dict] または dict の両方をサポート）
-        self.details = details
