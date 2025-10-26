@@ -2,7 +2,7 @@
 セキュリティ機能（暗号化・トークン生成）の単体テスト
 """
 
-from typing import Any, Dict
+from typing import Any
 import pytest
 import json
 from cryptography.fernet import Fernet
@@ -119,7 +119,7 @@ class TestSessionEncryption:
         key = Fernet.generate_key().decode()
         encryptor = SessionEncryption(encryption_key=key)
 
-        data: Dict[str, str] = {"test": "data"}
+        data: dict[str, str] = {"test": "data"}
         encrypted = encryptor.encrypt(data)
         decrypted = encryptor.decrypt(encrypted)
 
@@ -192,7 +192,7 @@ class TestSessionEncryption:
     def test_encrypt_empty_dict(self) -> None:
         """空の辞書を暗号化できること"""
         encryptor = get_session_encryption()
-        data: Dict[str, Any] = {}
+        data: dict[str, Any] = {}
         encrypted = encryptor.encrypt(data)
         decrypted = encryptor.decrypt(encrypted)
         assert decrypted == data
@@ -200,7 +200,7 @@ class TestSessionEncryption:
     def test_encrypt_japanese_characters(self) -> None:
         """日本語を含むデータを暗号化できること"""
         encryptor = get_session_encryption()
-        data: Dict[str, str] = {"name": "テストユーザー", "message": "こんにちは世界"}
+        data: dict[str, str] = {"name": "テストユーザー", "message": "こんにちは世界"}
         encrypted = encryptor.encrypt(data)
         decrypted = encryptor.decrypt(encrypted)
         assert decrypted == data
@@ -208,7 +208,7 @@ class TestSessionEncryption:
     def test_encrypt_nested_data(self) -> None:
         """ネストしたデータを暗号化できること"""
         encryptor = get_session_encryption()
-        data: Dict[str, Any] = {
+        data: dict[str, Any] = {
             "user": {
                 "id": "123",
                 "profile": {
@@ -229,7 +229,7 @@ class TestSessionEncryption:
     def test_encrypt_special_characters(self) -> None:
         """特殊文字を含むデータを暗号化できること"""
         encryptor = get_session_encryption()
-        data: Dict[str, str] = {
+        data: dict[str, str] = {
             "password": "P@ssw0rd!#$%",
             "symbols": "~`!@#$%^&*()_+-={}[]|\\:;\"'<>,.?/",
             "unicode": "é ñ ü ö ä",
@@ -242,7 +242,7 @@ class TestSessionEncryption:
         """大きなデータを暗号化できること"""
         encryptor = get_session_encryption()
         # 大きなリストを含むデータ
-        data: Dict[str, Any] = {
+        data: dict[str, Any] = {
             "large_list": list(range(1000)),
             "large_dict": {f"key_{i}": f"value_{i}" for i in range(100)},
         }

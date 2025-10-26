@@ -8,14 +8,14 @@ RDBベースのセッション管理を提供
 - 期限切れセッションの自動削除
 """
 
-import logging
 from typing import Any, Optional, cast
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from sqlalchemy.orm import Session as DBSession
 from sqlalchemy import delete
 
 from ..database.models.session import Session
 from ...core.config import get_settings
+from ...core.logging import get_logger
 from ..security.encryption import (
     SessionEncryption,
     get_session_encryption,
@@ -25,8 +25,7 @@ from ..security.encryption import (
     verify_fingerprint,
 )
 
-logger = logging.getLogger(__name__)
-settings = get_settings()
+logger = get_logger(__name__)
 
 
 class SessionService:
@@ -69,15 +68,13 @@ class SessionService:
         csrf_token = generate_csrf_token()
         fingerprint = generate_fingerprint(user_agent, client_ip)
 
-        # 有効期限計算
         if expire_seconds is None:
+            settings = get_settings()
             expire_seconds = settings.SESSION_EXPIRE
-        expires_at = datetime.now() + timedelta(seconds=expire_seconds)
+        expires_at = datetime.now(UTC) + timedelta(seconds=expire_seconds)
 
-        # データ暗号化
         encrypted_data = self.encryption.encrypt(data)
 
-        # セッションレコード作成
         session = Session(
             session_id=session_id,
             data=encrypted_data,
@@ -121,20 +118,17 @@ class SessionService:
             logger.debug(f"Session not found: {session_id}")
             return None
 
-        # 有効期限チェック
-        if session.expires_at < datetime.now():
+        if session.expires_at < datetime.now(UTC):
             logger.info(f"Session expired: {session_id}")
             self.delete_session(session_id)
             return None
 
-        # フィンガープリント検証
         if not verify_fingerprint(session.fingerprint, user_agent, client_ip):
             logger.warning(f"Session fingerprint mismatch: {session_id}")
             # セキュリティ上、セッションを削除
             self.delete_session(session_id)
             return None
 
-        # CSRF検証
         if verify_csrf:
             if not csrf_token:
                 logger.warning(f"CSRF token not provided for session: {session_id}")
@@ -143,7 +137,6 @@ class SessionService:
                 logger.warning(f"CSRF token mismatch for session: {session_id}")
                 return None
 
-        # データ復号化
         try:
             data = self.encryption.decrypt(session.data)
             return data
@@ -180,13 +173,11 @@ class SessionService:
             logger.debug(f"Session not found for update: {session_id}")
             return False
 
-        # 有効期限チェック
-        if session.expires_at < datetime.now():
+        if session.expires_at < datetime.now(UTC):
             logger.info(f"Cannot update expired session: {session_id}")
             self.delete_session(session_id)
             return False
 
-        # フィンガープリント検証
         if not verify_fingerprint(session.fingerprint, user_agent, client_ip):
             logger.warning(
                 f"Cannot update session with fingerprint mismatch: {session_id}"
@@ -194,11 +185,10 @@ class SessionService:
             self.delete_session(session_id)
             return False
 
-        # データ暗号化して更新
         try:
             encrypted_data = self.encryption.encrypt(data)
             session.data = encrypted_data
-            session.updated_at = datetime.now()
+            session.updated_at = datetime.now(UTC)
             self.db.commit()
             logger.info(f"Session updated: {session_id}")
             return True
@@ -241,7 +231,7 @@ class SessionService:
         """
         try:
             result = self.db.execute(
-                delete(Session).where(Session.expires_at < datetime.now())
+                delete(Session).where(Session.expires_at < datetime.now(UTC))
             )
             self.db.commit()
             count = cast(int, getattr(result, "rowcount", 0))
@@ -272,16 +262,13 @@ class SessionService:
         Returns:
             (新しいsession_id, 新しいcsrf_token) のタプル、失敗時はNone
         """
-        # 既存セッション取得
         data = self.get_session(old_session_id, user_agent, client_ip)
         if data is None:
             logger.warning(f"Cannot regenerate non-existent session: {old_session_id}")
             return None
 
-        # 古いセッション削除
         self.delete_session(old_session_id)
 
-        # 新しいセッション作成
         new_session_id, new_csrf_token = self.create_session(
             data, user_agent, client_ip
         )

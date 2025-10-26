@@ -1,11 +1,11 @@
 from typing import Generator, Optional
 from sqlalchemy import create_engine, Engine
 from sqlalchemy.orm import sessionmaker, Session
-import logging
 
 from ...core.config import get_settings
+from ...core.logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 settings = get_settings()
 
 # データベース接続設定

@@ -6,8 +6,6 @@ from starlette.responses import Response
 
 from ...core import get_settings
 
-settings = get_settings()
-
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     """
@@ -19,6 +17,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     ) -> Response:
         response = await call_next(request)
 
+        settings = get_settings()
         if settings.SECURITY_HEADERS:
             response.headers["Content-Security-Policy"] = settings.CSP_POLICY
             response.headers["X-XSS-Protection"] = "1; mode=block"

@@ -29,11 +29,11 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 10s
+      start_period: 30s
     depends_on:
-      db-migrator:
-        condition: service_completed_successfully
-        required: true
+      db:
+        condition: service_healthy
+        required: false
     networks:
       - db-dev
     labels:
@@ -61,43 +61,6 @@ services:
       - local-db
     labels:
       - "com.centurylinklabs.watchtower.enable=false"
-
-  db-migrator:
-    container_name: ${COMPOSE_PROJECT_NAME:-fastapi-template}-db-migrator-dev
-    image: ghcr.io/ukwhatn/psql-migrator:latest
-    volumes:
-      - ./versions:/app/versions
-      - ./app/infrastructure/database/models:/app/migrations/models
-    env_file:
-      - .env
-    restart: no
-    depends_on:
-      db:
-        condition: service_healthy
-        required: false
-    networks:
-      - db-dev
-    labels:
-      - "com.centurylinklabs.watchtower.enable=true"
-
-  db-dumper:
-    container_name: ${COMPOSE_PROJECT_NAME:-fastapi-template}-db-dumper-dev
-    image: ghcr.io/ukwhatn/psql-dumper:latest
-    env_file:
-      - .env
-    environment:
-      - BACKUP_SCHEDULE=${BACKUP_SCHEDULE:-0 3 * * *}
-    volumes:
-      - ./backups:/app/backups
-    restart: unless-stopped
-    depends_on:
-      db:
-        condition: service_healthy
-        required: false
-    networks:
-      - db-dev
-    labels:
-      - "com.centurylinklabs.watchtower.enable=true"
 
 volumes:
   pg_data_dev:

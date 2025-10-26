@@ -1,11 +1,13 @@
+import os
 from functools import lru_cache
-from typing import List, Literal, Optional, Union
-import logging
+from typing import Literal, Optional
 
-from pydantic import field_validator
+from pydantic import ValidationInfo, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-logger = logging.getLogger(__name__)
+from .logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class Settings(BaseSettings):
@@ -20,39 +22,30 @@ class Settings(BaseSettings):
         extra="ignore",  # 未定義のフィールドを無視
     )
 
-    # 環境設定
-    ENV_MODE: Literal["development", "production", "test"] = "development"
+    ENV_MODE: Literal["local", "dev", "prod", "test"] = "test"
 
-    # CORS設定
-    BACKEND_CORS_ORIGINS: Union[str, List[str]] = []
+    BACKEND_CORS_ORIGINS: str | list[str] = []
 
     @classmethod
     @field_validator("BACKEND_CORS_ORIGINS")
-    def assemble_cors_origins(cls, v: Union[str, List[str]]) -> Union[List[str], str]:
-        # 設定されていない場合は空リストを返す
+    def assemble_cors_origins(cls, v: str | list[str]) -> list[str] | str:
         if v == "":
             return []
-        # "*"が設定されている場合は全てのオリジンを許可
         if v == "*":
             return ["*"]
-        # カンマ区切りの文字列をリストに変換
         if isinstance(v, str) and not v.startswith("["):
             return [i.strip() for i in v.split(",")]
-        # リストの場合はそのまま返す
         if isinstance(v, (list, str)):
             return v
         raise ValueError(v)
 
-    # セキュリティヘッダー設定
     SECURITY_HEADERS: bool = False
     CSP_POLICY: str = (
         "default-src 'self'; img-src 'self' data:; script-src 'self'; style-src 'self'"
     )
 
-    # APIキー設定
     API_KEY: str = "default_api_key_change_me_in_production"
 
-    # データベース設定
     POSTGRES_USER: str = "user"
     POSTGRES_PASSWORD: str = "password"
     POSTGRES_DB: str = "main"
@@ -61,10 +54,12 @@ class Settings(BaseSettings):
 
     @property
     def database_uri(self) -> str:
-        """データベース接続URL取得（POSTGRES_*から構築）"""
+        """データベース接続URL"""
+        # Kerberos設定済み環境だとタイムアウト待ちにハマるので、gssencmode=disableを設定
         return (
             f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
             f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+            f"?gssencmode=disable"
         )
 
     @property
@@ -79,24 +74,26 @@ class Settings(BaseSettings):
         """Supabase使用判定"""
         return "supabase.co" in self.POSTGRES_HOST
 
-    # セッション設定
     SESSION_COOKIE_NAME: str = "session_id"
     SESSION_EXPIRE: int = 60 * 60 * 24  # 1 day
 
-    # セッション暗号化キー
     SESSION_ENCRYPTION_KEY: str = ""
 
-    @field_validator("SESSION_ENCRYPTION_KEY")
+    @field_validator("SESSION_ENCRYPTION_KEY", mode="before")
     @classmethod
-    def validate_encryption_key(cls, v: str) -> str:
+    def validate_encryption_key(cls, v: str, info: ValidationInfo) -> str:
         """暗号化キー検証"""
         if not v:
-            logger.warning(
-                "SESSION_ENCRYPTION_KEY is not set. Session encryption disabled."
-            )
-            return ""
+            env_mode = info.data.get("ENV_MODE") or os.getenv("ENV_MODE", "test")
 
-        # Fernet鍵の形式チェック
+            if env_mode != "prod":
+                logger.warning(
+                    "SESSION_ENCRYPTION_KEY is not set. Session encryption disabled."
+                )
+                return ""
+            else:
+                raise ValueError("SESSION_ENCRYPTION_KEY is not set.")
+
         try:
             from cryptography.fernet import Fernet
 
@@ -108,7 +105,6 @@ class Settings(BaseSettings):
 
         return v
 
-    # Sentry設定
     SENTRY_DSN: Optional[str] = None
     SENTRY_TRACES_SAMPLE_RATE: float = 1.0
 
@@ -119,21 +115,34 @@ class Settings(BaseSettings):
             return None
         return v
 
-    # New Relic設定
     NEW_RELIC_LICENSE_KEY: Optional[str] = None
     NEW_RELIC_APP_NAME: str = "FastAPI Template"
     NEW_RELIC_HIGH_SECURITY: bool = False
     NEW_RELIC_MONITOR_MODE: bool = True
 
+    BACKUP_SCHEDULE: Optional[str] = None  # cron形式 (例: "0 3 * * *")
+    BACKUP_RETENTION_DAYS: int = 7
+
+    S3_ENDPOINT: Optional[str] = None
+    S3_BUCKET: Optional[str] = None
+    S3_ACCESS_KEY: Optional[str] = None
+    S3_SECRET_KEY: Optional[str] = None
+    S3_REGION: Optional[str] = None
+
+    @property
+    def is_local(self) -> bool:
+        """ローカル環境かどうか"""
+        return self.ENV_MODE == "local"
+
     @property
     def is_development(self) -> bool:
         """開発環境かどうか"""
-        return self.ENV_MODE == "development"
+        return self.ENV_MODE == "dev"
 
     @property
     def is_production(self) -> bool:
         """本番環境かどうか"""
-        return self.ENV_MODE == "production"
+        return self.ENV_MODE == "prod"
 
     @property
     def is_test(self) -> bool:

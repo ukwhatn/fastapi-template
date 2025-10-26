@@ -23,8 +23,7 @@ endif
 COMPOSE_CMD := docker compose -f $(COMPOSE_FILE) $(PROFILE_ARGS)
 
 # 共通変数
-DB_MIGRATOR_RUN := $(COMPOSE_CMD) run --rm db-migrator custom alembic
-DB_DUMPER_RUN := $(COMPOSE_CMD) run --rm db-dumper custom python dump.py
+ALEMBIC_DIR := app/infrastructure/database/alembic
 
 # ==== 環境セットアップ ====
 env:
@@ -85,19 +84,19 @@ test\:cov:
 	@uv run --active pytest tests/ -v --cov=app --cov-report=html
 
 lint:
-	@uv run --active ruff check ./app ./versions ./tests
+	@uv run --active ruff check ./app ./tests
 
 lint\:fix:
-	@uv run --active ruff check --fix ./app ./versions ./tests
+	@uv run --active ruff check --fix ./app ./tests
 
 format:
-	@uv run --active ruff format ./app ./versions ./tests
+	@uv run --active ruff format ./app ./tests
 
 format\:check:
-	@uv run --active ruff format --check ./app ./versions ./tests
+	@uv run --active ruff format --check ./app ./tests
 
 type-check:
-	@uv run --active mypy app versions tests
+	@uv run --active mypy app tests
 
 security\:scan:
 	@$(MAKE) security:scan:code
@@ -131,35 +130,79 @@ pre-commit\:update:
 
 # ==== DBマイグレーション ====
 db\:revision\:create:
-	@$(DB_MIGRATOR_RUN) revision --autogenerate -m '${NAME}'
+	@if [ -z "$(NAME)" ]; then \
+		echo "Error: NAME is required"; \
+		echo "Usage: make db:revision:create NAME=\"description\""; \
+		exit 1; \
+	fi
+	@cd $(ALEMBIC_DIR) && uv run alembic revision --autogenerate -m "$(NAME)"
 
 db\:migrate:
-	@$(DB_MIGRATOR_RUN) upgrade head
+	@uv run python -c "from app.infrastructure.database.migration import run_migrations; run_migrations()"
 
 db\:downgrade:
-	@$(DB_MIGRATOR_RUN) downgrade $(REV)
+	@if [ -z "$(REV)" ]; then \
+		echo "Error: REV is required"; \
+		echo "Usage: make db:downgrade REV=-1  # or specific revision"; \
+		exit 1; \
+	fi
+	@cd $(ALEMBIC_DIR) && uv run alembic downgrade $(REV)
 
 db\:current:
-	@$(DB_MIGRATOR_RUN) current
+	@cd $(ALEMBIC_DIR) && uv run alembic current
 
 db\:history:
-	@$(DB_MIGRATOR_RUN) history
+	@cd $(ALEMBIC_DIR) && uv run alembic history
 
 # ==== DBバックアップ ====
-db\:dump:
-	@$(COMPOSE_CMD) run --rm --build -e DB_TOOL_MODE=dumper -e DUMPER_MODE=interactive db-dumper custom python dump.py
+db\:backup\:oneshot:
+	@uv run python -m app.utils.backup_cli oneshot
 
-db\:dump\:oneshot:
-	@$(DB_DUMPER_RUN) oneshot
+db\:backup\:list:
+	@uv run python -m app.utils.backup_cli list
 
-db\:dump\:list:
-	@$(DB_DUMPER_RUN) list
+db\:backup\:list\:remote:
+	@uv run python -m app.utils.backup_cli list --remote
 
-db\:dump\:restore:
-	@$(DB_DUMPER_RUN) restore $(FILE)
+db\:backup\:diff:
+	@if [ -z "$(FILE)" ]; then \
+		echo "Error: FILE is required"; \
+		echo "Usage: make db:backup:diff FILE=\"backup_20250101_120000.backup.gz\""; \
+		exit 1; \
+	fi
+	@uv run python -m app.utils.backup_cli diff $(FILE)
 
-db\:dump\:test:
-	@$(DB_DUMPER_RUN) test --confirm
+db\:backup\:diff\:s3:
+	@if [ -z "$(FILE)" ]; then \
+		echo "Error: FILE is required"; \
+		echo "Usage: make db:backup:diff:s3 FILE=\"backup_20250101_120000.backup.gz\""; \
+		exit 1; \
+	fi
+	@uv run python -m app.utils.backup_cli diff $(FILE) --from-s3
+
+db\:backup\:restore:
+	@if [ -z "$(FILE)" ]; then \
+		echo "Error: FILE is required"; \
+		echo "Usage: make db:backup:restore FILE=\"backup_20250101_120000.backup.gz\""; \
+		exit 1; \
+	fi
+	@uv run python -m app.utils.backup_cli restore $(FILE)
+
+db\:backup\:restore\:s3:
+	@if [ -z "$(FILE)" ]; then \
+		echo "Error: FILE is required"; \
+		echo "Usage: make db:backup:restore:s3 FILE=\"backup_20250101_120000.backup.gz\""; \
+		exit 1; \
+	fi
+	@uv run python -m app.utils.backup_cli restore $(FILE) --from-s3
+
+db\:backup\:restore\:dry-run:
+	@if [ -z "$(FILE)" ]; then \
+		echo "Error: FILE is required"; \
+		echo "Usage: make db:backup:restore:dry-run FILE=\"backup_20250101_120000.backup.gz\""; \
+		exit 1; \
+	fi
+	@uv run python -m app.utils.backup_cli restore $(FILE) --dry-run
 
 # ==== Docker Compose操作 ====
 compose\:up:
@@ -167,6 +210,9 @@ compose\:up:
 
 compose\:down:
 	@$(COMPOSE_CMD) down
+
+compose\:down\:v:
+	@$(COMPOSE_CMD) down -v
 
 compose\:logs:
 	@$(COMPOSE_CMD) logs -f
@@ -192,6 +238,9 @@ local\:up:
 
 local\:down:
 	@ENV=local $(MAKE) compose:down
+
+local\:down\:v:
+	@ENV=local $(MAKE) compose:down:v
 
 local\:logs:
 	@ENV=local $(MAKE) compose:logs
@@ -331,4 +380,4 @@ template\:apply\:force:
 	git checkout $$commit_hash -- . && \
 	echo "テンプレートの変更が強制的に適用されました。変更を確認しgit add/commitしてください。"
 
-.PHONY: build build\:no-cache up down reload reset logs logs\:once ps pr\:create deploy\:prod uv\:add uv\:add\:dev uv\:lock uv\:update uv\:update\:all dev\:setup lint lint\:fix format format\:check type-check security\:scan security\:scan\:code security\:scan\:code\:critical security\:scan\:sast security\:scan\:sast\:critical security\:scan\:trivy test test\:cov db\:revision\:create db\:migrate db\:downgrade db\:current db\:history db\:dump db\:dump\:oneshot db\:dump\:list db\:dump\:restore db\:dump\:test env openapi\:generate compose\:up compose\:down compose\:logs compose\:ps compose\:pull compose\:restart compose\:build local\:up local\:down local\:logs local\:ps local\:serve dev\:deploy dev\:logs dev\:ps dev\:down prod\:deploy prod\:logs prod\:ps prod\:down watchtower\:setup watchtower\:logs watchtower\:status watchtower\:restart secrets\:encrypt\:dev secrets\:encrypt\:prod secrets\:decrypt\:dev secrets\:decrypt\:prod secrets\:edit\:dev secrets\:edit\:prod project\:rename project\:init template\:list template\:apply template\:apply\:range template\:apply\:force pre-commit\:install pre-commit\:run pre-commit\:update
+.PHONY: build build\:no-cache up down reload reset logs logs\:once ps pr\:create deploy\:prod uv\:add uv\:add\:dev uv\:lock uv\:update uv\:update\:all dev\:setup lint lint\:fix format format\:check type-check security\:scan security\:scan\:code security\:scan\:code\:critical security\:scan\:sast security\:scan\:sast\:critical security\:scan\:trivy test test\:cov db\:revision\:create db\:migrate db\:downgrade db\:current db\:history db\:backup\:oneshot db\:backup\:list db\:backup\:list\:remote db\:backup\:diff db\:backup\:diff\:s3 db\:backup\:restore db\:backup\:restore\:s3 db\:backup\:restore\:dry-run env openapi\:generate compose\:up compose\:down compose\:down\:v compose\:logs compose\:ps compose\:pull compose\:restart compose\:build local\:up local\:down local\:down\:v local\:logs local\:ps local\:serve dev\:deploy dev\:logs dev\:ps dev\:down prod\:deploy prod\:logs prod\:ps prod\:down watchtower\:setup watchtower\:logs watchtower\:status watchtower\:restart secrets\:encrypt\:dev secrets\:encrypt\:prod secrets\:decrypt\:dev secrets\:decrypt\:prod secrets\:edit\:dev secrets\:edit\:prod project\:rename project\:init template\:list template\:apply template\:apply\:range template\:apply\:force pre-commit\:install pre-commit\:run pre-commit\:update

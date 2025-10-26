@@ -52,8 +52,8 @@ echo "  Discord: discord://token@id"
 echo "  Slack: slack://token@channel"
 read -p "URL: " NOTIFICATION_URL
 
-# Poll interval (default: 600 seconds = 10 minutes)
-POLL_INTERVAL="${WATCHTOWER_POLL_INTERVAL:-600}"
+# Poll interval (default: 60 seconds = 1 minutes)
+POLL_INTERVAL="${WATCHTOWER_POLL_INTERVAL:-60}"
 
 # Build Watchtower command
 WATCHTOWER_CMD="docker run -d \
