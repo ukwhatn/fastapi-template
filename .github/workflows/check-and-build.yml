@@ -5,6 +5,9 @@ on:
     branches:
       - main
       - develop
+  pull_request:
+    branches:
+      - develop
   workflow_dispatch:
 
 concurrency:
@@ -31,6 +34,7 @@ jobs:
   # Build and push Docker image (main push or PR to main opened/reopened)
   build-and-push:
     needs: [lint, type-check, security, test, docker-test]
+    if: github.event_name == 'push'
     uses: ./.github/workflows/cd_build-push.yml
     secrets: inherit
 
