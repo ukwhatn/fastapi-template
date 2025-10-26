@@ -11,7 +11,7 @@ from sqlalchemy import create_engine, inspect, text
 from app.core.config import Settings, get_settings
 from app.core.logging import get_logger
 
-from .models import BackupData, BackupMetadata, TableBackup
+from .models import BackupData, BackupMetadata, DiffSummary, TableBackup, TableDiff
 
 logger = get_logger(__name__)
 
@@ -207,3 +207,96 @@ def create_backup(output_dir: Path | None = None) -> Path:
     except Exception as e:
         logger.error(f"Failed to create backup: {e}")
         raise RuntimeError(f"Failed to create backup: {e}") from e
+
+
+def calculate_diff(backup_path: Path) -> DiffSummary:
+    """
+    バックアップファイルと現在のデータベースの差分を計算する
+
+    Args:
+        backup_path: バックアップファイルのパス
+
+    Returns:
+        DiffSummary: 差分サマリ
+
+    Raises:
+        RuntimeError: 差分計算に失敗した場合
+    """
+    try:
+        settings = get_settings()
+
+        # バックアップファイルを読み込み
+        if not backup_path.exists():
+            raise FileNotFoundError(f"Backup file not found: {backup_path}")
+
+        compressed_data = backup_path.read_bytes()
+        json_data = gzip.decompress(compressed_data).decode("utf-8")
+        backup_data = BackupData.model_validate_json(json_data)
+
+        logger.info(f"Calculating diff with backup: {backup_path.name}")
+        logger.info(f"Backup created at: {backup_data.metadata.timestamp.isoformat()}")
+
+        # 現在のデータベースに接続
+        engine = create_engine(settings.database_uri)
+        inspector = inspect(engine)
+
+        # テーブルごとの差分を計算
+        table_diffs: dict[str, TableDiff] = {}
+        total_current_rows = 0
+        total_backup_rows = 0
+
+        # バックアップに含まれるテーブル
+        for table_name, table_backup in backup_data.tables.items():
+            backup_rows = table_backup.row_count
+
+            # 現在のテーブルの行数を取得
+            if table_name in inspector.get_table_names():
+                with engine.connect() as conn:
+                    result = conn.execute(
+                        text(f"SELECT COUNT(*) FROM {table_name}")
+                    ).fetchone()
+                    current_rows = result[0] if result else 0
+            else:
+                # テーブルが存在しない場合
+                current_rows = 0
+
+            # 差分を計算
+            diff = backup_rows - current_rows
+            table_diffs[table_name] = TableDiff(
+                current_rows=current_rows, backup_rows=backup_rows, diff=diff
+            )
+
+            total_current_rows += current_rows
+            total_backup_rows += backup_rows
+
+        # 現在のデータベースにのみ存在するテーブル
+        current_table_names = set(inspector.get_table_names())
+        backup_table_names = set(backup_data.tables.keys())
+        only_in_current = current_table_names - backup_table_names - {"alembic_version"}
+
+        for table_name in only_in_current:
+            with engine.connect() as conn:
+                result = conn.execute(
+                    text(f"SELECT COUNT(*) FROM {table_name}")
+                ).fetchone()
+                current_rows = result[0] if result else 0
+
+            table_diffs[table_name] = TableDiff(
+                current_rows=current_rows, backup_rows=0, diff=-current_rows
+            )
+            total_current_rows += current_rows
+
+        # サマリ作成
+        total_diff = total_backup_rows - total_current_rows
+        diff_summary = DiffSummary(
+            tables=table_diffs,
+            total_current_rows=total_current_rows,
+            total_backup_rows=total_backup_rows,
+            total_diff=total_diff,
+        )
+
+        return diff_summary
+
+    except Exception as e:
+        logger.error(f"Failed to calculate diff: {e}")
+        raise RuntimeError(f"Failed to calculate diff: {e}") from e
