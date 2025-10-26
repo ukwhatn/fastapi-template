@@ -23,7 +23,9 @@ class TestConfigDatabaseURI:
             SESSION_ENCRYPTION_KEY=Fernet.generate_key().decode(),
         )
 
-        expected = "postgresql://testuser:testpass@testhost:5433/testdb"
+        expected = (
+            "postgresql://testuser:testpass@testhost:5433/testdb?gssencmode=disable"
+        )
         assert settings.database_uri == expected
 
     def test_database_uri_always_returns_string(self) -> None:

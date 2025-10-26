@@ -71,7 +71,20 @@ def test_database() -> Generator[str, None, None]:
     # マイグレーション実行
     run_migrations(database_url)
 
+    # 環境変数を設定（integration testでlifespanイベントが正しいDBを使うように）
+    original_db_name = os.environ.get("POSTGRES_DB")
+    os.environ["POSTGRES_DB"] = _test_db_name
+
+    # get_settings()のキャッシュをクリア（環境変数変更を反映）
+    get_settings.cache_clear()
+
     yield _test_db_name
+
+    # 環境変数を元に戻す
+    if original_db_name is not None:
+        os.environ["POSTGRES_DB"] = original_db_name
+    else:
+        os.environ.pop("POSTGRES_DB", None)
 
     # DB削除
     drop_test_database(_test_db_name)
