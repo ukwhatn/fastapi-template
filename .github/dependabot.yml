@@ -64,7 +64,3 @@ updates:
     labels:
       - "dependencies"
       - "automated"
-    groups:
-      docker-images:
-        patterns:
-          - "*"
