@@ -16,7 +16,14 @@ from fastapi.templating import Jinja2Templates
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from .presentation import api_router
-from .core import APIError, ErrorResponse, ValidationError, get_settings
+from .core import (
+    APIError,
+    DomainError,
+    ErrorResponse,
+    ValidationError,
+    domain_error_to_api_error,
+    get_settings,
+)
 from .core.logging import get_logger
 from .presentation.middleware.security_headers import SecurityHeadersMiddleware
 from .infrastructure.database import get_db
@@ -168,9 +175,20 @@ app.add_middleware(SecurityHeadersMiddleware)
 
 
 # カスタムエラーハンドラ
+@app.exception_handler(DomainError)
+async def domain_error_handler(request: Request, exc: DomainError) -> Response:
+    """DomainError例外ハンドラ"""
+    api_error = domain_error_to_api_error(exc)
+    return Response(
+        content=json.dumps(jsonable_encoder(api_error.to_response())),
+        status_code=api_error.status_code,
+        media_type="application/json",
+    )
+
+
 @app.exception_handler(APIError)
 async def api_error_handler(request: Request, exc: APIError) -> Response:
-    """APIError例外ハンドラ"""
+    """APIError例外ハンドラ（後方互換性のため保持）"""
     return Response(
         content=json.dumps(jsonable_encoder(exc.to_response())),
         status_code=exc.status_code,
@@ -198,7 +216,7 @@ async def http_exception_handler(
 async def validation_exception_handler(
     request: Request, exc: RequestValidationError
 ) -> Response:
-    """バリデーションエラーハンドラ"""
+    """バリデーションエラーハンドラ（Pydantic）"""
     error = ValidationError(
         message="Invalid request body",
         details=[
@@ -206,9 +224,10 @@ async def validation_exception_handler(
             for err in exc.errors()
         ],
     )
+    api_error = domain_error_to_api_error(error)
     return Response(
-        content=json.dumps(jsonable_encoder(error.to_response())),
-        status_code=error.status_code,
+        content=json.dumps(jsonable_encoder(api_error.to_response())),
+        status_code=api_error.status_code,
         media_type="application/json",
     )
 
