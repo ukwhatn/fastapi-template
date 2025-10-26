@@ -26,7 +26,6 @@ from ..security.encryption import (
 )
 
 logger = get_logger(__name__)
-settings = get_settings()
 
 
 class SessionService:
@@ -71,6 +70,7 @@ class SessionService:
 
         # 有効期限計算
         if expire_seconds is None:
+            settings = get_settings()
             expire_seconds = settings.SESSION_EXPIRE
         expires_at = datetime.now(UTC) + timedelta(seconds=expire_seconds)
 

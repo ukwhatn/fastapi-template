@@ -11,8 +11,6 @@ from sqlalchemy.orm import Session as DBSession
 from ..infrastructure.repositories.session_repository import SessionService
 from ..core.config import get_settings
 
-settings = get_settings()
-
 
 def get_client_ip(request: Request) -> Optional[str]:
     """
@@ -64,6 +62,7 @@ def create_session(
     Returns:
         (session_id, csrf_token) のタプル
     """
+    settings = get_settings()
     service = SessionService(db)
     user_agent = get_user_agent(request)
     client_ip = get_client_ip(request)
@@ -100,6 +99,7 @@ def get_session_data(
     Returns:
         セッションデータ、存在しない場合はNone
     """
+    settings = get_settings()
     session_id = request.cookies.get(settings.SESSION_COOKIE_NAME)
     if not session_id:
         return None
@@ -129,6 +129,7 @@ def update_session_data(
     Returns:
         更新成功時True
     """
+    settings = get_settings()
     session_id = request.cookies.get(settings.SESSION_COOKIE_NAME)
     if not session_id:
         return False
@@ -156,6 +157,7 @@ def delete_session(
     Returns:
         削除成功時True
     """
+    settings = get_settings()
     session_id = request.cookies.get(settings.SESSION_COOKIE_NAME)
     if not session_id:
         return False
@@ -185,6 +187,7 @@ def regenerate_session_id(
     Returns:
         (新しいsession_id, 新しいcsrf_token) のタプル、失敗時はNone
     """
+    settings = get_settings()
     old_session_id = request.cookies.get(settings.SESSION_COOKIE_NAME)
     if not old_session_id:
         return None
@@ -222,6 +225,7 @@ def get_csrf_token(db: DBSession, request: Request) -> Optional[str]:
     Returns:
         CSRFトークン、セッションが存在しない場合はNone
     """
+    settings = get_settings()
     session_id = request.cookies.get(settings.SESSION_COOKIE_NAME)
     if not session_id:
         return None
