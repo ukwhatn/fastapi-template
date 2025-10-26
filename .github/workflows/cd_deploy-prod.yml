@@ -1,0 +1,25 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-and-push:
+    uses: ./.github/workflows/cd_build-push.yml
+    secrets: inherit
+
+  deploy:
+    needs: build-and-push
+    uses: ./.github/workflows/cd_deploy.yml
+    with:
+      environment: production
+      branch: main
+      image_tag: latest
+    secrets:
+      SSH_HOST: ${{ secrets.PROD_SSH_HOST }}
+      SSH_USER: ${{ secrets.PROD_SSH_USER }}
+      SSH_PORT: ${{ secrets.PROD_SSH_PORT }}
+      SSH_PRIVATE_KEY: ${{ secrets.PROD_SSH_PRIVATE_KEY }}

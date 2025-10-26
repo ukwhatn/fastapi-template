@@ -11,7 +11,7 @@
 services:
   server:
     container_name: ${COMPOSE_PROJECT_NAME:-fastapi-template}-server-prod
-    image: ghcr.io/${GITHUB_REPOSITORY:-owner/repo}:latest
+    image: ghcr.io/${GITHUB_REPOSITORY:-ukwhatn/fastapi-template}:latest
     command:
       - /bin/sh
       - -c
@@ -36,8 +36,6 @@ services:
         required: false
     networks:
       - prod
-    labels:
-      - "com.centurylinklabs.watchtower.enable=true"
 
   db:
     container_name: ${COMPOSE_PROJECT_NAME:-fastapi-template}-db-prod
@@ -59,8 +57,6 @@ services:
       - prod
     profiles:
       - local-db
-    labels:
-      - "com.centurylinklabs.watchtower.enable=false"
 
 volumes:
   pg_data_prod:

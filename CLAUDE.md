@@ -97,18 +97,17 @@ make ps                     # Show running containers
 docker compose -f compose.local.yml up -d
 uv run fastapi dev app/main.py
 
-# Dev environment (auto-deploy via Watchtower)
-make dev:deploy             # Deploy to dev environment
+# Dev environment (auto-deploy via GitHub Actions)
+# Server setup (one-time): ./scripts/setup-server.sh dev
+# Then push to develop branch for auto-deploy
 make dev:logs               # View dev logs
 make dev:ps                 # Check dev status
 
-# Production environment (auto-deploy via Watchtower)
-make prod:deploy            # Deploy to production (with confirmation)
+# Production environment (auto-deploy via GitHub Actions)
+# Server setup (one-time): ./scripts/setup-server.sh prod
+# Then push to main branch for auto-deploy
 make prod:logs              # View production logs
 make prod:ps                # Check production status
-
-# Watchtower setup (one-time per server)
-./scripts/setup-watchtower.sh
 
 # Secrets management (SOPS + age)
 make secrets:encrypt:dev    # Encrypt dev secrets
@@ -246,10 +245,9 @@ IMPORTANT: Follow these conventions strictly:
 - **Automatic execution**: Migrations run on application startup (FastAPI lifespan event)
 - **Location**: `app/infrastructure/database/alembic/versions/`
 - **Safety**: If migration fails, application startup stops (prevents data corruption)
-- **Watchtower compatibility**: When Watchtower updates the server image, migrations run automatically
+- **Auto-deploy compatibility**: When GitHub Actions deploys new image, migrations run automatically
 - **Idempotency**: Alembic ensures migrations only run once (safe to restart)
 - **Manual rollback**: Use `make db:downgrade REV=-1` if needed
-- **Legacy db-migrator**: Removed (migrations now embedded in server container)
 
 ### Docker Profiles
 - Use `--profile local-db` to enable local database container
@@ -263,15 +261,15 @@ IMPORTANT: Follow these conventions strictly:
 
 ## Deployment Architecture
 
-IMPORTANT: The project uses three distinct deployment environments with automatic updates.
+IMPORTANT: The project uses three distinct deployment environments with GitHub Actions auto-deploy.
 
 ### Environment Overview
 
 | Environment | App Execution | Database | Proxy | Auto-Deploy | Compose File |
 |-------------|--------------|----------|-------|-------------|--------------|
 | **Local** | uv native (hot reload) | Docker (optional) | None | No | `compose.local.yml` |
-| **Dev** | Docker (GHCR.io) | Docker PostgreSQL | Cloudflare Tunnels | Watchtower (develop) | `compose.dev.yml` |
-| **Prod** | Docker (GHCR.io) | External (Supabase) | nginx + Cloudflare | Watchtower (latest) | `compose.prod.yml` |
+| **Dev** | Docker (GHCR.io) | Docker PostgreSQL | Cloudflare Tunnels | GitHub Actions (develop) | `compose.dev.yml` |
+| **Prod** | Docker (GHCR.io) | External (Supabase) | nginx + Cloudflare | GitHub Actions (main) | `compose.prod.yml` |
 
 ### Key Deployment Features
 
@@ -281,28 +279,11 @@ IMPORTANT: The project uses three distinct deployment environments with automati
 - `main` branch → `latest` + `main` + `main-sha-xxx` tags
 - `develop` branch → `develop` + `develop-sha-xxx` tags
 
-**Automatic deployment**: Watchtower monitors GHCR.io and auto-updates containers (10 min polling)
+**Automatic deployment**: GitHub Actions SSHs into server and deploys on push to develop/main
 
-**Label-based control**: Only containers with `com.centurylinklabs.watchtower.enable=true` update
+**Sparse checkout**: Server only clones necessary files (compose.yml, Makefile, etc.) to minimize disk usage
 
 **Secrets management**: SOPS + age for encrypted environment files (`.env.dev.enc`, `.env.prod.enc`)
-
-### Watchtower Setup
-
-**One Watchtower per server** (not per project):
-- Label-based control prevents unintended updates
-- Weekly self-update via cron
-- Discord/Slack notifications via Shoutrrr
-- Setup: `./scripts/setup-watchtower.sh`
-
-**Auto-update enabled for**:
-- `server` container
-- `db-dumper` container (from ukwhatn/postgres-tools)
-- `db-migrator` container (from ukwhatn/postgres-tools)
-
-**Auto-update disabled for**:
-- `db` container (PostgreSQL)
-- `cloudflared` container
 
 ### Secrets Management (SOPS + age)
 
@@ -316,9 +297,12 @@ IMPORTANT: The project uses three distinct deployment environments with automati
 5. Commit encrypted file to Git
 
 **Deployment flow**:
-1. Deploy script decrypts `.env.dev.enc` → `.env`
-2. Starts containers with decrypted secrets
-3. Removes `.env` after deployment
+1. GitHub Actions builds image and pushes to GHCR.io
+2. GitHub Actions SSHs into server
+3. Server runs `git pull` to get latest compose.yml
+4. Server runs `docker compose pull` to get latest image
+5. Server runs `docker compose up -d --force-recreate` to restart containers
+6. Health check confirmation (60s timeout)
 
 **Reference**: See `docs/secrets-management.md` for detailed guide
 
@@ -332,36 +316,40 @@ uv run fastapi dev app/main.py
 
 **Dev deployment** (initial):
 ```bash
-./scripts/setup-watchtower.sh  # One-time per server
-./scripts/deploy-dev.sh         # Deploy
+# On server (one-time setup)
+./scripts/setup-server.sh dev
+
+# Configure GitHub Secrets (one-time):
+# DEV_SSH_HOST, DEV_SSH_USER, DEV_SSH_PORT, DEV_SSH_PRIVATE_KEY
 ```
 
 **Dev deployment** (subsequent):
 ```bash
-git push origin develop        # GitHub Actions builds and pushes
-# Watchtower auto-updates within 10 minutes
+git push origin develop        # GitHub Actions auto-deploys
 ```
 
 **Production deployment** (initial):
 ```bash
-./scripts/setup-watchtower.sh  # One-time per server
-./scripts/deploy-prod.sh        # Deploy with confirmation
+# On server (one-time setup)
+./scripts/setup-server.sh prod
+
+# Configure GitHub Secrets (one-time):
+# PROD_SSH_HOST, PROD_SSH_USER, PROD_SSH_PORT, PROD_SSH_PRIVATE_KEY
 ```
 
 **Production deployment** (subsequent):
 ```bash
-git push origin main           # GitHub Actions builds and pushes
-# Watchtower auto-updates within 10 minutes
+git push origin main           # GitHub Actions auto-deploys
 ```
 
 ### Important Deployment Notes
 
-- **No SSH required**: All deployments use GHCR.io pull + Watchtower
-- **Downtime**: 10-30 seconds during auto-updates
-- **Branch isolation**: develop and main branches use different tags (no cross-contamination)
-- **Rollback**: Use SHA tags for specific version deployment
-- **Monitoring**: Check Watchtower logs with `docker logs watchtower -f`
-- **Health checks**: Containers have built-in health checks; Watchtower respects them
+- **SSH managed by GitHub Actions**: Developers don't need server access
+- **Downtime**: ~10-30 seconds during deploys (forced container recreation)
+- **Branch isolation**: develop and main branches use different tags and servers
+- **Rollback**: Use `git revert` and push, or manually checkout previous commit on server
+- **Monitoring**: Check GitHub Actions logs and server logs with `ENV={dev|prod} make compose:logs`
+- **Health checks**: Deployment fails if health check doesn't pass within 60 seconds
 
 **Reference**: See `docs/deployment.md` for comprehensive deployment guide
 

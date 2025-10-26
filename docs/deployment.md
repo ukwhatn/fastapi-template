@@ -10,7 +10,6 @@
 - [ローカル開発](#ローカル開発)
 - [開発環境](#開発環境)
 - [本番環境](#本番環境)
-- [Watchtowerセットアップ](#watchtowerセットアップ)
 - [トラブルシューティング](#トラブルシューティング)
 
 ## 概要
@@ -20,16 +19,16 @@
 | 環境 | アプリ実行 | データベース | プロキシ | 自動デプロイ |
 |------|-----------|-------------|---------|-------------|
 | **Local** | uvネイティブ | Docker（オプション） | なし | なし |
-| **Dev** | Docker（GHCR.io） | Docker PostgreSQL | Cloudflare Tunnels | Watchtower（develop） |
-| **Prod** | Docker（GHCR.io） | 外部（Supabase） | nginx + Cloudflare | Watchtower（latest） |
+| **Dev** | Docker（GHCR.io） | Docker PostgreSQL | Cloudflare Tunnels | GitHub Actions（develop） |
+| **Prod** | Docker（GHCR.io） | 外部（Supabase） | nginx + Cloudflare | GitHub Actions（main） |
 
 ### 主な機能
 
 - **マルチプラットフォームビルド**: linux/amd64, linux/arm64
-- **自動デプロイ**: WatchtowerがGHCR.ioの更新を監視
-- **ラベルベース制御**: `watchtower.enable=true`のコンテナのみ更新
+- **自動デプロイ**: GitHub ActionsがSSH経由でサーバーにデプロイ
+- **Sparse Checkout**: 必要最小限のファイルのみクローン
 - **暗号化シークレット**: SOPS + ageによる安全なシークレット管理
-- **SSH不要**: デプロイにSSHは不要
+- **SSH不要（開発者側）**: デプロイはGitHub Actionsが自動実行
 
 ## 環境設定
 
@@ -47,26 +46,26 @@ uv run fastapi dev app/main.py --host 0.0.0.0 --port 8000
 
 ### Dev
 
-自動更新付きDocker開発環境：
+GitHub Actions自動デプロイ：
 
 ```bash
-# Dev環境デプロイ
-make dev:deploy
+# 開発サーバーで初回セットアップ（1回のみ）
+./scripts/setup-server.sh dev
 
-# または手動で
-./scripts/deploy-dev.sh
+# 以降はdevelopブランチへのpushで自動デプロイ
+git push origin develop
 ```
 
 ### Prod
 
-外部データベース使用の本番環境：
+GitHub Actions自動デプロイ：
 
 ```bash
-# 本番環境デプロイ
-make prod:deploy
+# 本番サーバーで初回セットアップ（1回のみ）
+./scripts/setup-server.sh prod
 
-# または手動で
-./scripts/deploy-prod.sh
+# 以降はmainブランチへのpushで自動デプロイ
+git push origin main
 ```
 
 ## 前提条件
@@ -82,11 +81,15 @@ make prod:deploy
 - uv（Pythonパッケージマネージャー）
 - Python 3.13+
 
-### Dev/Prodのみ
+### Dev/Prodのみ（サーバー側）
 
 - SOPS（[インストール方法](https://github.com/getsops/sops#download)）
 - age（[インストール方法](https://github.com/FiloSottile/age#installation)）
-- `packages:read`権限付きGitHub Personal Access Token
+- SSH サーバー（GitHub Actionsからの接続用）
+
+### Dev/Prod（GitHub側）
+
+- GitHub Secrets設定（後述）
 
 ## ローカル開発
 
@@ -94,8 +97,8 @@ make prod:deploy
 
 1. **リポジトリクローン**
    ```bash
-   git clone https://github.com/owner/repo.git
-   cd repo
+   git clone https://github.com/ukwhatn/fastapi-template.git
+   cd fastapi-template
    ```
 
 2. **依存関係インストール**
@@ -139,101 +142,100 @@ docker compose -f compose.local.yml down
 
 ### 初期セットアップ（サーバーごとに1回）
 
-1. **前提条件インストール**
-   ```bash
-   # SOPSインストール
-   curl -LO https://github.com/getsops/sops/releases/latest/download/sops-latest.linux.amd64
-   sudo mv sops-latest.linux.amd64 /usr/local/bin/sops
-   sudo chmod +x /usr/local/bin/sops
-
-   # ageインストール
-   sudo apt install age  # Ubuntu/Debian
-   # または
-   brew install age  # macOS
-   ```
-
-2. **ageキーペア生成**（存在しない場合）
-   ```bash
-   mkdir -p ~/.config/sops/age
-   age-keygen -o ~/.config/sops/age/keys.txt
-
-   # 公開鍵（age1xxx...）を保存して.sops.yamlを更新
-   cat ~/.config/sops/age/keys.txt | grep "public key:"
-   ```
-
-3. **Watchtowerセットアップ**（サーバーごとに1つ）
-   ```bash
-   ./scripts/setup-watchtower.sh
-
-   # 選択: 1 (dev)
-   # Discord/Slack通知URL入力（オプション）
-   ```
-
-4. **GitHub認証設定**
-   ```bash
-   # GitHub Personal Access Tokenを作成:
-   # https://github.com/settings/tokens/new
-   # 必要な権限: packages:read
-
-   # .env.devに追加:
-   echo "GITHUB_USER=your-username" >> .env.dev
-   echo "GITHUB_TOKEN=ghp_xxxxx" >> .env.dev
-   ```
-
-5. **シークレット暗号化**
-   ```bash
-   # .sops.yamlを公開鍵で更新
-   nano .sops.yaml
-
-   # Dev環境を作成して暗号化
-   cp .env.example .env.dev
-   nano .env.dev  # Dev設定で編集
-   sops -e .env.dev > .env.dev.enc
-
-   # 暗号化ファイルをコミット
-   git add .env.dev.enc .sops.yaml
-   git commit -m "Add encrypted dev secrets"
-   git push
-   ```
-
-### デプロイ
+#### 1. 前提条件インストール
 
 ```bash
-# Devサーバーでリポジトリクローン
-git clone https://github.com/owner/repo.git
-cd repo
+# SOPSインストール
+curl -LO https://github.com/getsops/sops/releases/latest/download/sops-latest.linux.amd64
+sudo mv sops-latest.linux.amd64 /usr/local/bin/sops
+sudo chmod +x /usr/local/bin/sops
 
-# デプロイ
-./scripts/deploy-dev.sh
+# ageインストール
+sudo apt install age  # Ubuntu/Debian
+# または
+brew install age  # macOS
 ```
 
-### 自動更新
+#### 2. ageキーペア生成（存在しない場合）
 
-`develop`ブランチにpushすると：
+```bash
+mkdir -p ~/.config/sops/age
+age-keygen -o ~/.config/sops/age/keys.txt
 
-1. GitHub Actionsがビルドして`develop`タグでGHCR.ioにpush
-2. Watchtowerが新しいイメージを検出（10分以内）
-3. Watchtowerが`watchtower.enable=true`のコンテナをpull＆再起動
-4. Discord/Slackに通知送信
-5. ダウンタイム: 10-30秒
+# 公開鍵（age1xxx...）を保存して.sops.yamlを更新
+cat ~/.config/sops/age/keys.txt | grep "public key:"
+```
+
+#### 3. 暗号化ファイル作成（ローカルで）
+
+```bash
+# Dev環境設定を作成
+cp .env.example .env.dev
+nano .env.dev  # Dev設定で編集
+
+# 暗号化
+sops -e .env.dev > .env.dev.enc
+
+# Gitにコミット
+git add .env.dev.enc .sops.yaml
+git commit -m "Add encrypted dev secrets"
+git push
+```
+
+#### 4. サーバーで初回セットアップ
+
+```bash
+# リポジトリクローン（sparse checkout）
+curl -o setup-server.sh https://raw.githubusercontent.com/ukwhatn/fastapi-template/develop/scripts/setup-server.sh
+chmod +x setup-server.sh
+./setup-server.sh dev
+
+# または手動で：
+git clone --filter=blob:none --sparse https://github.com/ukwhatn/fastapi-template.git
+cd fastapi-template
+git sparse-checkout set compose.dev.yml .env.dev.enc .sops.yaml Makefile newrelic.ini
+sops -d .env.dev.enc > .env
+# .envを確認して
+ENV=dev make compose:pull
+ENV=dev make compose:up
+```
+
+#### 5. GitHub Secrets設定
+
+GitHubリポジトリの Settings > Secrets and variables > Actions で以下を設定：
+
+- `DEV_SSH_HOST`: 開発サーバーのホスト名またはIP
+- `DEV_SSH_USER`: SSHユーザー名
+- `DEV_SSH_PORT`: SSHポート（デフォルト: 22）
+- `DEV_SSH_PRIVATE_KEY`: SSH秘密鍵（`cat ~/.ssh/id_rsa`）
+
+### 自動デプロイ
+
+`develop` ブランチにpushすると：
+
+1. GitHub Actions CI実行（lint, test等）
+2. Dockerイメージビルド＆GHCR.ioにpush（`develop`タグ）
+3. SSH経由でサーバー接続
+4. `git pull origin develop` で最新のcompose.yml等を取得
+5. `docker compose pull` で最新イメージ取得
+6. `docker compose up -d --force-recreate` でコンテナ再起動
+7. ヘルスチェック確認（60秒タイムアウト）
+8. 成功/失敗をGitHub Actionsに報告
 
 ### 手動操作
 
 ```bash
 # ログ表示
-docker compose -f compose.dev.yml logs -f
+ENV=dev make compose:logs
 
 # ステータス確認
-docker compose -f compose.dev.yml ps
-
-# Watchtowerログ確認
-docker logs watchtower -f
+ENV=dev make compose:ps
 
 # サービス再起動
-docker compose -f compose.dev.yml restart
+ENV=dev make compose:restart
 
 # サービス停止
-docker compose -f compose.dev.yml down
+ENV=dev make compose:down
 ```
 
 ## 本番環境
@@ -242,84 +244,29 @@ docker compose -f compose.dev.yml down
 
 [開発環境 初期セットアップ](#初期セットアップサーバーごとに1回)と同じですが：
 
-1. ステップ4で本番設定を使用
-2. Watchtowerセットアップで`2 (prod)`を選択
-3. `.env.dev`の代わりに`.env.prod`を使用
+1. ステップ3で本番設定を使用（`.env.prod`）
+2. ステップ4で `./setup-server.sh prod` を実行
+3. GitHub Secretsは `PROD_` プレフィックスを使用
 
-### デプロイ
+### 自動デプロイ
 
-```bash
-# 本番サーバーでリポジトリクローン
-git clone https://github.com/owner/repo.git
-cd repo
+`main` ブランチにpushすると：
 
-# デプロイ（確認プロンプト付き）
-./scripts/deploy-prod.sh
-```
-
-### 自動更新
-
-`main`ブランチにpushすると：
-
-1. GitHub Actionsがビルドして`latest`タグでGHCR.ioにpush
-2. Watchtowerが新しいイメージを検出（10分以内）
-3. Watchtowerがコンテナをpull＆再起動
-4. Discord/Slackに通知送信
-5. ダウンタイム: 10-30秒
+1. GitHub Actions CI実行
+2. Dockerイメージビルド＆GHCR.ioにpush（`latest`タグ）
+3. SSH経由でサーバーにデプロイ
+4. ヘルスチェック確認
+5. 成功/失敗をGitHub Actionsに報告
 
 ### 手動操作
 
 Devと同じですが、`compose.prod.yml`を使用：
 
 ```bash
-docker compose -f compose.prod.yml logs -f
-docker compose -f compose.prod.yml ps
-docker compose -f compose.prod.yml restart
-docker compose -f compose.prod.yml down
-```
-
-## Watchtowerセットアップ
-
-### 概要
-
-- **サーバーごとに1つのWatchtower**（プロジェクトごとではない）
-- **ラベルベース制御**: `watchtower.enable=true`のコンテナのみ更新
-- **自己更新**: cronによる週1回の自動更新
-
-### 設定
-
-`setup-watchtower.sh`スクリプトが以下を設定：
-
-- ポーリング間隔: 600秒（10分）
-- クリーンアップ: 更新後に古いイメージを削除
-- 通知: Shoutrrr経由でDiscord/Slack
-- Cron: 週1回の自己更新
-
-### ラベル
-
-コンテナはWatchtower制御用にラベル付け：
-
-```yaml
-# 自動更新有効
-labels:
-  - "com.centurylinklabs.watchtower.enable=true"
-
-# 自動更新無効
-labels:
-  - "com.centurylinklabs.watchtower.enable=false"
-```
-
-### 監視
-
-```bash
-# Watchtowerログ
-docker logs watchtower -f
-
-# Watchtowerステータス
-docker ps --filter "name=watchtower"
-
-# 自己更新ログ
-sudo cat /var/log/watchtower-update.log
+ENV=prod make compose:logs
+ENV=prod make compose:ps
+ENV=prod make compose:restart
+ENV=prod make compose:down
 ```
 
 ## トラブルシューティング
@@ -331,36 +278,37 @@ sudo cat /var/log/watchtower-update.log
 **解決方法**:
 ```bash
 # GHCR.ioに再ログイン
+source .env
 echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_USER" --password-stdin
 
 # トークン権限確認（packages:read必要）
 gh auth status
 ```
 
-### Watchtowerが更新しない
+### GitHub Actions デプロイ失敗
 
-**症状**: 新しいイメージが利用可能だがコンテナが更新されない
+**症状**: SSH接続エラーまたはpermission denied
 
 **診断**:
 ```bash
-# Watchtowerログ確認
-docker logs watchtower -f
+# SSH接続テスト（ローカルから）
+ssh -i ~/.ssh/id_rsa -p 22 user@host
 
-# ラベル確認
-docker inspect myapp-dev-server | grep watchtower
-# 期待値: "com.centurylinklabs.watchtower.enable": "true"
-
-# Watchtower実行中か確認
-docker ps --filter "name=watchtower"
+# GitHub Secrets確認
+# Settings > Secrets > Actions で設定を確認
 ```
 
 **解決方法**:
 ```bash
-# Watchtower再起動
-docker restart watchtower
+# SSH鍵を再生成
+ssh-keygen -t ed25519 -C "github-actions"
 
-# または再作成
-./scripts/setup-watchtower.sh
+# 公開鍵をサーバーに追加
+ssh-copy-id -i ~/.ssh/id_ed25519.pub user@host
+
+# 秘密鍵をGitHub Secretsに追加
+cat ~/.ssh/id_ed25519 | pbcopy  # macOS
+# GitHub Settings > Secrets > DEV_SSH_PRIVATE_KEY に貼り付け
 ```
 
 ### SOPS復号化エラー
@@ -386,83 +334,82 @@ sops -d .env.dev.enc
 **診断**:
 ```bash
 # コンテナログ確認
-docker compose -f compose.dev.yml logs server
+ENV=dev make compose:logs
 
 # ヘルスステータス確認
-docker ps --filter "name=server"
+ENV=dev make compose:ps
 
 # ヘルスエンドポイントテスト
-docker exec myapp-dev-server curl -f http://localhost:80/system/healthcheck/
+docker exec fastapi-template-server-dev curl -f http://localhost:80/system/healthcheck/
 ```
 
 **解決方法**:
 ```bash
 # DATABASE_URLが正しいか確認
-docker exec myapp-dev-server env | grep DATABASE
-
-# マイグレーション実行確認
-docker compose -f compose.dev.yml logs db-migrator
+docker exec fastapi-template-server-dev env | grep DATABASE
 
 # サービス再起動
-docker compose -f compose.dev.yml restart
+ENV=dev make compose:restart
 ```
 
-### Watchtowerが誤ったコンテナを更新
+### git pull失敗（サーバー側）
 
-**症状**: 無関係なコンテナが更新された
+**症状**: GitHub Actionsデプロイ時に`git pull`でコンフリクト
 
 **解決方法**:
-
-ラベルベース制御では発生しないはずです。確認：
-
 ```bash
-# Watchtower設定確認
-docker inspect watchtower | grep WATCHTOWER_LABEL_ENABLE
-# 期待値: "WATCHTOWER_LABEL_ENABLE=true"
+# サーバーでローカル変更を破棄
+cd fastapi-template
+git reset --hard origin/develop  # または origin/main
 
-# 全コンテナのラベル確認
-docker inspect <container-name> | grep watchtower
-
-# ラベル制御付きでWatchtower再作成
-docker stop watchtower
-docker rm watchtower
-./scripts/setup-watchtower.sh
-```
-
-### developブランチが本番環境にデプロイされた
-
-**症状**: Dev用コードが本番環境で実行されている
-
-**予防策**:
-
-これは起こりえません。理由：
-- `compose.prod.yml` → `latest`タグ（`main`から）
-- `compose.dev.yml` → `develop`タグ（`develop`から）
-- タグは完全に分離
-
-**復旧方法**:
-```bash
-# 正しいイメージをpull
-docker compose -f compose.prod.yml pull
-
-# 再起動
-docker compose -f compose.prod.yml up -d
+# 再デプロイ
+git push origin develop --force-with-lease
 ```
 
 ## ベストプラクティス
 
 1. **Dev/Prodでは常に暗号化envファイルを使用**
 2. **`.env`や秘密鍵をgitにコミットしない**
-3. **更新後はWatchtowerログを監視**
+3. **デプロイ後はGitHub Actionsログを確認**
 4. **本番デプロイ前にDevでテスト**
 5. **age鍵を安全にバックアップ**
 6. **GitHubトークンを定期的にローテート**
-7. **Watchtower更新ログを週1回確認**
+7. **SSH鍵は専用のものを使用（GitHub Actions専用）**
+
+## ロールバック手順
+
+### 方法1: Gitでrevert（推奨）
+
+```bash
+# 問題のあるコミットをrevert
+git revert <commit-hash>
+git push origin develop  # または main
+
+# GitHub Actionsが自動で前のバージョンをデプロイ
+```
+
+### 方法2: 手動ロールバック
+
+```bash
+# サーバーにSSH
+ssh user@host
+cd fastapi-template
+
+# 特定のコミットにチェックアウト
+git checkout <previous-commit-hash>
+
+# 再起動
+ENV=dev docker compose pull
+ENV=dev docker compose up -d --force-recreate
+
+# 確認後、元に戻す
+git checkout develop  # または main
+```
 
 ## 参考資料
 
 - [SOPS Documentation](https://github.com/getsops/sops)
 - [age Documentation](https://github.com/FiloSottile/age)
-- [Watchtower Documentation](https://containrrr.dev/watchtower/)
+- [GitHub Actions SSH Action](https://github.com/appleboy/ssh-action)
 - [GHCR Documentation](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry)
 - [Secrets Management Guide](./secrets-management.md)
