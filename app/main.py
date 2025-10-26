@@ -49,7 +49,6 @@ if settings.is_production:
     app_params["openapi_url"] = None
 
 if settings.is_production and settings.NEW_RELIC_LICENSE_KEY:
-    print("New Relic!")
     import newrelic.agent
 
     os.environ["NEW_RELIC_LICENSE_KEY"] = settings.NEW_RELIC_LICENSE_KEY
