@@ -26,7 +26,7 @@ def get_local_backups() -> List[Path]:
         return []
 
     backups = sorted(
-        local_backup_dir.glob("backup_*.dump"),
+        local_backup_dir.glob("backup_*.backup.gz"),
         key=lambda p: p.stat().st_mtime,
         reverse=True,
     )
@@ -57,7 +57,11 @@ def get_s3_backups() -> List[str]:
 
         # OpenDALのlist機能を使用してバックアップファイルを列挙
         entries = storage.list("")
-        backups = [entry.path for entry in entries if entry.path.startswith("backup_")]
+        backups = [
+            entry.path
+            for entry in entries
+            if entry.path.startswith("backup_") and entry.path.endswith(".backup.gz")
+        ]
         return sorted(backups, reverse=True)
     except Exception as e:
         logger.error(f"Failed to list S3 backups: {e}")
@@ -113,6 +117,87 @@ def backup_list(remote: bool) -> None:
                 click.echo(f"  - {s3_backup}")
         else:
             click.echo("\nNo S3 backups found (or S3 not configured)")
+
+
+@cli.command("diff")
+@click.argument("backup_file")
+@click.option(
+    "--from-s3",
+    is_flag=True,
+    help="S3からバックアップを取得",
+)
+def backup_diff(backup_file: str, from_s3: bool) -> None:
+    """
+    バックアップと現在のデータベースの差分を表示する。
+
+    BACKUP_FILE: 比較するバックアップファイル名
+    """
+    from app.infrastructure.database.backup.core import calculate_diff
+
+    settings = get_settings()
+
+    restore_path: Optional[Path] = None
+
+    try:
+        # S3からダウンロード
+        if from_s3:
+            if not (
+                settings.S3_ENDPOINT and settings.S3_BUCKET and settings.S3_ACCESS_KEY
+            ):
+                click.echo("✗ S3 storage not configured", err=True)
+                raise click.Abort()
+
+            click.echo(f"Downloading from S3: {backup_file}")
+
+            storage = opendal.Operator(
+                "s3",
+                endpoint=settings.S3_ENDPOINT,
+                bucket=settings.S3_BUCKET,
+                access_key_id=settings.S3_ACCESS_KEY,
+                secret_access_key=settings.S3_SECRET_KEY,
+                region=settings.S3_REGION or "us-east-1",
+            )
+
+            data = storage.read(backup_file)
+
+            # 一時ファイルに保存
+            import tempfile
+
+            temp_dir = Path(tempfile.mkdtemp())
+            restore_path = temp_dir / backup_file
+            restore_path.write_bytes(data)
+        else:
+            # ローカルファイル
+            restore_path = Path("./backups") / backup_file
+            if not restore_path.exists():
+                click.echo(f"✗ Backup file not found: {restore_path}", err=True)
+                raise click.Abort()
+
+        # Diffを計算
+        click.echo(f"Calculating diff for: {backup_file}")
+        diff_summary = calculate_diff(restore_path)
+
+        click.echo("\nBackup diff summary:")
+        for table_name, table_diff in diff_summary.tables.items():
+            sign = "+" if table_diff.diff > 0 else ""
+            click.echo(
+                f"  {table_name}: {table_diff.current_rows} rows → {table_diff.backup_rows} rows ({sign}{table_diff.diff})"
+            )
+
+        sign = "+" if diff_summary.total_diff > 0 else ""
+        click.echo(
+            f"\nTotal: {diff_summary.total_current_rows} rows → {diff_summary.total_backup_rows} rows ({sign}{diff_summary.total_diff})"
+        )
+
+    except Exception as e:
+        click.echo(f"✗ Failed to calculate diff: {e}", err=True)
+        raise click.Abort()
+    finally:
+        # S3からダウンロードした場合、一時ファイルを削除
+        if from_s3 and restore_path and restore_path.parent.name.startswith("tmp"):
+            import shutil
+
+            shutil.rmtree(restore_path.parent, ignore_errors=True)
 
 
 @cli.command("restore")
