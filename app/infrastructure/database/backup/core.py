@@ -69,7 +69,7 @@ def get_current_migration_version() -> str:
             ).fetchone()
 
             if result:
-                return result[0]
+                return str(result[0])
             else:
                 logger.warning("No migration version found in database")
                 return ""
