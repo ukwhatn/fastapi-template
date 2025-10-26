@@ -1,91 +1,127 @@
-from typing import Any, Dict, List, Optional, Union
+"""
+ドメイン層の例外クラス
 
-from fastapi import HTTPException, status
-from pydantic import BaseModel
+ビジネスロジックで発生するエラーを表現する純粋なPython例外。
+フレームワークに依存しない。
+"""
+
+from typing import Any, Optional
 
 
-class ErrorResponse(BaseModel):
+class DomainError(Exception):
     """
-    標準エラーレスポンス
+    ドメイン層のベース例外
+
+    ビジネスロジックで発生するエラーを表現する純粋なPython例外。
+    フレームワークに依存しない。
+
+    Attributes:
+        message: エラーメッセージ
+        code: エラーコード（識別子）
+        details: エラーの詳細情報（オプション）
     """
-
-    status: str = "error"
-    code: str
-    message: str
-    details: Optional[Union[List[Dict[str, Any]], Dict[str, Any]]] = None
-
-
-class APIError(HTTPException):
-    """
-    API エラーの基底クラス
-    """
-
-    status_code: int = status.HTTP_500_INTERNAL_SERVER_ERROR
-    error_code: str = "internal_server_error"
-    error_message: str = "Internal server error"
 
     def __init__(
         self,
-        message: Optional[str] = None,
-        details: Optional[Union[List[Dict[str, Any]], Dict[str, Any]]] = None,
-    ):
-        self.error_message = message or self.error_message
+        message: str,
+        code: str,
+        details: Optional[dict[str, Any]] = None,
+    ) -> None:
+        """
+        Args:
+            message: エラーメッセージ
+            code: エラーコード
+            details: エラーの詳細情報（オプション）
+        """
+        self.message = message
+        self.code = code
         self.details = details
-        super().__init__(status_code=self.status_code, detail=self.error_message)
+        super().__init__(message)
 
-    def to_response(self) -> ErrorResponse:
+
+class NotFoundError(DomainError):
+    """リソースが見つからない場合のエラー"""
+
+    def __init__(
+        self,
+        message: str = "Resource not found",
+        details: Optional[dict[str, Any]] = None,
+    ) -> None:
         """
-        標準エラーレスポンス形式に変換
+        Args:
+            message: エラーメッセージ
+            details: エラーの詳細情報（オプション）
         """
-        return ErrorResponse(
-            code=self.error_code, message=self.error_message, details=self.details
-        )
+        super().__init__(message=message, code="not_found", details=details)
 
 
-class NotFoundError(APIError):
-    """
-    リソースが見つからない場合のエラー
-    """
+class BadRequestError(DomainError):
+    """不正なリクエストエラー"""
 
-    status_code = status.HTTP_404_NOT_FOUND
-    error_code = "not_found"
-    error_message = "Resource not found"
-
-
-class BadRequestError(APIError):
-    """
-    不正なリクエストエラー
-    """
-
-    status_code = status.HTTP_400_BAD_REQUEST
-    error_code = "bad_request"
-    error_message = "Bad request"
+    def __init__(
+        self,
+        message: str = "Bad request",
+        details: Optional[dict[str, Any]] = None,
+    ) -> None:
+        """
+        Args:
+            message: エラーメッセージ
+            details: エラーの詳細情報（オプション）
+        """
+        super().__init__(message=message, code="bad_request", details=details)
 
 
-class UnauthorizedError(APIError):
-    """
-    認証エラー
-    """
+class UnauthorizedError(DomainError):
+    """認証エラー"""
 
-    status_code = status.HTTP_401_UNAUTHORIZED
-    error_code = "unauthorized"
-    error_message = "Authentication required"
+    def __init__(
+        self,
+        message: str = "Authentication required",
+        details: Optional[dict[str, Any]] = None,
+    ) -> None:
+        """
+        Args:
+            message: エラーメッセージ
+            details: エラーの詳細情報（オプション）
+        """
+        super().__init__(message=message, code="unauthorized", details=details)
 
 
-class ForbiddenError(APIError):
-    """
-    アクセス権限エラー
-    """
+class ForbiddenError(DomainError):
+    """アクセス権限エラー"""
 
-    status_code = status.HTTP_403_FORBIDDEN
-    error_code = "forbidden"
-    error_message = "Access forbidden"
+    def __init__(
+        self,
+        message: str = "Access forbidden",
+        details: Optional[dict[str, Any]] = None,
+    ) -> None:
+        """
+        Args:
+            message: エラーメッセージ
+            details: エラーの詳細情報（オプション）
+        """
+        super().__init__(message=message, code="forbidden", details=details)
 
 
 class ValidationError(BadRequestError):
-    """
-    バリデーションエラー
-    """
+    """バリデーションエラー"""
 
-    error_code = "validation_error"
-    error_message = "Validation error"
+    def __init__(
+        self,
+        message: str = "Validation error",
+        details: Optional[dict[str, Any] | list[dict[str, Any]]] = None,
+    ) -> None:
+        """
+        Args:
+            message: エラーメッセージ
+            details: エラーの詳細情報（オプション）
+                    リストまたは辞書形式で複数のバリデーションエラーを含められる
+        """
+        # 親クラスのcode="bad_request"を明示的に設定しつつ、
+        # ValidationError固有のcodeで上書きするために、
+        # まず親クラスのconstructorを呼ぶ
+        super().__init__(message=message, details=None)
+        # code を "validation_error" に上書き
+        self.code = "validation_error"
+        # details を再設定（list[dict] または dict の両方をサポート）
+        self.details = details

@@ -1,9 +1,19 @@
 """Domain layer - Business rules and entities"""
 
 from .exceptions.base import (
-    APIError,
-    ErrorResponse,
+    DomainError,
+    NotFoundError,
+    BadRequestError,
+    UnauthorizedError,
+    ForbiddenError,
     ValidationError,
 )
 
-__all__ = ["APIError", "ErrorResponse", "ValidationError"]
+__all__ = [
+    "DomainError",
+    "NotFoundError",
+    "BadRequestError",
+    "UnauthorizedError",
+    "ForbiddenError",
+    "ValidationError",
+]
