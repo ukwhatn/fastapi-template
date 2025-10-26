@@ -11,7 +11,7 @@
 services:
   server:
     container_name: ${COMPOSE_PROJECT_NAME:-fastapi-template}-server-dev
-    image: ghcr.io/${GITHUB_REPOSITORY:-owner/repo}:develop
+    image: ghcr.io/${GITHUB_REPOSITORY:-ukwhatn/fastapi-template}:develop
     command:
       - /bin/sh
       - -c
