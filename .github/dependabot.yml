@@ -1,4 +1,9 @@
 version: 2
+registries:
+  ghcr:
+    type: docker-registry
+    url: https://ghcr.io
+
 updates:
   - package-ecosystem: "github-actions"
     directory: "/"
@@ -51,6 +56,8 @@ updates:
 
   - package-ecosystem: "docker"
     directory: "/docker"
+    registries:
+      - ghcr
     schedule:
       interval: "daily"
     target-branch: "develop"
