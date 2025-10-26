@@ -1,6 +1,5 @@
 """バックアップ管理CLI"""
 
-import subprocess
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
@@ -213,21 +212,20 @@ def backup_diff(backup_file: str, from_s3: bool) -> None:
     is_flag=True,
     help="確認をスキップ",
 )
-def backup_restore(backup_file: str, from_s3: bool, yes: bool) -> None:
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help="差分のみ表示（リストアは実行しない）",
+)
+def backup_restore(backup_file: str, from_s3: bool, yes: bool, dry_run: bool) -> None:
     """
     バックアップからデータベースをリストアする。
 
     BACKUP_FILE: リストアするバックアップファイル名
     """
-    settings = get_settings()
+    from app.infrastructure.database.backup.core import calculate_diff, restore_backup
 
-    # 確認プロンプト
-    if not yes:
-        click.confirm(
-            f"⚠️  Database '{settings.POSTGRES_DB}' will be restored from '{backup_file}'. "
-            "All current data will be lost. Continue?",
-            abort=True,
-        )
+    settings = get_settings()
 
     restore_path: Optional[Path] = None
 
@@ -267,42 +265,57 @@ def backup_restore(backup_file: str, from_s3: bool, yes: bool) -> None:
                 click.echo(f"✗ Backup file not found: {restore_path}", err=True)
                 raise click.Abort()
 
-        # pg_restoreでリストア
+        # Dry-runモード（差分のみ表示）
+        if dry_run:
+            click.echo(f"Dry-run mode: Calculating diff for {backup_file}")
+            diff_summary = calculate_diff(restore_path)
+
+            click.echo("\nBackup diff summary:")
+            for table_name, table_diff in diff_summary.tables.items():
+                sign = "+" if table_diff.diff > 0 else ""
+                click.echo(
+                    f"  {table_name}: {table_diff.current_rows} rows → {table_diff.backup_rows} rows ({sign}{table_diff.diff})"
+                )
+
+            sign = "+" if diff_summary.total_diff > 0 else ""
+            click.echo(
+                f"\nTotal: {diff_summary.total_current_rows} rows → {diff_summary.total_backup_rows} rows ({sign}{diff_summary.total_diff})"
+            )
+            click.echo("\n(No changes made - dry-run mode)")
+            return
+
+        # 確認プロンプト（diffを表示）
+        if not yes:
+            click.echo(f"Calculating diff for {backup_file}...")
+            diff_summary = calculate_diff(restore_path)
+
+            click.echo("\nBackup diff summary:")
+            for table_name, table_diff in diff_summary.tables.items():
+                sign = "+" if table_diff.diff > 0 else ""
+                click.echo(
+                    f"  {table_name}: {table_diff.current_rows} rows → {table_diff.backup_rows} rows ({sign}{table_diff.diff})"
+                )
+
+            sign = "+" if diff_summary.total_diff > 0 else ""
+            click.echo(
+                f"\nTotal: {diff_summary.total_current_rows} rows → {diff_summary.total_backup_rows} rows ({sign}{diff_summary.total_diff})"
+            )
+
+            click.confirm(
+                f"\n⚠️  Database '{settings.POSTGRES_DB}' will be restored from '{backup_file}'. "
+                "All current data will be lost. Continue?",
+                abort=True,
+            )
+
+        # リストア実行
         click.echo(f"Restoring database from: {restore_path}")
+        result = restore_backup(restore_path, show_diff=False)  # diffは既に表示済み
 
-        cmd = [
-            "pg_restore",
-            "-h",
-            settings.POSTGRES_HOST,
-            "-p",
-            str(settings.POSTGRES_PORT),
-            "-U",
-            settings.POSTGRES_USER,
-            "-d",
-            settings.POSTGRES_DB,
-            "--clean",  # 既存のオブジェクトを削除
-            "--if-exists",  # オブジェクトが存在する場合のみ削除
-            str(restore_path),
-        ]
-
-        env = {"PGPASSWORD": settings.POSTGRES_PASSWORD}
-
-        result = subprocess.run(
-            cmd, env=env, capture_output=True, text=True, check=False
-        )
-
-        # pg_restoreは警告があってもエラーコードを返すことがあるので、
-        # 出力をチェックして判断
-        if result.returncode != 0:
-            # 致命的なエラーかチェック
-            if "FATAL" in result.stderr or "ERROR" in result.stderr:
-                click.echo(f"✗ Restore failed:\n{result.stderr}", err=True)
-                raise click.Abort()
-            else:
-                # 警告のみの場合
-                click.echo(f"⚠️  Warnings during restore:\n{result.stderr}")
-
-        click.echo("✓ Database restored successfully")
+        if result.success:
+            click.echo(f"✓ {result.message}")
+        else:
+            click.echo(f"✗ {result.message}", err=True)
+            raise click.Abort()
 
     except Exception as e:
         click.echo(f"✗ Restore failed: {e}", err=True)
