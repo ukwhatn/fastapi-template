@@ -36,6 +36,7 @@ def get_admin_connection() -> Any:
         user=settings.POSTGRES_USER,
         password=settings.POSTGRES_PASSWORD,
         database="postgres",  # 管理者用デフォルトDB
+        gssencmode="disable",
     )
     conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
     return conn
