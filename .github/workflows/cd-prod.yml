@@ -8,14 +8,14 @@ on:
 
 jobs:
   build-and-push:
-    uses: ./.github/workflows/cd_build-push.yml
+    uses: ./.github/workflows/cd_builder.yml
     secrets: inherit
 
   deploy:
     needs: build-and-push
     # Skip deployment if SSH secrets are not configured
-    if: ${{ secrets.PROD_SSH_HOST != '' && secrets.PROD_SSH_USER != '' && secrets.PROD_SSH_PRIVATE_KEY != '' }}
-    uses: ./.github/workflows/cd.yml
+    if: ${{ secrets.PROD_SSH_HOST != '' && secrets.PROD_SSH_USER != '' && secrets.PROD_SSH_PORT != '' && secrets.PROD_SSH_PRIVATE_KEY != '' }}
+    uses: ./.github/workflows/cd_deliverer.yml
     with:
       environment: production
       branch: main
