@@ -2,7 +2,7 @@ import os
 from functools import lru_cache
 from typing import Literal, Optional
 
-from pydantic import field_validator
+from pydantic import ValidationInfo, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from .logging import get_logger
@@ -81,7 +81,7 @@ class Settings(BaseSettings):
 
     @field_validator("SESSION_ENCRYPTION_KEY", mode="before")
     @classmethod
-    def validate_encryption_key(cls, v: str, info) -> str:
+    def validate_encryption_key(cls, v: str, info: ValidationInfo) -> str:
         """暗号化キー検証"""
         if not v:
             env_mode = info.data.get("ENV_MODE") or os.getenv("ENV_MODE", "test")
