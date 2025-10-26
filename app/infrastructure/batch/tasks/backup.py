@@ -1,8 +1,5 @@
 """データベースバックアップタスク"""
 
-import shutil
-import subprocess
-import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
@@ -12,6 +9,7 @@ import opendal
 from app.core.config import get_settings
 from app.infrastructure.batch.base import BatchTask
 from app.infrastructure.batch.registry import task_registry
+from app.infrastructure.database.backup.core import create_backup
 
 
 class BackupTask(BatchTask):
@@ -61,78 +59,19 @@ class BackupTask(BatchTask):
         """
         バックアップを実行する。
 
-        1. pg_dumpでダンプファイルを作成
-        2. ローカルディレクトリに保存
-        3. S3にアップロード（設定がある場合）
-        4. 古いバックアップを削除
+        1. psycopg2でバックアップファイルを作成
+        2. S3にアップロード（設定がある場合）
+        3. 古いバックアップを削除
         """
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"backup_{timestamp}.dump"
+        # バックアップを作成（ローカルディレクトリに保存される）
+        backup_path = create_backup()
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            dump_path = Path(tmpdir) / filename
-
-            # pg_dumpでダンプ作成
-            self._create_dump(dump_path)
-
-            # ローカルに保存
-            self._save_local(dump_path, filename)
-
-            # S3にアップロード
-            if self.storage:
-                self._upload_to_s3(dump_path, filename)
+        # S3にアップロード
+        if self.storage:
+            self._upload_to_s3(backup_path, backup_path.name)
 
         # 古いバックアップを削除
         self._cleanup_old_backups()
-
-    def _create_dump(self, output_path: Path) -> None:
-        """
-        pg_dumpでダンプファイルを作成する。
-
-        Args:
-            output_path: ダンプファイルの出力先パス
-
-        Raises:
-            subprocess.CalledProcessError: pg_dump実行に失敗した場合
-        """
-        cmd = [
-            "pg_dump",
-            "-h",
-            self.settings.POSTGRES_HOST,
-            "-p",
-            str(self.settings.POSTGRES_PORT),
-            "-U",
-            self.settings.POSTGRES_USER,
-            "-d",
-            self.settings.POSTGRES_DB,
-            "-F",
-            "c",  # カスタムフォーマット（圧縮済み）
-            "-f",
-            str(output_path),
-        ]
-
-        env = {"PGPASSWORD": self.settings.POSTGRES_PASSWORD}
-
-        self.logger.info(f"Creating database dump: {output_path.name}")
-        subprocess.run(cmd, env=env, check=True, capture_output=True, text=True)
-        self.logger.info(
-            f"Dump created: {output_path} ({output_path.stat().st_size} bytes)"
-        )
-
-    def _save_local(self, source_path: Path, filename: str) -> None:
-        """
-        ダンプファイルをローカルディレクトリに保存する。
-
-        Args:
-            source_path: コピー元のファイルパス
-            filename: 保存するファイル名
-        """
-        local_backup_dir = Path("./backups")
-        local_backup_dir.mkdir(exist_ok=True)
-
-        dest_path = local_backup_dir / filename
-        shutil.copy(source_path, dest_path)
-        self.logger.info(f"Saved to local: {dest_path}")
 
     def _upload_to_s3(self, file_path: Path, remote_name: str) -> None:
         """
@@ -168,10 +107,13 @@ class BackupTask(BatchTask):
         # ローカルファイルのクリーンアップ
         local_backup_dir = Path("./backups")
         if local_backup_dir.exists():
-            for backup_file in local_backup_dir.glob("backup_*.dump"):
+            for backup_file in local_backup_dir.glob("backup_*.backup.gz"):
                 # ファイル名から日時を抽出
                 try:
-                    timestamp_str = backup_file.stem.replace("backup_", "")
+                    # backup_20250101_120000.backup.gz -> 20250101_120000
+                    timestamp_str = backup_file.stem.replace(".backup", "").replace(
+                        "backup_", ""
+                    )
                     file_date = datetime.strptime(timestamp_str, "%Y%m%d_%H%M%S")
 
                     if file_date < cutoff_date:
@@ -190,14 +132,14 @@ class BackupTask(BatchTask):
                 for entry in entries:
                     if not entry.path.startswith("backup_"):
                         continue
-                    if not entry.path.endswith(".dump"):
+                    if not entry.path.endswith(".backup.gz"):
                         continue
 
                     # ファイル名からタイムスタンプを抽出
                     try:
-                        # backup_20250101_120000.dump -> 20250101_120000
+                        # backup_20250101_120000.backup.gz -> 20250101_120000
                         timestamp_str = entry.path.replace("backup_", "").replace(
-                            ".dump", ""
+                            ".backup.gz", ""
                         )
                         file_date = datetime.strptime(timestamp_str, "%Y%m%d_%H%M%S")
 
