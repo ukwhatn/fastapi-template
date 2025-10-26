@@ -1,74 +1,64 @@
-name: Build & Push to GHCR
+name: Deploy (Reusable)
 
 on:
   workflow_call:
-
-env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+    inputs:
+      environment:
+        required: true
+        type: string  # dev or prod
+      branch:
+        required: true
+        type: string  # develop or main
+      image_tag:
+        required: true
+        type: string  # develop or latest
+    secrets:
+      SSH_HOST:
+        required: true
+      SSH_USER:
+        required: true
+      SSH_PORT:
+        required: true
+      SSH_PRIVATE_KEY:
+        required: true
 
 jobs:
-  build-and-push:
+  deploy:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-      attestations: write
-      id-token: write
+    environment: ${{ inputs.environment }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v5
+      - name: Deploy to ${{ inputs.environment }}
+        uses: appleboy/ssh-action@v1.0.0
         with:
-          fetch-depth: 1
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          port: ${{ secrets.SSH_PORT }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            # ディレクトリ存在チェック
+            cd ${{ github.event.repository.name }} || { echo "❌ Directory not found. Run initial setup first."; exit 1; }
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+            # 最新コード取得
+            git pull origin ${{ inputs.branch }}
 
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+            # .env存在チェック
+            [ -f .env ] || { echo "❌ .env not found. Decrypt .env.${{ inputs.environment }}.enc first."; exit 1; }
 
-      - name: Extract metadata (tags, labels)
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=ref,event=branch
-            type=sha,prefix={{branch}}-sha-
-            type=raw,value=latest,enable={{is_default_branch}}
+            # イメージ取得＆再起動
+            ENV=${{ inputs.environment }} make compose:pull
+            ENV=${{ inputs.environment }} docker compose -f compose.${{ inputs.environment }}.yml up -d --force-recreate --remove-orphans
 
-      - name: Build and push Docker image
-        id: push
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ./docker/server.Dockerfile
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+            # ヘルスチェック
+            echo "⏳ Waiting for health check..."
+            for i in {1..12}; do
+              if ENV=${{ inputs.environment }} make compose:ps | grep -q "healthy"; then
+                echo "✅ Deployment successful!"
+                exit 0
+              fi
+              echo "Waiting... ($((i*5))s/60s)"
+              sleep 5
+            done
 
-      - name: Generate artifact attestation
-        uses: actions/attest-build-provenance@v3
-        with:
-          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          subject-digest: ${{ steps.push.outputs.digest }}
-          push-to-registry: true
-
-      - name: Summary
-        run: |
-          echo "✅ Image built and pushed successfully!" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Image:** \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "**Tags:**" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          echo "${{ steps.meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          echo "**Digest:** \`${{ steps.push.outputs.digest }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "**Platforms:** \`linux/amd64, linux/arm64\`" >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ Health check timeout. Check logs:"
+            ENV=${{ inputs.environment }} make compose:logs
+            exit 1

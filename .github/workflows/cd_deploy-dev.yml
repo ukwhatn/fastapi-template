@@ -13,7 +13,9 @@ jobs:
 
   deploy:
     needs: build-and-push
-    uses: ./.github/workflows/cd_deploy.yml
+    # Skip deployment if SSH secrets are not configured
+    if: ${{ secrets.DEV_SSH_HOST != '' && secrets.DEV_SSH_USER != '' && secrets.DEV_SSH_PRIVATE_KEY != '' }}
+    uses: ./.github/workflows/cd.yml
     with:
       environment: dev
       branch: develop
