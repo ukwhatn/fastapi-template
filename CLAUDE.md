@@ -53,6 +53,35 @@ make db:history                             # Show migration history
 
 **Note**: Migrations run automatically on application startup (lifespan). `make db:migrate` is for manual execution only.
 
+### Database Backup Operations
+```bash
+# Backup operations
+make db:backup:oneshot                      # Create backup immediately
+make db:backup:list                         # List local backups
+make db:backup:list:remote                  # List S3 backups
+
+# Diff operations
+make db:backup:diff FILE="backup_xxx.backup.gz"        # Show diff with backup (local)
+make db:backup:diff:s3 FILE="backup_xxx.backup.gz"     # Show diff with backup (S3)
+
+# Restore operations
+make db:backup:restore FILE="backup_xxx.backup.gz"     # Restore from backup (local)
+make db:backup:restore:s3 FILE="backup_xxx.backup.gz"  # Restore from backup (S3)
+make db:backup:restore:dry-run FILE="backup_xxx.backup.gz"  # Show diff only (no restore)
+```
+
+**Backup Format**:
+- Uses psycopg2 directly (no pg_dump/pg_restore dependency)
+- Format: Compressed JSON (gzip)
+- Includes migration version and table data
+- Auto-cleanup based on `BACKUP_RETENTION_DAYS` (default: 7 days)
+
+**Restore Behavior**:
+- Transaction-based (all-or-nothing)
+- Automatically adjusts migration version
+- Shows diff summary before restore
+- Supports dry-run mode for preview
+
 ### Docker Operations
 ```bash
 make up                     # Build and start containers (legacy)
