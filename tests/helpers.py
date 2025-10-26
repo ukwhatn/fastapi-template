@@ -111,6 +111,16 @@ def run_migrations(database_url: str) -> None:
     Args:
         database_url: 対象データベースのURL
     """
-    alembic_cfg = Config("app/infrastructure/database/alembic/alembic.ini")
+    from pathlib import Path
+
+    alembic_cfg = Config()
+
+    # スクリプトディレクトリの絶対パスを設定
+    # tests/helpers.py から app/infrastructure/database/alembic へのパス
+    script_location = (
+        Path(__file__).parent.parent / "app/infrastructure/database/alembic"
+    ).resolve()
+    alembic_cfg.set_main_option("script_location", str(script_location))
     alembic_cfg.set_main_option("sqlalchemy.url", database_url)
+
     command.upgrade(alembic_cfg, "head")
