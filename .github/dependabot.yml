@@ -9,12 +9,6 @@ updates:
       - "ukwhatn"
     cooldown:
       default-days: 7
-    commit-message:
-      prefix: "chore"
-      include: "scope"
-    labels:
-      - "dependencies"
-      - "automated"
     groups:
       actions:
         patterns:
@@ -30,12 +24,6 @@ updates:
       - "ukwhatn"
     cooldown:
       default-days: 7
-    commit-message:
-      prefix: "chore"
-      include: "scope"
-    labels:
-      - "dependencies"
-      - "automated"
     groups:
       python-dependencies:
         patterns:
@@ -58,9 +46,3 @@ updates:
       - "ukwhatn"
     cooldown:
       default-days: 7
-    commit-message:
-      prefix: "chore"
-      include: "scope"
-    labels:
-      - "dependencies"
-      - "automated"
