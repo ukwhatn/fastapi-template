@@ -1,131 +1,46 @@
-# デプロイメントガイド
+# Deployment
 
-このガイドでは、FastAPIアプリケーションのローカル、開発、本番環境へのデプロイ方法を説明します。
+本プロジェクトのデプロイメント戦略とワークフロー。3環境（Local/Dev/Prod）対応、GitHub Actions自動デプロイ、SOPS暗号化シークレット管理。
 
-## 目次
+## 環境構成
 
-- [概要](#概要)
-- [環境設定](#環境設定)
-- [前提条件](#前提条件)
-- [ローカル開発](#ローカル開発)
-- [開発環境](#開発環境)
-- [本番環境](#本番環境)
-- [トラブルシューティング](#トラブルシューティング)
+| 環境 | アプリ実行 | データベース | プロキシ | 自動デプロイ | Composeファイル |
+|------|-----------|-------------|---------|-------------|----------------|
+| **Local** | uv native (hot reload) | Docker (optional) | なし | なし | `compose.local.yml` |
+| **Dev** | Docker (GHCR.io) | Docker PostgreSQL | Cloudflare Tunnels | GitHub Actions (develop) | `compose.dev.yml` |
+| **Prod** | Docker (GHCR.io) | External (Supabase) | nginx + Cloudflare | GitHub Actions (main) | `compose.prod.yml` |
 
-## 概要
+### デプロイメント機能
 
-プロジェクトは3つのデプロイ環境を使用します：
+- **マルチプラットフォームビルド**: linux/amd64, linux/arm64対応
+- **イメージタグ戦略**:
+  - `main`ブランチ → `latest`, `main`, `main-sha-xxx`
+  - `develop`ブランチ → `develop`, `develop-sha-xxx`
+- **自動デプロイ**: GitHub ActionsがSSH経由でサーバーデプロイ
+- **Sparse Checkout**: 必要最小限のファイルのみクローン（ディスク使用量削減）
+- **暗号化シークレット**: SOPS + ageで安全にGit管理
 
-| 環境 | アプリ実行 | データベース | プロキシ | 自動デプロイ |
-|------|-----------|-------------|---------|-------------|
-| **Local** | uvネイティブ | Docker（オプション） | なし | なし |
-| **Dev** | Docker（GHCR.io） | Docker PostgreSQL | Cloudflare Tunnels | GitHub Actions（develop） |
-| **Prod** | Docker（GHCR.io） | 外部（Supabase） | nginx + Cloudflare | GitHub Actions（main） |
-
-### 主な機能
-
-- **マルチプラットフォームビルド**: linux/amd64, linux/arm64
-- **自動デプロイ**: GitHub ActionsがSSH経由でサーバーにデプロイ
-- **Sparse Checkout**: 必要最小限のファイルのみクローン
-- **暗号化シークレット**: SOPS + ageによる安全なシークレット管理
-- **SSH不要（開発者側）**: デプロイはGitHub Actionsが自動実行
-
-## 環境設定
-
-### Local
-
-ホットリロード付きローカル開発：
-
-```bash
-# データベースサービス起動
-docker compose -f compose.local.yml up -d
-
-# アプリをuvでネイティブ実行
-uv run fastapi dev app/main.py --host 0.0.0.0 --port 8000
-```
-
-### Dev
-
-GitHub Actions自動デプロイ：
-
-```bash
-# 開発サーバーで初回セットアップ（1回のみ）
-./scripts/setup-server.sh dev
-
-# 以降はdevelopブランチへのpushで自動デプロイ
-git push origin develop
-```
-
-### Prod
-
-GitHub Actions自動デプロイ：
-
-```bash
-# 本番サーバーで初回セットアップ（1回のみ）
-./scripts/setup-server.sh prod
-
-# 以降はmainブランチへのpushで自動デプロイ
-git push origin main
-```
-
-## 前提条件
-
-### 全環境共通
-
-- Docker & Docker Compose
-- Git
-- Make
-
-### Localのみ
-
-- uv（Pythonパッケージマネージャー）
-- Python 3.13+
-
-### Dev/Prodのみ（サーバー側）
-
-- SOPS（[インストール方法](https://github.com/getsops/sops#download)）
-- age（[インストール方法](https://github.com/FiloSottile/age#installation)）
-- SSH サーバー（GitHub Actionsからの接続用）
-
-### Dev/Prod（GitHub側）
-
-- GitHub Secrets設定（後述）
-
-## ローカル開発
+## Local環境
 
 ### 初期セットアップ
 
-1. **リポジトリクローン**
-   ```bash
-   git clone https://github.com/ukwhatn/fastapi-template.git
-   cd fastapi-template
-   ```
+```bash
+# 依存関係インストール
+make dev:setup
 
-2. **依存関係インストール**
-   ```bash
-   make dev:setup
-   ```
+# 環境ファイル作成
+make env
+# .envをローカル設定で編集
 
-3. **環境ファイル作成**
-   ```bash
-   make env
-   # .envをローカル設定で編集
-   ```
+# データベース起動
+docker compose -f compose.local.yml up -d
 
-4. **データベースサービス起動**
-   ```bash
-   docker compose -f compose.local.yml up -d
-   ```
+# マイグレーション実行
+make db:migrate
 
-5. **マイグレーション実行**
-   ```bash
-   make db:migrate
-   ```
-
-6. **アプリケーション起動**
-   ```bash
-   uv run fastapi dev app/main.py --host 0.0.0.0 --port 8000
-   ```
+# アプリケーション起動
+uv run fastapi dev app/main.py --host 0.0.0.0 --port 8000
+```
 
 ### 日常のワークフロー
 
@@ -138,35 +53,33 @@ uv run fastapi dev app/main.py
 docker compose -f compose.local.yml down
 ```
 
-## 開発環境
+## Dev環境
 
-### 初期セットアップ（サーバーごとに1回）
+### 前提条件
 
-#### 1. 前提条件インストール
+**サーバー側**:
+- Docker & Docker Compose
+- Git, Make
+- SOPS ([インストール](https://github.com/getsops/sops#download))
+- age ([インストール](https://github.com/FiloSottile/age#installation))
+- SSH サーバー
 
-```bash
-# SOPSインストール
-curl -LO https://github.com/getsops/sops/releases/latest/download/sops-latest.linux.amd64
-sudo mv sops-latest.linux.amd64 /usr/local/bin/sops
-sudo chmod +x /usr/local/bin/sops
+**GitHub側**:
+- Secrets設定（後述）
 
-# ageインストール
-sudo apt install age  # Ubuntu/Debian
-# または
-brew install age  # macOS
-```
+### 初期セットアップ（1回のみ）
 
-#### 2. ageキーペア生成（存在しない場合）
+#### 1. ageキーペア生成
 
 ```bash
 mkdir -p ~/.config/sops/age
 age-keygen -o ~/.config/sops/age/keys.txt
 
-# 公開鍵（age1xxx...）を保存して.sops.yamlを更新
+# 公開鍵を確認（.sops.yaml更新に使用）
 cat ~/.config/sops/age/keys.txt | grep "public key:"
 ```
 
-#### 3. 暗号化ファイル作成（ローカルで）
+#### 2. 暗号化環境ファイル作成（ローカルで）
 
 ```bash
 # Dev環境設定を作成
@@ -174,7 +87,7 @@ cp .env.example .env.dev
 nano .env.dev  # Dev設定で編集
 
 # 暗号化
-sops -e .env.dev > .env.dev.enc
+make secrets:encrypt:dev
 
 # Gitにコミット
 git add .env.dev.enc .sops.yaml
@@ -182,7 +95,7 @@ git commit -m "Add encrypted dev secrets"
 git push
 ```
 
-#### 4. サーバーで初回セットアップ
+#### 3. サーバーでセットアップ
 
 ```bash
 # リポジトリクローン（sparse checkout）
@@ -194,33 +107,34 @@ chmod +x setup-server.sh
 git clone --filter=blob:none --sparse https://github.com/ukwhatn/fastapi-template.git
 cd fastapi-template
 git sparse-checkout set compose.dev.yml .env.dev.enc .sops.yaml Makefile newrelic.ini
-sops -d .env.dev.enc > .env
-# .envを確認して
+make secrets:decrypt:dev
 ENV=dev make compose:pull
 ENV=dev make compose:up
 ```
 
-#### 5. GitHub Secrets設定
+#### 4. GitHub Secrets設定
 
-GitHubリポジトリの Settings > Secrets and variables > Actions で以下を設定：
+リポジトリ Settings > Secrets and variables > Actions で設定：
 
-- `DEV_SSH_HOST`: 開発サーバーのホスト名またはIP
-- `DEV_SSH_USER`: SSHユーザー名
-- `DEV_SSH_PORT`: SSHポート（デフォルト: 22）
-- `DEV_SSH_PRIVATE_KEY`: SSH秘密鍵（`cat ~/.ssh/id_rsa`）
+| Secret | 内容 |
+|--------|------|
+| `DEV_SSH_HOST` | 開発サーバーホスト名/IP |
+| `DEV_SSH_USER` | SSHユーザー名 |
+| `DEV_SSH_PORT` | SSHポート（デフォルト: 22） |
+| `DEV_SSH_PRIVATE_KEY` | SSH秘密鍵（`cat ~/.ssh/id_rsa`） |
 
-### 自動デプロイ
+### 自動デプロイフロー
 
-`develop` ブランチにpushすると：
+`develop`ブランチへのpushで以下を自動実行：
 
-1. GitHub Actions CI実行（lint, test等）
+1. CI実行（lint, test, type-check）
 2. Dockerイメージビルド＆GHCR.ioにpush（`develop`タグ）
 3. SSH経由でサーバー接続
-4. `git pull origin develop` で最新のcompose.yml等を取得
-5. `docker compose pull` で最新イメージ取得
-6. `docker compose up -d --force-recreate` でコンテナ再起動
+4. `git pull origin develop`で最新compose.yml取得
+5. `docker compose pull`で最新イメージ取得
+6. `docker compose up -d --force-recreate`でコンテナ再起動
 7. ヘルスチェック確認（60秒タイムアウト）
-8. 成功/失敗をGitHub Actionsに報告
+8. デプロイ結果をGitHub Actionsに報告
 
 ### 手動操作
 
@@ -238,36 +152,112 @@ ENV=dev make compose:restart
 ENV=dev make compose:down
 ```
 
-## 本番環境
+## Prod環境
 
-### 初期セットアップ（サーバーごとに1回）
+### 初期セットアップ（1回のみ）
 
-[開発環境 初期セットアップ](#初期セットアップサーバーごとに1回)と同じですが：
+Dev環境と同じ手順ですが以下が異なります：
 
-1. ステップ3で本番設定を使用（`.env.prod`）
-2. ステップ4で `./setup-server.sh prod` を実行
-3. GitHub Secretsは `PROD_` プレフィックスを使用
+1. ステップ2で本番設定を使用（`.env.prod`, `make secrets:encrypt:prod`）
+2. ステップ3で `./setup-server.sh prod`を実行
+3. GitHub Secretsは`PROD_`プレフィックスを使用
+   - `PROD_SSH_HOST`
+   - `PROD_SSH_USER`
+   - `PROD_SSH_PORT`
+   - `PROD_SSH_PRIVATE_KEY`
 
-### 自動デプロイ
+### 自動デプロイフロー
 
-`main` ブランチにpushすると：
+`main`ブランチへのpushで以下を自動実行：
 
-1. GitHub Actions CI実行
+1. CI実行
 2. Dockerイメージビルド＆GHCR.ioにpush（`latest`タグ）
-3. SSH経由でサーバーにデプロイ
+3. SSH経由でサーバーデプロイ
 4. ヘルスチェック確認
-5. 成功/失敗をGitHub Actionsに報告
+5. デプロイ結果をGitHub Actionsに報告
 
 ### 手動操作
 
-Devと同じですが、`compose.prod.yml`を使用：
-
 ```bash
+# ログ表示
 ENV=prod make compose:logs
+
+# ステータス確認
 ENV=prod make compose:ps
+
+# サービス再起動
 ENV=prod make compose:restart
+
+# サービス停止
 ENV=prod make compose:down
 ```
+
+## シークレット管理（SOPS + age）
+
+### 暗号化
+
+```bash
+# Dev環境
+make secrets:encrypt:dev
+
+# Prod環境
+make secrets:encrypt:prod
+```
+
+### 復号化
+
+```bash
+# Dev環境
+make secrets:decrypt:dev
+
+# Prod環境
+make secrets:decrypt:prod
+```
+
+### 手動操作
+
+```bash
+# 暗号化
+sops -e .env.dev > .env.dev.enc
+
+# 復号化
+sops -d .env.dev.enc > .env
+
+# 暗号化ファイル編集
+sops .env.dev.enc
+```
+
+**Reference**: 詳細は [Secrets Management Guide](./secrets-management.md) 参照
+
+## マイグレーション管理
+
+### 自動実行
+
+- **起動時自動実行**: アプリケーション起動時（FastAPI lifespan）にマイグレーション自動適用
+- **場所**: `app/infrastructure/database/alembic/versions/`
+- **安全性**: 失敗時はアプリケーション起動停止（データ破損防止）
+- **冪等性**: Alembicが既適用マイグレーションをスキップ（再起動安全）
+
+### 手動操作
+
+```bash
+# 新しいマイグレーション作成
+make db:revision:create NAME="description"
+
+# マイグレーション適用（手動）
+make db:migrate
+
+# ロールバック
+make db:downgrade REV=-1
+
+# 現在のリビジョン確認
+make db:current
+
+# マイグレーション履歴
+make db:history
+```
+
+**Note**: 通常は手動実行不要（自動適用されるため）
 
 ## トラブルシューティング
 
@@ -291,11 +281,11 @@ gh auth status
 
 **診断**:
 ```bash
-# SSH接続テスト（ローカルから）
+# SSH接続テスト
 ssh -i ~/.ssh/id_rsa -p 22 user@host
 
 # GitHub Secrets確認
-# Settings > Secrets > Actions で設定を確認
+# Settings > Secrets > Actions
 ```
 
 **解決方法**:
@@ -366,17 +356,7 @@ git reset --hard origin/develop  # または origin/main
 git push origin develop --force-with-lease
 ```
 
-## ベストプラクティス
-
-1. **Dev/Prodでは常に暗号化envファイルを使用**
-2. **`.env`や秘密鍵をgitにコミットしない**
-3. **デプロイ後はGitHub Actionsログを確認**
-4. **本番デプロイ前にDevでテスト**
-5. **age鍵を安全にバックアップ**
-6. **GitHubトークンを定期的にローテート**
-7. **SSH鍵は専用のものを使用（GitHub Actions専用）**
-
-## ロールバック手順
+## ロールバック
 
 ### 方法1: Gitでrevert（推奨）
 
@@ -406,10 +386,45 @@ ENV=dev docker compose up -d --force-recreate
 git checkout develop  # または main
 ```
 
+## ベストプラクティス
+
+1. **暗号化環境ファイルを必ず使用** - Dev/Prodでは常にSOPS暗号化
+2. **平文シークレットをGitに含めない** - `.env`や秘密鍵を`.gitignore`
+3. **デプロイ後はログ確認** - GitHub Actionsログとサーバーログ
+4. **本番前にDevでテスト** - 本番デプロイ前に開発環境で検証
+5. **age鍵を安全にバックアップ** - 紛失するとデプロイ不可
+6. **GitHubトークンを定期的にローテート** - セキュリティ強化
+7. **GitHub Actions専用SSH鍵を使用** - 個人用鍵と分離
+8. **Sparse Checkoutで必要最小限** - ディスク使用量削減
+9. **ダウンタイム考慮** - デプロイ時10-30秒のダウンタイム発生
+10. **ブランチ分離** - develop/mainで異なるタグとサーバー使用
+
+## デプロイメント詳細
+
+### ダウンタイム
+
+- **期間**: 10-30秒（コンテナ再起動時）
+- **理由**: `--force-recreate`によるコンテナ再作成
+- **軽減策**: ブルーグリーンデプロイメント（将来実装）
+
+### ブランチ戦略
+
+- **develop → Dev環境**: 開発・テスト用
+- **main → Prod環境**: 本番用
+- **PRフロー**: feature → develop → main
+
+### モニタリング
+
+- **GitHub Actionsログ**: デプロイプロセス確認
+- **サーバーログ**: `ENV={dev|prod} make compose:logs`
+- **Sentry**: エラートラッキング（本番）
+- **New Relic**: APMモニタリング（本番）
+
 ## 参考資料
 
+- [Secrets Management Guide](./secrets-management.md) - SOPS + age詳細ガイド
+- [Architecture](./architecture.md) - Clean Architecture実装詳細
 - [SOPS Documentation](https://github.com/getsops/sops)
 - [age Documentation](https://github.com/FiloSottile/age)
 - [GitHub Actions SSH Action](https://github.com/appleboy/ssh-action)
 - [GHCR Documentation](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry)
-- [Secrets Management Guide](./secrets-management.md)
