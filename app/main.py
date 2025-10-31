@@ -3,7 +3,7 @@ import json
 import logging
 import os
 from pathlib import Path
-from typing import Any, AsyncIterator
+from typing import Any, AsyncIterator, MutableMapping
 from collections.abc import Callable, Awaitable
 
 import sentry_sdk
@@ -46,7 +46,9 @@ class SPAStaticFiles(StaticFiles):
     React Routerのhistory modeをサポート
     """
 
-    async def get_response(self, path: str, scope: dict[str, Any]) -> Response:
+    async def get_response(
+        self, path: str, scope: MutableMapping[str, Any]
+    ) -> Response:
         try:
             return await super().get_response(path, scope)
         except StarletteHTTPException as ex:
