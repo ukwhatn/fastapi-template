@@ -1,6 +1,23 @@
 # FastAPI Template
 
-FastAPIベースのプロダクション対応Webアプリケーションテンプレート。Clean Architecture（4層構造）、RDBベース暗号化セッション管理、包括的なDocker展開環境を提供。
+FastAPIベースのプロダクション対応Webアプリケーションテンプレート。Clean Architecture（4層構造）、RDBベース暗号化セッション管理、Vite+React フロントエンド統合、包括的なDocker展開環境を提供。
+
+## 技術スタック
+
+**バックエンド**:
+- FastAPI 0.120.0+, Python 3.13+
+- SQLAlchemy 2.0+, PostgreSQL
+- uv, Ruff, mypy strict, pytest
+
+**フロントエンド**:
+- Vite 6.x, React 19.x, TypeScript 5.x
+- React Router 7.x, TanStack Query 5.x
+- Tailwind CSS 4.x (CSS-first configuration)
+- pnpm
+
+**インフラ**:
+- Docker Compose (multi-stage build, multi-profile)
+- APScheduler, Sentry, New Relic
 
 ## クイックスタート
 
@@ -8,6 +25,8 @@ FastAPIベースのプロダクション対応Webアプリケーションテン�
 - Docker & Docker Compose
 - uv
 - Python 3.13+
+- Node.js 22+
+- pnpm (corepack経由で自動インストール)
 
 ### 初期セットアップ
 
@@ -27,6 +46,9 @@ nano .env
 
 # 5. プロジェクトリネーム・依存関係をインストール
 make dev:setup
+
+# 6. フロントエンド依存関係をインストール
+make frontend:install
 ```
 
 ### ローカル開発
@@ -35,11 +57,17 @@ make dev:setup
 # データベースサービスを起動
 make local:up
 
-# アプリケーションを起動（ホットリロード）
+# バックエンド + フロントエンドを並列起動（ホットリロード）
 make local:serve
+
+# または個別に起動
+make local:serve:backend   # バックエンドのみ（ポート8000）
+make local:serve:frontend  # フロントエンドのみ（ポート5173）
 ```
 
-APIドキュメント: http://localhost:8000/docs
+- APIドキュメント: http://localhost:8000/docs
+- フロントエンド（開発）: http://localhost:5173
+- フロントエンド（本番ビルド）: http://localhost:8000
 
 ### Docker使用
 
@@ -58,7 +86,7 @@ make down
 
 ```
 .
-├── app/
+├── app/                     # バックエンド（FastAPI）
 │   ├── domain/              # Domain層（ビジネスロジック、例外定義）
 │   ├── application/         # Application層（ユースケース、インターフェース）
 │   ├── infrastructure/      # Infrastructure層（DB、リポジトリ実装）
@@ -73,12 +101,22 @@ make down
 │   ├── core/                # 設定、ロギング
 │   ├── utils/               # ユーティリティ、ヘルパー
 │   └── main.py              # アプリケーションエントリーポイント
+├── frontend/                # フロントエンド（Vite + React）
+│   ├── src/
+│   │   ├── pages/           # ページコンポーネント
+│   │   ├── App.tsx          # ルーター設定
+│   │   └── main.tsx         # エントリーポイント
+│   ├── dist/                # ビルド成果物（本番）
+│   ├── package.json         # Node依存関係
+│   ├── pnpm-lock.yaml       # pnpmロックファイル
+│   ├── vite.config.ts       # Vite設定（proxyなど）
+│   └── tsconfig.json        # TypeScript設定
 ├── tests/                   # テスト
 │   ├── unit/                # 単体テスト
 │   └── integration/         # 統合テスト
 ├── docs/                    # ドキュメント
-├── docker/                  # Dockerfiles
 ├── scripts/                 # デプロイスクリプト
+├── Dockerfile               # マルチステージビルド（backend + frontend）
 └── Makefile                 # タスク自動化
 ```
 
@@ -100,8 +138,23 @@ make test:cov               # カバレッジ付きテスト
 
 # 開発サーバー
 make local:up               # DBサービス起動
-make local:serve            # アプリケーション起動
+make local:serve            # バックエンド + フロントエンド並列起動
+make local:serve:backend    # バックエンドのみ起動
+make local:serve:frontend   # フロントエンドのみ起動
 make local:down             # 停止
+```
+
+### フロントエンド
+
+```bash
+# 依存関係管理
+make frontend:install       # 依存関係インストール
+make frontend:build         # 本番ビルド
+
+# コード品質
+make frontend:lint          # ESLint実行
+make frontend:lint:fix      # ESLint修正
+make frontend:type-check    # TypeScriptチェック
 ```
 
 ### データベース
