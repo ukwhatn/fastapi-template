@@ -52,6 +52,7 @@ project\:rename:
 	find . -type f -not -path "*/\.*" -not -path "*/Makefile" -not -path "*/__pycache__/*" -not -path "*/node_modules/*" -not -path "*/venv/*" -exec grep -l "FastAPI Template" {} \; | xargs -I{} sed -i '' 's/FastAPI Template/$(NAME)/g' {}; \
 	git add .; \
 	git commit -m "chore: initialize project with name: $(NAME)"; \
+	git push; \
 	git switch -c develop
 
 # ==== パッケージ管理 ====

@@ -157,8 +157,6 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     else:
         logger.info(f"Jinja2 templates disabled: {TEMPLATES_DIR}")
 
-    # フロントエンドの静的ファイルマウント（SPA対応）
-    # APIルーターより後にマウントすることで、/api/*が優先される
     if FRONTEND_DIST_DIR.exists() and FRONTEND_DIST_DIR.is_dir():
         app.mount(
             "/",
