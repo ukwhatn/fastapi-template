@@ -1,427 +1,620 @@
-# CLAUDE.md
+# CLAUDE.md - AI Implementation Guide
 
-This file provides guidance for Claude Code when working with this repository.
+このテンプレートからアプリケーションを作成する際のAI向け実装ガイド。
 
-## Project Overview
+## プロジェクト概要
 
-FastAPI production-ready template using Clean Architecture (4-layer), SQLAlchemy ORM, RDB-based encrypted session management, comprehensive Docker deployment, and Supabase support.
+FastAPIプロダクションテンプレート。Clean Architecture（4層）、RDBベース暗号化セッション、包括的Docker展開を提供。
 
-**Tech Stack:**
-- FastAPI 0.120.0+ (Python 3.13+)
-- SQLAlchemy 2.0+ with PostgreSQL
-- Docker Compose (multi-profile setup)
-- uv for dependency management
-- Ruff for linting/formatting
-- mypy for strict type checking
-- pytest with coverage reporting
+**技術スタック**:
+- FastAPI 0.120.0+, Python 3.13+
+- SQLAlchemy 2.0+, PostgreSQL
+- uv, Ruff, mypy strict, pytest
+- Docker Compose (multi-profile)
+- APScheduler, Sentry, New Relic
 
-## Common Commands
+**主要機能**:
+- Clean Architecture 4層構造
+- RDBベースセッション管理（Fernet暗号化、CSRF保護、フィンガープリント検証）
+- psycopg2ベースバックアップシステム（S3連携）
+- APSchedulerバッチシステム
+- 自動マイグレーション（起動時実行）
 
-### Essential Setup
+## コマンドリファレンス
+
+**開発**:
 ```bash
-make env                    # Create .env from .env.example
-make dev:setup              # Install all dependencies with uv
-make up INCLUDE_DB=true     # Start all containers with database
-make db:migrate             # Apply database migrations
+make dev:setup              # 依存関係インストール
+make local:up               # DBサービス起動
+make local:serve            # アプリ起動（ホットリロード）
+make lint                   # リント
+make type-check             # 型チェック
+make test                   # テスト
 ```
 
-### Development Workflow
+**データベース**:
 ```bash
-make lint                   # Check code quality with Ruff
-make lint:fix               # Auto-fix linting issues
-make format                 # Format code with Ruff
-make type-check             # Run mypy type checking (strict mode)
-make test                   # Run all tests
-make test:cov               # Run tests with coverage report
+make db:revision:create NAME="description"      # マイグレーション作成
+make db:migrate                                 # マイグレーション適用（手動）
+make db:backup:oneshot                          # バックアップ作成
+make db:backup:restore FILE="xxx.backup.gz"     # リストア
 ```
 
-### Pre-commit Hooks (Git Automation)
-```bash
-make pre-commit:install     # Install git hooks (one-time setup)
-make pre-commit:run         # Run all hooks manually on all files
-make pre-commit:update      # Update hook versions
+**IMPORTANT**: `make`コマンドが利用可能な場合は必ず使用すること。
+
+## Clean Architecture
+
+### 4層構造
+
+```
+Presentation → Infrastructure → Application → Domain
 ```
 
-### Database Operations
-```bash
-make db:revision:create NAME="description"  # Create new migration
-make db:migrate                             # Apply migrations manually
-make db:downgrade REV=-1                    # Rollback one migration
-make db:current                             # Show current revision
-make db:history                             # Show migration history
+**依存関係ルール**（厳守）:
+- Domain: 誰にも依存しない
+- Application: Domainのみに依存
+- Infrastructure: Application/Domainに依存
+- Presentation: 全レイヤーに依存可能
+
+### レイヤー配置
+
+| レイヤー | パス | 責務 |
+|---------|------|------|
+| Domain | `app/domain/` | ビジネスロジック、例外定義 |
+| Application | `app/application/` | ユースケース、インターフェース |
+| Infrastructure | `app/infrastructure/` | DB、リポジトリ実装 |
+| Presentation | `app/presentation/` | ルーター、スキーマ、ミドルウェア |
+
+詳細: [docs/architecture.md](docs/architecture.md)
+
+## Domain例外（必須知識）
+
+**場所**: `app/domain/exceptions/base.py`
+
+### 利用可能な例外クラス
+
+| クラス | HTTPステータス | code | 用途 |
+|-------|---------------|------|------|
+| `DomainError` | 500 | - | 基底クラス |
+| `NotFoundError` | 404 | `not_found` | リソース不存在 |
+| `BadRequestError` | 400 | `bad_request` | 不正リクエスト |
+| `UnauthorizedError` | 401 | `unauthorized` | 認証エラー |
+| `ForbiddenError` | 403 | `forbidden` | 権限エラー |
+| `ValidationError` | 400 | `validation_error` | バリデーションエラー |
+
+### DomainError構造
+
+```python
+class DomainError(Exception):
+    def __init__(
+        self,
+        message: str,
+        code: str,
+        details: Optional[dict[str, Any] | list[dict[str, Any]]] = None,
+    ):
+        self.message = message
+        self.code = code
+        self.details = details
 ```
 
-**Note**: Migrations run automatically on application startup (lifespan). `make db:migrate` is for manual execution only.
+### 使用例
 
-### Database Backup Operations
-```bash
-# Backup operations
-make db:backup:oneshot                      # Create backup immediately
-make db:backup:list                         # List local backups
-make db:backup:list:remote                  # List S3 backups
+```python
+from app.domain.exceptions.base import NotFoundError, UnauthorizedError, ValidationError
 
-# Diff operations
-make db:backup:diff FILE="backup_xxx.backup.gz"        # Show diff with backup (local)
-make db:backup:diff:s3 FILE="backup_xxx.backup.gz"     # Show diff with backup (S3)
+# リソース不存在
+if not user:
+    raise NotFoundError(f"User {user_id} not found", details={"user_id": user_id})
 
-# Restore operations
-make db:backup:restore FILE="backup_xxx.backup.gz"     # Restore from backup (local)
-make db:backup:restore:s3 FILE="backup_xxx.backup.gz"  # Restore from backup (S3)
-make db:backup:restore:dry-run FILE="backup_xxx.backup.gz"  # Show diff only (no restore)
+# 認証エラー
+if not session.data.get("user_id"):
+    raise UnauthorizedError("Authentication required")
+
+# バリデーションエラー（複数）
+errors = []
+if len(password) < 8:
+    errors.append({"field": "password", "error": "Too short"})
+if "@" not in email:
+    errors.append({"field": "email", "error": "Invalid format"})
+if errors:
+    raise ValidationError("Validation failed", details=errors)
 ```
 
-**Backup Format**:
-- Uses psycopg2 directly (no pg_dump/pg_restore dependency)
-- Format: Compressed JSON (gzip)
-- Includes migration version and table data
-- Auto-cleanup based on `BACKUP_RETENTION_DAYS` (default: 7 days)
+**IMPORTANT**: HTTPExceptionを直接raiseせず、必ずDomain例外を使用すること。main.pyの例外ハンドラーが自動的にHTTPレスポンスに変換する。
 
-**Restore Behavior**:
-- Transaction-based (all-or-nothing)
-- Automatically adjusts migration version
-- Shows diff summary before restore
-- Supports dry-run mode for preview
+詳細: [docs/features/error-handling.md](docs/features/error-handling.md)
 
-### Docker Operations
-```bash
-make up                     # Build and start containers (legacy)
-make down                   # Stop containers
-make reload                 # Rebuild and restart containers
-make logs                   # Follow container logs
-make ps                     # Show running containers
+## セッション管理（RDBベース）
+
+### 特徴
+
+- **RDBベース**（RedisではなくPostgreSQL）
+- **Fernet暗号化**
+- **CSRF保護**
+- **フィンガープリント検証**（User-Agent + IP）
+- **セッション固定攻撃対策**（セッションID再生成）
+
+### 実装パターン
+
+#### ログイン
+
+```python
+from app.utils.session_helper import create_session
+from app.domain.exceptions.base import UnauthorizedError
+
+@router.post("/login")
+async def login(
+    credentials: LoginCredentials,
+    db: Session = Depends(get_db),
+    request: Request,
+    response: Response
+):
+    # 認証処理
+    user = authenticate(credentials)
+    if not user:
+        raise UnauthorizedError("Invalid credentials")
+
+    # セッション作成（Cookieに自動設定）
+    session_id, csrf_token = create_session(
+        db, response, request,
+        data={"user_id": user.id, "role": user.role}
+    )
+
+    return {"csrf_token": csrf_token}
 ```
 
-### Deployment (New)
-```bash
-# Local development (uv native + Docker DB)
-docker compose -f compose.local.yml up -d
-uv run fastapi dev app/main.py
+#### 認証が必要なエンドポイント
 
-# Dev environment (auto-deploy via GitHub Actions)
-# Server setup (one-time): ./scripts/setup-server.sh dev
-# Then push to develop branch for auto-deploy
-make dev:logs               # View dev logs
-make dev:ps                 # Check dev status
+```python
+from app.presentation.api.deps import DBWithSession, get_db_with_session
 
-# Production environment (auto-deploy via GitHub Actions)
-# Server setup (one-time): ./scripts/setup-server.sh prod
-# Then push to main branch for auto-deploy
-make prod:logs              # View production logs
-make prod:ps                # Check production status
+@router.get("/profile")
+async def get_profile(deps: DBWithSession = Depends(get_db_with_session)):
+    user_id = deps.session.data.get("user_id")
+    if not user_id:
+        raise UnauthorizedError("Not logged in")
 
-# Secrets management (SOPS + age)
-make secrets:encrypt:dev    # Encrypt dev secrets
-make secrets:encrypt:prod   # Encrypt prod secrets
-make secrets:decrypt:dev    # Decrypt dev secrets
-make secrets:decrypt:prod   # Decrypt prod secrets
+    user = deps.db.query(User).filter_by(id=user_id).first()
+    return user
 ```
 
-## Important Guidelines
+#### ログアウト
 
-**ALWAYS use Makefile commands when available**:
-- This project uses a comprehensive Makefile with predefined tasks for common operations
-- Using `make` commands ensures consistency, proper environment setup, and adherence to project conventions
-- Before running any direct command (e.g., `pytest`, `mypy`, `ruff`), check if a corresponding `make` target exists
-- Examples:
-  - Use `make test` instead of `uv run pytest tests/`
-  - Use `make type-check` instead of `uv run mypy app versions tests`
-  - Use `make lint` instead of `uv run ruff check ./app`
-  - Use `make format` instead of `uv run ruff format ./app`
+```python
+from app.utils.session_helper import delete_session
 
-**When to use direct commands**:
-- Only when no Makefile target exists for the specific operation
-- When you need to pass special flags not covered by existing targets
-- When explicitly requested by the user to run a command directly
-
-## Architecture
-
-IMPORTANT: This project follows Clean Architecture with strict layer separation. Always respect dependency rules.
-
-### Layer Structure (4 layers)
-
-**Domain Layer** (`app/domain/`)
-- Core business logic, entities, value objects
-- No dependencies on other layers
-- Files: `exceptions/base.py`, `entities/`, `value_objects/`
-
-**Application Layer** (`app/application/`)
-- Use cases, DTOs, repository interfaces
-- Depends only on Domain layer
-- Files: `use_cases/`, `services/`, `interfaces/`, `dtos/`
-
-**Infrastructure Layer** (`app/infrastructure/`)
-- Database models, repositories, external services
-- Implements interfaces from Application layer
-- Files: `database/models/`, `repositories/`, `security/`, `external/`
-
-**Presentation Layer** (`app/presentation/`)
-- FastAPI routers, schemas, middleware, dependencies
-- Files: `api/v1/`, `api/system/`, `schemas/`, `middleware/`
-
-### Key Files
-
-- `app/main.py` - Application entry point with middleware setup and auto-migration
-- `app/core/config.py` - Settings management (Pydantic Settings)
-- `app/infrastructure/database/connection.py` - Database connection management
-- `app/infrastructure/database/models/base.py` - Base model with timestamp mixin
-- `app/infrastructure/database/migration.py` - Programmatic Alembic migration runner
-- `app/infrastructure/database/alembic/` - Alembic migration configuration and versions
-- `app/infrastructure/repositories/session_repository.py` - Session service implementation
-- `app/infrastructure/security/encryption.py` - Fernet encryption for sessions
-
-## Code Style
-
-IMPORTANT: Follow these conventions strictly:
-
-- **Type hints**: Always use type hints. Project uses mypy strict mode
-- **Imports**: Use relative imports within `app/` package (e.g., `from .domain import ...`). Use absolute imports from outside (e.g., tests: `from app.domain import ...`)
-- **Async/await**: Use async for all database operations and API endpoints
-- **Docstrings**: Not required for simple functions, but recommended for complex logic
-- **Naming**:
-  - Files: `snake_case.py`
-  - Classes: `PascalCase`
-  - Functions/variables: `snake_case`
-  - Constants: `UPPER_SNAKE_CASE`
-
-## Testing Guidelines
-
-- Place unit tests in `tests/unit/`
-- Place integration tests in `tests/integration/`
-- Use `test_` prefix for all test files and functions
-- Leverage fixtures from `tests/conftest.py` (`client`, `db_session`)
-- Run `make test` before committing
-
-## Workflow for Common Tasks
-
-### Adding a New API Endpoint
-
-1. Create SQLAlchemy model in `app/infrastructure/database/models/`
-2. Create Pydantic schema in `app/presentation/schemas/`
-3. Create repository in `app/infrastructure/repositories/`
-4. Create use case in `app/application/use_cases/` (if needed)
-5. Create router in `app/presentation/api/v1/`
-6. Register router in `app/presentation/api/v1/__init__.py`
-7. Create migration: `make db:revision:create NAME="add_model"`
-8. Apply migration: `make db:migrate`
-9. Add tests in `tests/`
-10. Run: `make lint && make type-check && make test`
-
-### Adding Database Model
-
-1. Create model class inheriting from `Base` in `app/infrastructure/database/models/`
-2. Import in `app/infrastructure/database/models/__init__.py`
-3. Import in `app/infrastructure/database/alembic/env.py` (for autogenerate detection)
-4. Create corresponding Pydantic schema
-5. Create repository implementation
-6. Generate migration: `make db:revision:create NAME="description"`
-7. Review migration file in `app/infrastructure/database/alembic/versions/`
-8. Migrations apply automatically on next `uv run fastapi dev` or container restart
-9. For manual apply: `make db:migrate`
-
-### Modifying Environment Configuration
-
-1. Add field to `Settings` class in `app/core/config.py`
-2. Update `.env.example` with new variable
-3. Update `.env` locally
-4. Access via `get_settings()` dependency in endpoints
-
-## Important Project Details
-
-### Session Management
-- Uses RDB-based sessions (NOT Redis)
-- Fernet encryption for session data (requires `SESSION_ENCRYPTION_KEY` in .env)
-- CSRF protection enabled
-- Session fixation protection via User-Agent + IP fingerprinting
-
-### Database Configuration
-- Database URL is constructed from individual `POSTGRES_*` variables (POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_HOST, POSTGRES_PORT, POSTGRES_DB)
-- Supabase auto-detected if POSTGRES_HOST contains 'supabase.co'
-- `POSTGRES_HOST` determines database location:
-  - `POSTGRES_HOST=db` → local DB container starts (via --profile local-db)
-  - `POSTGRES_HOST=db.xxx.supabase.co` → external DBaaS, no local container
-- db-dumper ALWAYS runs, connecting to whichever DB is configured
-
-### Database Migrations
-- **Automatic execution**: Migrations run on application startup (FastAPI lifespan event)
-- **Location**: `app/infrastructure/database/alembic/versions/`
-- **Safety**: If migration fails, application startup stops (prevents data corruption)
-- **Auto-deploy compatibility**: When GitHub Actions deploys new image, migrations run automatically
-- **Idempotency**: Alembic ensures migrations only run once (safe to restart)
-- **Manual rollback**: Use `make db:downgrade REV=-1` if needed
-
-### Docker Profiles
-- Use `--profile local-db` to enable local database container
-- Deployment scripts auto-detect POSTGRES_HOST to determine if --profile local-db is needed
-- db-dumper runs regardless of DB location (local or external)
-
-### Security
-- Sentry integration for error tracking (production)
-- New Relic APM monitoring (production)
-- Security scanning via Bandit and Semgrep: `make security:scan`
-
-## Deployment Architecture
-
-IMPORTANT: The project uses three distinct deployment environments with GitHub Actions auto-deploy.
-
-### Environment Overview
-
-| Environment | App Execution | Database | Proxy | Auto-Deploy | Compose File |
-|-------------|--------------|----------|-------|-------------|--------------|
-| **Local** | uv native (hot reload) | Docker (optional) | None | No | `compose.local.yml` |
-| **Dev** | Docker (GHCR.io) | Docker PostgreSQL | Cloudflare Tunnels | GitHub Actions (develop) | `compose.dev.yml` |
-| **Prod** | Docker (GHCR.io) | External (Supabase) | nginx + Cloudflare | GitHub Actions (main) | `compose.prod.yml` |
-
-### Key Deployment Features
-
-**Multi-platform builds**: GitHub Actions builds linux/amd64 and linux/arm64 images
-
-**Tag strategy**:
-- `main` branch → `latest` + `main` + `main-sha-xxx` tags
-- `develop` branch → `develop` + `develop-sha-xxx` tags
-
-**Automatic deployment**: GitHub Actions SSHs into server and deploys on push to develop/main
-
-**Sparse checkout**: Server only clones necessary files (compose.yml, Makefile, etc.) to minimize disk usage
-
-**Secrets management**: SOPS + age for encrypted environment files (`.env.dev.enc`, `.env.prod.enc`)
-
-### Secrets Management (SOPS + age)
-
-**Why**: Encrypted secrets can be safely committed to Git with full audit trail
-
-**Setup**:
-1. Install SOPS and age
-2. Generate age key pair: `age-keygen -o ~/.config/sops/age/keys.txt`
-3. Update `.sops.yaml` with public key
-4. Encrypt: `sops -e .env.dev > .env.dev.enc`
-5. Commit encrypted file to Git
-
-**Deployment flow**:
-1. GitHub Actions builds image and pushes to GHCR.io
-2. GitHub Actions SSHs into server
-3. Server runs `git pull` to get latest compose.yml
-4. Server runs `docker compose pull` to get latest image
-5. Server runs `docker compose up -d --force-recreate` to restart containers
-6. Health check confirmation (60s timeout)
-
-**Reference**: See `docs/secrets-management.md` for detailed guide
-
-### Deployment Workflow
-
-**Local development**:
-```bash
-docker compose -f compose.local.yml up -d
-uv run fastapi dev app/main.py
+@router.post("/logout")
+async def logout(
+    db: Session = Depends(get_db),
+    request: Request,
+    response: Response
+):
+    delete_session(db, request, response)
+    return {"message": "Logged out"}
 ```
 
-**Dev deployment** (initial):
-```bash
-# On server (one-time setup)
-./scripts/setup-server.sh dev
+#### セッションID再生成（ログイン成功時推奨）
 
-# Configure GitHub Secrets (one-time):
-# DEV_SSH_HOST, DEV_SSH_USER, DEV_SSH_PORT, DEV_SSH_PRIVATE_KEY
+```python
+from app.utils.session_helper import regenerate_session_id
+
+@router.post("/login")
+async def login(...):
+    user = authenticate(credentials)
+    regenerate_session_id(db, request, response)
+    # ...
 ```
 
-**Dev deployment** (subsequent):
-```bash
-git push origin develop        # GitHub Actions auto-deploys
+詳細: [docs/features/session-management.md](docs/features/session-management.md)
+
+## データベース
+
+### 基底クラス（必須使用）
+
+```python
+from app.infrastructure/database/models/base import BaseModel
+from sqlalchemy import String
+from sqlalchemy.orm import Mapped, mapped_column
+
+class YourModel(BaseModel):
+    __tablename__ = "your_table"
+
+    name: Mapped[str] = mapped_column(String(100))
+    # id, created_at, updated_at は自動的に追加される
 ```
 
-**Production deployment** (initial):
-```bash
-# On server (one-time setup)
-./scripts/setup-server.sh prod
+**BaseModel提供項目**:
+- `id: int` (primary key, autoincrement)
+- `created_at: datetime` (auto-set)
+- `updated_at: datetime` (auto-update)
 
-# Configure GitHub Secrets (one-time):
-# PROD_SSH_HOST, PROD_SSH_USER, PROD_SSH_PORT, PROD_SSH_PRIVATE_KEY
+### マイグレーション
+
+**自動実行**: アプリケーション起動時に自動的に適用される。
+
+**作成手順**:
+```bash
+# 1. モデルを作成
+# app/infrastructure/database/models/your_model.py
+
+# 2. models/__init__.pyにインポート追加
+from .your_model import YourModel
+
+# 3. alembic/env.pyにインポート追加（autogenerate検出用）
+from app.infrastructure.database.models import YourModel  # noqa: F401
+
+# 4. マイグレーション作成
+make db:revision:create NAME="add_your_table"
+
+# 5. マイグレーションファイル確認・編集
+# app/infrastructure/database/alembic/versions/xxx_add_your_table.py
+
+# 6. アプリケーション起動時に自動適用
+# または手動実行: make db:migrate
 ```
 
-**Production deployment** (subsequent):
-```bash
-git push origin main           # GitHub Actions auto-deploys
-```
-
-### Important Deployment Notes
-
-- **SSH managed by GitHub Actions**: Developers don't need server access
-- **Downtime**: ~10-30 seconds during deploys (forced container recreation)
-- **Branch isolation**: develop and main branches use different tags and servers
-- **Rollback**: Use `git revert` and push, or manually checkout previous commit on server
-- **Monitoring**: Check GitHub Actions logs and server logs with `ENV={dev|prod} make compose:logs`
-- **Health checks**: Deployment fails if health check doesn't pass within 60 seconds
-
-**Reference**: See `docs/deployment.md` for comprehensive deployment guide
-
-## Repository Etiquette
-
-- Main branch: `main`
-- Development branch: `develop`
-- Create PRs from feature branches to `develop`
-- Use `make pr:create` to create PR (requires gh CLI)
-- Pre-commit hooks automatically run format/lint on commit, tests on push
-- Use conventional commits (e.g., `feat:`, `fix:`, `refactor:`)
-
-## Documentation
-
-- **README.md** - User-facing landing page (Japanese)
-- **development.md** - Complete development guide (Japanese)
-- **docs/deployment.md** - Deployment guide for local/dev/prod (Japanese)
-- **docs/secrets-management.md** - SOPS + age secrets management guide (Japanese)
-- **CLAUDE.md** - This file, for AI assistance
-
-## Pre-commit Hooks
-
-This project uses [pre-commit](https://pre-commit.com/) framework for automated code quality checks.
-
-### What Gets Checked
-
-**Pre-commit (on `git commit`)**:
-- File validation (large files, YAML/TOML syntax, trailing whitespace)
-- Ruff format (auto-format code)
-- Ruff lint --fix (auto-fix linting issues)
-- uv.lock synchronization
-- OpenAPI spec generation (when `app/*.py` changes)
-
-**Pre-push (on `git push`)**:
-- Type checking (mypy)
-- Unit tests (pytest)
-
-### First-Time Setup
+### バックアップ
 
 ```bash
-# Install git hooks (one-time)
-make pre-commit:install
+# バックアップ作成
+make db:backup:oneshot
+
+# リストア前に差分確認（必須）
+make db:backup:diff FILE="backup_20251101_123456.backup.gz"
+
+# リストア
+make db:backup:restore FILE="backup_20251101_123456.backup.gz"
 ```
 
-### Usage
+詳細: [docs/features/database-backup.md](docs/features/database-backup.md)
 
-Hooks run automatically on commit/push. To run manually:
+## バッチシステム
+
+### カスタムタスク作成
+
+```python
+# app/infrastructure/batch/tasks/my_task.py
+from app.infrastructure.batch.base import BaseTask
+from app.infrastructure.batch.registry import TaskRegistry
+from app.core.logging import get_logger
+
+logger = get_logger(__name__)
+
+class MyCustomTask(BaseTask):
+    """カスタムタスクの説明"""
+    name = "my_custom_task"
+    description = "カスタムタスク"
+    schedule = "0 3 * * *"  # 毎日午前3時
+
+    def run(self) -> None:
+        logger.info(f"Starting {self.name}")
+        # タスクのロジック
+        logger.info(f"Completed {self.name}")
+
+# 自動登録
+TaskRegistry.register(MyCustomTask)
+```
+
+**配置**: `app/infrastructure/batch/tasks/` に配置するだけで自動登録される。
+
+詳細: [docs/features/batch-system.md](docs/features/batch-system.md)
+
+## 開発ワークフロー
+
+### 新しいAPIエンドポイント追加
+
+1. **Domainレイヤー**: 例外クラス定義（必要に応じて）
+2. **Infrastructureレイヤー**: モデル作成
+   ```python
+   # app/infrastructure/database/models/your_model.py
+   from .base import BaseModel
+
+   class YourModel(BaseModel):
+       __tablename__ = "your_table"
+       # ...
+   ```
+
+3. **Presentationレイヤー**: スキーマ作成
+   ```python
+   # app/presentation/schemas/your_schema.py
+   from pydantic import BaseModel
+
+   class YourSchema(BaseModel):
+       name: str
+   ```
+
+4. **Presentationレイヤー**: ルーター作成
+   ```python
+   # app/presentation/api/v1/your_router.py
+   from fastapi import APIRouter, Depends
+   from app.domain.exceptions.base import NotFoundError
+
+   router = APIRouter()
+
+   @router.get("/{item_id}")
+   async def get_item(item_id: int, db: Session = Depends(get_db)):
+       item = db.query(YourModel).filter_by(id=item_id).first()
+       if not item:
+           raise NotFoundError(f"Item {item_id} not found")
+       return item
+   ```
+
+5. **Presentationレイヤー**: ルーター登録
+   ```python
+   # app/presentation/api/v1/__init__.py
+   from .your_router import router as your_router
+
+   api_router.include_router(your_router, prefix="/your-endpoint", tags=["your-endpoint"])
+   ```
+
+6. **マイグレーション**:
+   ```bash
+   make db:revision:create NAME="add_your_table"
+   # アプリケーション起動時に自動適用
+   ```
+
+7. **テスト**:
+   ```bash
+   make test
+   make type-check
+   make lint
+   ```
+
+## 共通コンポーネント
+
+### 依存性注入
+
+```python
+from fastapi import Depends
+from sqlalchemy.orm import Session
+from app.infrastructure.database import get_db
+from app.presentation.api.deps import DBWithSession, get_db_with_session
+from app.utils.schemas import SessionSchema
+from app.presentation.api.deps import get_session, get_api_key
+
+# DBセッションのみ
+@router.get("/users")
+async def get_users(db: Session = Depends(get_db)):
+    return db.query(User).all()
+
+# セッションのみ
+@router.get("/profile")
+async def get_profile(session: SessionSchema = Depends(get_session)):
+    user_id = session.data.get("user_id")
+    # ...
+
+# DB + セッション
+@router.get("/protected")
+async def protected(deps: DBWithSession = Depends(get_db_with_session)):
+    user_id = deps.session.data.get("user_id")
+    user = deps.db.query(User).filter_by(id=user_id).first()
+    # ...
+
+# API認証
+@router.get("/api-protected")
+async def api_protected(api_key: str = Depends(get_api_key)):
+    # ...
+```
+
+### ロギング
+
+```python
+from app.core.logging import get_logger
+
+logger = get_logger(__name__)
+
+logger.info("Info message")
+logger.error("Error message", exc_info=True)
+```
+
+### 設定
+
+```python
+from app.core.config import get_settings
+
+settings = get_settings()
+
+database_url = settings.database_uri
+is_production = settings.is_production
+```
+
+詳細: [docs/api-reference.md](docs/api-reference.md)
+
+## ベストプラクティス
+
+### 1. レイヤー分離の徹底
+
+```python
+# ❌ BAD: Presentation層でビジネスロジック
+@router.post("/users")
+async def create_user(user_data: UserCreate):
+    if len(user_data.password) < 8:
+        raise HTTPException(status_code=400, detail="Password too short")
+
+# ✅ GOOD: Domain層で例外定義
+from app.domain.exceptions.base import ValidationError
+
+@router.post("/users")
+async def create_user(user_data: UserCreate):
+    if len(user_data.password) < 8:
+        raise ValidationError("Password too short")
+```
+
+### 2. Domain例外の使用
+
+```python
+# ❌ BAD: HTTPExceptionを直接raise
+raise HTTPException(status_code=404, detail="Not found")
+
+# ✅ GOOD: Domain例外を使用
+raise NotFoundError("User not found", details={"user_id": user_id})
+```
+
+### 3. ログイン時はセッションID再生成
+
+```python
+# ✅ GOOD: セッション固定攻撃対策
+from app.utils.session_helper import regenerate_session_id
+
+@router.post("/login")
+async def login(...):
+    user = authenticate(credentials)
+    regenerate_session_id(db, request, response)
+```
+
+### 4. 機密情報はセッションに保存しない
+
+```python
+# ❌ BAD: パスワードを保存
+session_data = {"password": user.password}
+
+# ✅ GOOD: 最小限の識別情報のみ
+session_data = {"user_id": user.id, "role": user.role}
+```
+
+### 5. 型ヒントの徹底（mypy strict mode）
+
+```python
+# ❌ BAD: 型ヒントなし
+def get_user(user_id):
+    return db.query(User).filter_by(id=user_id).first()
+
+# ✅ GOOD: 厳格な型ヒント
+from typing import Optional
+
+def get_user(user_id: int) -> Optional[User]:
+    return db.query(User).filter_by(id=user_id).first()
+```
+
+### 6. BaseModelの使用
+
+```python
+# ✅ GOOD: BaseModelを継承
+from app.infrastructure.database.models.base import BaseModel
+
+class User(BaseModel):
+    __tablename__ = "users"
+    # id, created_at, updated_at は自動的に追加される
+```
+
+### 7. リストア前に差分確認
 
 ```bash
-# Run all hooks on all files
-make pre-commit:run
-
-# Run specific hook
-uv run pre-commit run ruff --all-files
-
-# Skip hooks (not recommended)
-git commit --no-verify
+# ✅ GOOD: まず差分を確認
+make db:backup:diff FILE="backup_xxx.backup.gz"
+# 確認後にリストア
+make db:backup:restore FILE="backup_xxx.backup.gz"
 ```
 
-### Performance Optimizations
+## 実装例（完全版）
 
-- ✅ **Ruff**: 150-200x faster than traditional linters
-- ✅ **Parallel execution**: Multiple files processed simultaneously
-- ✅ **Selective execution**: Only changed files checked (except tests/type-check)
-- ✅ **Caching**: Hook environments cached after first run
+### ユーザー管理API
 
-**Reference**: Configuration in `.pre-commit-config.yaml`
+```python
+# app/infrastructure/database/models/user.py
+from .base import BaseModel
+from sqlalchemy import String
+from sqlalchemy.orm import Mapped, mapped_column
 
-## Common Gotchas
+class User(BaseModel):
+    __tablename__ = "users"
 
-- mypy requires paths without `./` prefix: use `mypy app tests` not `mypy ./app ./tests`
-- Database migrations must be reviewed before applying (Alembic can miss some changes)
-- Session encryption key must be 32 url-safe base64-encoded bytes
-- Docker Compose profiles must be explicitly enabled via `INCLUDE_DB=true` for database services
-- Pre-commit hooks can be skipped with `--no-verify` but this is not recommended
+    email: Mapped[str] = mapped_column(String(100), unique=True)
+    name: Mapped[str] = mapped_column(String(100))
+    password_hash: Mapped[str] = mapped_column(String(255))
+
+
+# app/presentation/schemas/user.py
+from pydantic import BaseModel, EmailStr
+
+class UserCreate(BaseModel):
+    email: EmailStr
+    name: str
+    password: str
+
+class UserResponse(BaseModel):
+    id: int
+    email: str
+    name: str
+
+    class Config:
+        from_attributes = True
+
+
+# app/presentation/api/v1/users.py
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
+from app.infrastructure.database import get_db
+from app.infrastructure.database.models.user import User
+from app.presentation.schemas.user import UserCreate, UserResponse
+from app.domain.exceptions.base import NotFoundError, BadRequestError
+
+router = APIRouter()
+
+@router.post("/", response_model=UserResponse)
+async def create_user(user_data: UserCreate, db: Session = Depends(get_db)):
+    # 重複チェック
+    if db.query(User).filter_by(email=user_data.email).first():
+        raise BadRequestError(
+            "Email already exists",
+            details={"email": user_data.email}
+        )
+
+    # パスワードハッシュ化（実際にはbcrypt等を使用）
+    password_hash = hash_password(user_data.password)
+
+    # ユーザー作成
+    user = User(
+        email=user_data.email,
+        name=user_data.name,
+        password_hash=password_hash
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    return user
+
+@router.get("/{user_id}", response_model=UserResponse)
+async def get_user(user_id: int, db: Session = Depends(get_db)):
+    user = db.query(User).filter_by(id=user_id).first()
+    if not user:
+        raise NotFoundError(f"User {user_id} not found", details={"user_id": user_id})
+    return user
+
+
+# app/presentation/api/v1/__init__.py
+from fastapi import APIRouter
+from .users import router as users_router
+
+api_router = APIRouter()
+api_router.include_router(users_router, prefix="/users", tags=["users"])
+
+
+# マイグレーション作成
+# make db:revision:create NAME="add_users_table"
+```
+
+## 重要な注意事項
+
+1. **Makefileコマンド優先**: `make`コマンドが利用可能な場合は必ず使用
+2. **Domain例外使用**: HTTPExceptionを直接raiseしない
+3. **レイヤー分離厳守**: 依存関係ルールを遵守
+4. **型ヒント必須**: mypy strict modeを通過すること
+5. **BaseModel使用**: データベースモデルはBaseModelを継承
+6. **セッション管理**: ログイン時はセッションID再生成
+7. **バックアップ**: リストア前に必ず差分確認
+8. **自動マイグレーション**: アプリケーション起動時に自動適用
+9. **pre-commit hooks**: 自動的にコード品質チェックが実行される
+
+## リファレンスドキュメント
+
+- [README.md](README.md) - プロジェクト概要
+- [docs/architecture.md](docs/architecture.md) - Clean Architecture詳細
+- [docs/features/error-handling.md](docs/features/error-handling.md) - エラーハンドリング
+- [docs/features/session-management.md](docs/features/session-management.md) - セッション管理
+- [docs/features/database-backup.md](docs/features/database-backup.md) - バックアップシステム
+- [docs/features/batch-system.md](docs/features/batch-system.md) - バッチ処理
+- [docs/api-reference.md](docs/api-reference.md) - 共通コンポーネント
+- [docs/deployment.md](docs/deployment.md) - デプロイメント
+- [docs/secrets-management.md](docs/secrets-management.md) - シークレット管理
