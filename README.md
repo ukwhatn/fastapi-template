@@ -1,164 +1,305 @@
-# FastAPI Template
+# FastAPI Production Template
 
-[FastAPI](https://fastapi.tiangolo.com/)を使用したWebアプリケーション開発用テンプレート。
+FastAPIベースのプロダクション対応Webアプリケーションテンプレート。Clean Architecture（4層構造）、RDBベース暗号化セッション管理、包括的なDocker展開環境を提供。
 
-## ✨ 機能
+## 主要機能
 
-- **🚀 高速開発**: 構造化されたテンプレート、ホットリロード、包括的なツール群
-- **🏗️ モジュラーアーキテクチャ**: クリーンなAPI設計とバージョン管理
-- **🗄️ データベース統合**: SQLAlchemy、PostgreSQL、Redis対応、マイグレーション管理
-- **🐳 Docker対応**: Docker Composeによる完全なコンテナ化
-- **🔒 セキュリティ重視**: BanditとSemgrepによる組み込みセキュリティスキャン
-- **📊 監視機能**: Sentry統合、New Relic APM、構造化ログ
-- **🧪 コード品質**: Ruffによる自動リント、フォーマット、型チェック
+### アーキテクチャ・設計
+- Clean Architecture（4層構造：Domain/Application/Infrastructure/Presentation）
+- 厳密な依存性ルールによるレイヤー分離
+- Repository パターンによるデータアクセス抽象化
+- 依存性注入（FastAPI Depends）
 
-## 🚀 クイックスタート
+### セキュリティ
+- RDBベースセッション管理（Fernet暗号化）
+- CSRFトークン保護
+- セッションフィンガープリント検証（User-Agent + IP）
+- セッション固定攻撃対策（セッションID再生成）
+- Bearer トークン API認証
+- セキュリティヘッダー自動付与
 
-### 1. プロジェクトを作成
+### データベース
+- SQLAlchemy 2.0+ ORM
+- Alembic マイグレーション（起動時自動実行）
+- psycopg2ベースバックアップシステム（pg_dump不要）
+- S3バックアップ連携
+- TimeStampMixin（created_at/updated_at自動管理）
 
-1. このテンプレートを使用して新しいリポジトリを作成
-2. リポジトリをクローン:
-   ```bash
-   git clone https://github.com/yourusername/your-api-name.git
-   cd your-api-name
-   ```
+### 開発体験
+- uv（高速パッケージマネージャー）
+- Ruff（linting + formatting、従来比150-200倍高速）
+- mypy strict mode（厳格な型チェック）
+- pre-commit hooks（コミット時自動チェック）
+- ホットリロード開発環境
 
-### 2. プロジェクトを初期化
+### 監視・運用
+- Sentry統合（エラートラッキング）
+- New Relic APM統合（本番環境）
+- 構造化ロギング
+- APSchedulerベースバッチシステム
+- 期限切れセッション自動削除
+
+### デプロイメント
+- 3環境対応（Local/Dev/Prod）
+- GitHub Actions自動デプロイ
+- マルチプラットフォームビルド（amd64/arm64）
+- SOPS + age暗号化によるシークレット管理
+- Sparse Checkout（最小限のファイルクローン）
+
+## クイックスタート
+
+### 前提条件
+- Docker & Docker Compose
+- uv
+- Python 3.13+
+
+### 初期セットアップ
 
 ```bash
-# プロジェクト名を設定
-make project:init NAME="あなたのプロジェクト名"
+# 1. このテンプレートから新規リポジトリ作成
+# GitHub UIで "Use this template" クリック
 
-# 環境ファイルをセットアップ
+# 2. リポジトリをクローン
+git clone https://github.com/yourusername/your-project.git
+cd your-project
+
+# 3. 環境変数ファイルを作成
 make env
 
-# 依存関係をインストール
+# 4. 必要に応じて .env を編集
+vi .env
+
+# 5. 依存関係をインストール
 make dev:setup
 ```
 
-### 3. APIサーバーを実行
+### ローカル開発
 
-**ローカル開発（推奨 - ホットリロード付き）:**
 ```bash
 # データベースサービスを起動
 make local:up
 
-# アプリケーションをuvでネイティブ実行
+# アプリケーションを起動（ホットリロード）
 make local:serve
-# または: uv run fastapi dev app/main.py --host 0.0.0.0 --port 8000
+
+# または直接実行
+uv run fastapi dev app/main.py --host 0.0.0.0 --port 8000
 ```
 
-**Docker使用:**
+APIドキュメント: http://localhost:8000/docs
+
+### Docker使用
+
 ```bash
 # データベース付きで起動
 make up INCLUDE_DB=true
+
+# ログを確認
+make logs
+
+# 停止
+make down
 ```
 
-APIサーバーが起動しました！ 🎉
+## 技術スタック
 
-- **API文書**: http://localhost:8000/docs
-- **管理画面**: http://localhost:8001 (Adminer - データベース管理)
+| カテゴリ | 技術 | バージョン |
+|---------|------|----------|
+| Framework | FastAPI | 0.120.0+ |
+| Language | Python | 3.13+ |
+| ORM | SQLAlchemy | 2.0+ |
+| Database | PostgreSQL | - |
+| Migration | Alembic | - |
+| Package Manager | uv | - |
+| Linter/Formatter | Ruff | - |
+| Type Checker | mypy | strict mode |
+| Testing | pytest | - |
+| Container | Docker Compose | multi-profile |
+| CI/CD | GitHub Actions | - |
+| Secrets | SOPS + age | - |
 
-## 📚 ドキュメント
-
-- **[開発ガイド](development.md)** - API構築、データベース操作、Docker開発の完全ガイド
-- **[デプロイメントガイド](docs/deployment.md)** - Local/Dev/Prod環境へのデプロイ方法
-- **[シークレット管理ガイド](docs/secrets-management.md)** - SOPS + ageによる安全なシークレット管理
-- **[クイックリファレンス](#クイックリファレンス)** - 開発に必要なコマンド一覧
-
-## 🏗️ アーキテクチャ概要
+## プロジェクト構造
 
 ```
-app/
-├── main.py              # FastAPIエントリーポイント
-├── api/                 # APIエンドポイント（バージョン管理）
-├── core/config.py       # 設定管理
-├── db/                  # データベース層（モデル、スキーマ、CRUD）
-├── static/              # 静的ファイル（CSS、JS、画像など）
-├── templates/           # Jinja2テンプレート（HTMLファイル）
-└── utils/               # ユーティリティ関数とヘルパー
+.
+├── app/
+│   ├── domain/              # Domain層（ビジネスロジック、例外定義）
+│   ├── application/         # Application層（ユースケース、インターフェース）
+│   ├── infrastructure/      # Infrastructure層（DB、リポジトリ実装）
+│   │   ├── database/        # モデル、マイグレーション、バックアップ
+│   │   ├── repositories/    # リポジトリ実装
+│   │   ├── security/        # 暗号化、認証
+│   │   └── batch/           # バッチタスク
+│   ├── presentation/        # Presentation層（ルーター、スキーマ、ミドルウェア）
+│   │   ├── api/             # APIエンドポイント
+│   │   ├── schemas/         # Pydanticスキーマ
+│   │   └── middleware/      # ミドルウェア
+│   ├── core/                # 設定、ロギング
+│   ├── utils/               # ユーティリティ、ヘルパー
+│   └── main.py              # アプリケーションエントリーポイント
+├── tests/                   # テスト
+│   ├── unit/                # 単体テスト
+│   └── integration/         # 統合テスト
+├── docs/                    # ドキュメント
+├── docker/                  # Dockerfiles
+├── scripts/                 # デプロイスクリプト
+└── Makefile                 # タスク自動化
 ```
 
-**主要機能:**
-- **構造化されたテンプレート**: モデル、スキーマ、CRUD、ルーターの明確な分離
-- **データベース層**: モデル、スキーマ、CRUD操作のクリーンな分離
-- **設定システム**: Pydanticバリデーション付き環境ベース設定
-- **エラーハンドリング**: 包括的なエラートラッキングとユーザーフレンドリーな応答
+## コマンドリファレンス
 
-## 🛠️ 使用技術
-
-- **[FastAPI](https://fastapi.tiangolo.com/)** - モダンで高速なPython Webフレームワーク
-- **[SQLAlchemy](https://sqlalchemy.org/)** - マイグレーション対応データベースORM
-- **[Pydantic](https://pydantic.dev/)** - データバリデーションと設定管理
-- **[uv](https://github.com/astral-sh/uv)** - Pythonパッケージ管理
-- **[Ruff](https://github.com/astral-sh/ruff)** - 超高速リントとフォーマット
-
-## クイックリファレンス
-
-### 必須コマンド
+### 開発
 
 ```bash
-# 開発セットアップ
-make dev:setup          # 全依存関係をインストール
-make env                # テンプレートから.envファイルを作成
+# セットアップ
+make dev:setup              # 依存関係インストール
+make env                    # .envファイル作成
 
 # コード品質
-make format             # Ruffでコードをフォーマット
-make lint               # コード品質をチェック
-make type-check         # mypy型チェック
-make security:scan      # セキュリティ分析を実行
-make test               # テストを実行
-make test:cov           # カバレッジ付きテスト
+make format                 # コードフォーマット
+make lint                   # リント実行
+make type-check             # 型チェック
+make test                   # テスト実行
+make test:cov               # カバレッジ付きテスト
 
-# ローカル開発（uv native + Docker DB）
-make local:up           # データベースサービス起動
-make local:serve        # アプリケーション起動（ホットリロード）
-make local:down         # サービス停止
-
-# Docker操作（レガシー）
-make up INCLUDE_DB=true # データベース付きで起動
-make down               # 全コンテナを停止
-make logs               # コンテナログを表示
-
-# デプロイ（新規）
-make dev:deploy         # Dev環境デプロイ（Watchtower自動更新）
-make prod:deploy        # 本番環境デプロイ（確認付き）
-make watchtower:setup   # Watchtowerセットアップ（サーバーごとに1回）
-
-# シークレット管理（SOPS + age）
-make secrets:encrypt:dev   # Dev環境変数を暗号化
-make secrets:encrypt:prod  # Prod環境変数を暗号化
-make secrets:edit:dev      # Dev環境変数を編集（自動再暗号化）
-make secrets:edit:prod     # Prod環境変数を編集（自動再暗号化）
-
-# データベース
-make db:migrate         # データベースマイグレーションを適用
-make db:revision:create NAME="説明" # 新しいマイグレーションを作成
-make db:current         # 現在のリビジョンを表示
-make db:history         # マイグレーション履歴を表示
+# 開発サーバー
+make local:up               # DBサービス起動
+make local:serve            # アプリケーション起動
+make local:down             # 停止
 ```
 
-### 機能追加
+### データベース
 
-1. **APIエンドポイントを作成**: 
-   - `app/db/models/`にモデルを作成
-   - `app/db/schemas/`にスキーマを作成
-   - `app/db/crud/`にCRUD操作を作成
-   - `app/api/v1/`にルーターを作成
-2. **ルーターを登録**: `app/api/v1/__init__.py`にルーターを追加
-3. **マイグレーション**: `make db:revision:create NAME="add_model"`
-4. **テスト**: 開発中は`make reload`でホットリロード
+```bash
+# マイグレーション
+make db:revision:create NAME="description"  # マイグレーション作成
+make db:migrate                             # マイグレーション適用
+make db:current                             # 現在のリビジョン表示
+make db:history                             # 履歴表示
+make db:downgrade REV=-1                    # ロールバック
 
-各側面の詳細なチュートリアルは[開発ガイド](development.md)を参照してください。
+# バックアップ
+make db:backup:oneshot                                # バックアップ作成
+make db:backup:list                                   # ローカルバックアップ一覧
+make db:backup:diff FILE="backup_xxx.backup.gz"       # 差分表示
+make db:backup:restore FILE="backup_xxx.backup.gz"    # リストア
 
-## 🤝 コントリビューション
+# S3バックアップ
+make db:backup:list:remote                            # S3バックアップ一覧
+make db:backup:restore:s3 FILE="backup_xxx.backup.gz" # S3からリストア
+```
 
-1. リポジトリをフォーク
-2. 機能ブランチを作成
-3. 変更を加える
-4. テストとリントを実行: `make lint && make security:scan`
-5. プルリクエストを送信
+### デプロイ
 
-## 📄 ライセンス
+```bash
+# ローカルDocker
+make up INCLUDE_DB=true     # 起動
+make down                   # 停止
+make reload                 # 再起動
 
-このテンプレートはオープンソースで、[MITライセンス](LICENSE)の下で利用可能です。
+# 開発環境（自動デプロイ via GitHub Actions）
+# develop ブランチへのプッシュで自動デプロイ
+git push origin develop
+
+# 本番環境（自動デプロイ via GitHub Actions）
+# main ブランチへのプッシュで自動デプロイ
+git push origin main
+```
+
+### シークレット管理
+
+```bash
+# SOPS + age による暗号化
+make secrets:encrypt:dev    # Dev環境変数を暗号化
+make secrets:encrypt:prod   # Prod環境変数を暗号化
+make secrets:edit:dev       # Dev環境変数を編集（自動再暗号化）
+make secrets:edit:prod      # Prod環境変数を編集（自動再暗号化）
+```
+
+## ドキュメント
+
+### アーキテクチャ・設計
+- [Architecture](docs/architecture.md) - Clean Architecture実装詳細、レイヤー分離
+
+### 機能詳細
+- [Error Handling](docs/features/error-handling.md) - エラーハンドリング機構
+- [Session Management](docs/features/session-management.md) - RDBベースセッション管理
+- [Database Backup](docs/features/database-backup.md) - バックアップシステム
+- [Batch System](docs/features/batch-system.md) - バッチ処理
+
+### リファレンス
+- [API Reference](docs/api-reference.md) - 共通コンポーネント、ヘルパー関数
+
+### 運用
+- [Deployment](docs/deployment.md) - Local/Dev/Prod環境デプロイ
+- [Secrets Management](docs/secrets-management.md) - SOPS + ageによるシークレット管理
+
+## 開発ワークフロー
+
+### 新しいAPIエンドポイントを追加
+
+1. **Domainレイヤー**：例外クラスを定義（必要に応じて）
+   ```python
+   # app/domain/exceptions/your_exceptions.py
+   from .base import DomainError
+
+   class YourCustomError(DomainError):
+       def __init__(self, message: str = "Custom error"):
+           super().__init__(message=message, code="your_custom_error")
+   ```
+
+2. **Infrastructureレイヤー**：モデルとリポジトリを実装
+   ```python
+   # app/infrastructure/database/models/your_model.py
+   from .base import BaseModel
+   from sqlalchemy.orm import Mapped, mapped_column
+
+   class YourModel(BaseModel):
+       __tablename__ = "your_table"
+       name: Mapped[str] = mapped_column(String(100))
+   ```
+
+3. **Presentationレイヤー**：スキーマとルーターを実装
+   ```python
+   # app/presentation/schemas/your_schema.py
+   from pydantic import BaseModel
+
+   class YourSchema(BaseModel):
+       name: str
+   ```
+
+4. **マイグレーション**
+   ```bash
+   make db:revision:create NAME="add_your_table"
+   # マイグレーションファイルを確認・編集
+   # アプリケーション起動時に自動適用される
+   ```
+
+5. **テスト**
+   ```bash
+   make test
+   make type-check
+   make lint
+   ```
+
+### コミット前チェック
+
+pre-commit hooksが自動的に以下を実行：
+- Ruff format（コードフォーマット）
+- Ruff lint --fix（リント修正）
+- mypy（型チェック、pushフック）
+- pytest（テスト、pushフック）
+
+手動実行：
+```bash
+make pre-commit:run         # 全フックを実行
+```
+
+インストール：
+```bash
+make pre-commit:install     # 初回のみ
+```
+
+## ライセンス
+
+MIT License
