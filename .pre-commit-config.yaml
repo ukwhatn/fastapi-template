@@ -40,18 +40,36 @@ repos:
         files: ^app/.*\.py$
         stages: [pre-commit]
 
-      # Type check（pre-pushのみ）
+      # Frontend lint（pre-commitのみ）
+      - id: frontend-lint
+        name: Frontend lint with ESLint
+        entry: make frontend:lint:fix
+        language: system
+        pass_filenames: false
+        files: ^frontend/.*\.(ts|tsx|js|jsx)$
+        stages: [pre-commit]
+
+      # Backend Type check（pre-pushのみ）
       - id: mypy
-        name: Type check with mypy
+        name: Backend type check with mypy
         entry: make type-check
         language: system
         pass_filenames: false
         always_run: true
         stages: [pre-push]
 
-      # Tests（pre-pushのみ）
+      # Frontend Type check（pre-pushのみ）
+      - id: frontend-type-check
+        name: Frontend type check with tsc
+        entry: make frontend:type-check
+        language: system
+        pass_filenames: false
+        files: ^frontend/.*\.(ts|tsx)$
+        stages: [pre-push]
+
+      # Backend Tests（pre-pushのみ）
       - id: pytest
-        name: Run tests
+        name: Run backend tests
         entry: make test
         language: system
         pass_filenames: false
