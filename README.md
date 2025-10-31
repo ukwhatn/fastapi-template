@@ -1,50 +1,6 @@
-# FastAPI Production Template
+# FastAPI Template
 
 FastAPIベースのプロダクション対応Webアプリケーションテンプレート。Clean Architecture（4層構造）、RDBベース暗号化セッション管理、包括的なDocker展開環境を提供。
-
-## 主要機能
-
-### アーキテクチャ・設計
-- Clean Architecture（4層構造：Domain/Application/Infrastructure/Presentation）
-- 厳密な依存性ルールによるレイヤー分離
-- Repository パターンによるデータアクセス抽象化
-- 依存性注入（FastAPI Depends）
-
-### セキュリティ
-- RDBベースセッション管理（Fernet暗号化）
-- CSRFトークン保護
-- セッションフィンガープリント検証（User-Agent + IP）
-- セッション固定攻撃対策（セッションID再生成）
-- Bearer トークン API認証
-- セキュリティヘッダー自動付与
-
-### データベース
-- SQLAlchemy 2.0+ ORM
-- Alembic マイグレーション（起動時自動実行）
-- psycopg2ベースバックアップシステム（pg_dump不要）
-- S3バックアップ連携
-- TimeStampMixin（created_at/updated_at自動管理）
-
-### 開発体験
-- uv（高速パッケージマネージャー）
-- Ruff（linting + formatting、従来比150-200倍高速）
-- mypy strict mode（厳格な型チェック）
-- pre-commit hooks（コミット時自動チェック）
-- ホットリロード開発環境
-
-### 監視・運用
-- Sentry統合（エラートラッキング）
-- New Relic APM統合（本番環境）
-- 構造化ロギング
-- APSchedulerベースバッチシステム
-- 期限切れセッション自動削除
-
-### デプロイメント
-- 3環境対応（Local/Dev/Prod）
-- GitHub Actions自動デプロイ
-- マルチプラットフォームビルド（amd64/arm64）
-- SOPS + age暗号化によるシークレット管理
-- Sparse Checkout（最小限のファイルクローン）
 
 ## クイックスタート
 
