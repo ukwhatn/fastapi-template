@@ -249,7 +249,30 @@ local\:ps:
 	@ENV=local $(MAKE) compose:ps
 
 local\:serve:
+	@echo "Starting FastAPI and Frontend dev servers in parallel..."
+	@cd frontend && pnpm dev & uv run fastapi dev app/main.py --host 0.0.0.0 --port 8000 & wait
+
+local\:serve\:backend:
 	@uv run fastapi dev app/main.py --host 0.0.0.0 --port 8000
+
+local\:serve\:frontend:
+	@cd frontend && pnpm dev
+
+# ==== Frontend操作 ====
+frontend\:install:
+	@cd frontend && pnpm install
+
+frontend\:build:
+	@cd frontend && pnpm build
+
+frontend\:lint:
+	@cd frontend && pnpm lint
+
+frontend\:lint\:fix:
+	@cd frontend && pnpm lint --fix
+
+frontend\:type-check:
+	@cd frontend && pnpm exec tsc --noEmit
 
 # ==== dev環境操作 ====
 dev\:deploy:
@@ -367,4 +390,4 @@ template\:apply\:force:
 	git checkout $$commit_hash -- . && \
 	echo "テンプレートの変更が強制的に適用されました。変更を確認しgit add/commitしてください。"
 
-.PHONY: build build\:no-cache up down reload reset logs logs\:once ps pr\:create deploy\:prod uv\:add uv\:add\:dev uv\:lock uv\:update uv\:update\:all dev\:setup lint lint\:fix format format\:check type-check security\:scan security\:scan\:code security\:scan\:code\:critical security\:scan\:sast security\:scan\:sast\:critical security\:scan\:trivy test test\:cov db\:revision\:create db\:migrate db\:downgrade db\:current db\:history db\:backup\:oneshot db\:backup\:list db\:backup\:list\:remote db\:backup\:diff db\:backup\:diff\:s3 db\:backup\:restore db\:backup\:restore\:s3 db\:backup\:restore\:dry-run env openapi\:generate compose\:up compose\:down compose\:down\:v compose\:logs compose\:ps compose\:pull compose\:restart compose\:build local\:up local\:down local\:down\:v local\:logs local\:ps local\:serve dev\:deploy dev\:logs dev\:ps dev\:down prod\:deploy prod\:logs prod\:ps prod\:down secrets\:encrypt\:dev secrets\:encrypt\:prod secrets\:decrypt\:dev secrets\:decrypt\:prod secrets\:edit\:dev secrets\:edit\:prod project\:rename project\:init template\:list template\:apply template\:apply\:range template\:apply\:force pre-commit\:install pre-commit\:run pre-commit\:update
+.PHONY: build build\:no-cache up down reload reset logs logs\:once ps pr\:create deploy\:prod uv\:add uv\:add\:dev uv\:lock uv\:update uv\:update\:all dev\:setup lint lint\:fix format format\:check type-check security\:scan security\:scan\:code security\:scan\:code\:critical security\:scan\:sast security\:scan\:sast\:critical security\:scan\:trivy test test\:cov db\:revision\:create db\:migrate db\:downgrade db\:current db\:history db\:backup\:oneshot db\:backup\:list db\:backup\:list\:remote db\:backup\:diff db\:backup\:diff\:s3 db\:backup\:restore db\:backup\:restore\:s3 db\:backup\:restore\:dry-run env openapi\:generate compose\:up compose\:down compose\:down\:v compose\:logs compose\:ps compose\:pull compose\:restart compose\:build local\:up local\:down local\:down\:v local\:logs local\:ps local\:serve local\:serve\:backend local\:serve\:frontend frontend\:install frontend\:build frontend\:lint frontend\:lint\:fix frontend\:type-check dev\:deploy dev\:logs dev\:ps dev\:down prod\:deploy prod\:logs prod\:ps prod\:down secrets\:encrypt\:dev secrets\:encrypt\:prod secrets\:decrypt\:dev secrets\:decrypt\:prod secrets\:edit\:dev secrets\:edit\:prod project\:rename project\:init template\:list template\:apply template\:apply\:range template\:apply\:force pre-commit\:install pre-commit\:run pre-commit\:update
