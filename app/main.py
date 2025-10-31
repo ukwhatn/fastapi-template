@@ -157,7 +157,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     else:
         logger.info(f"Jinja2 templates disabled: {TEMPLATES_DIR}")
 
-    if FRONTEND_DIST_DIR.exists() and FRONTEND_DIST_DIR.is_dir():
+    # テスト環境・ローカル環境ではSPAマウントを無効化（404テストを正しく動作させるため）
+    if (
+        not (settings.is_local or settings.is_test)
+        and FRONTEND_DIST_DIR.exists()
+        and FRONTEND_DIST_DIR.is_dir()
+    ):
         app.mount(
             "/",
             SPAStaticFiles(directory=str(FRONTEND_DIST_DIR), html=True),
@@ -165,7 +170,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         )
         logger.info(f"Frontend SPA enabled: {FRONTEND_DIST_DIR}")
     else:
-        logger.info(f"Frontend SPA disabled: {FRONTEND_DIST_DIR} not found")
+        if settings.is_local or settings.is_test:
+            logger.info("Frontend SPA disabled: local/test mode")
+        else:
+            logger.info(f"Frontend SPA disabled: {FRONTEND_DIST_DIR} not found")
 
     yield
 
