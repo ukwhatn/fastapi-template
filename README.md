@@ -23,7 +23,7 @@ cd your-project
 make env
 
 # 4. 必要に応じて .env を編集
-vi .env
+nano .env
 
 # 5. プロジェクトリネーム・依存関係をインストール
 make dev:setup
@@ -37,9 +37,6 @@ make local:up
 
 # アプリケーションを起動（ホットリロード）
 make local:serve
-
-# または直接実行
-uv run fastapi dev app/main.py --host 0.0.0.0 --port 8000
 ```
 
 APIドキュメント: http://localhost:8000/docs
@@ -56,23 +53,6 @@ make logs
 # 停止
 make down
 ```
-
-## 技術スタック
-
-| カテゴリ | 技術 | バージョン |
-|---------|------|----------|
-| Framework | FastAPI | 0.120.0+ |
-| Language | Python | 3.13+ |
-| ORM | SQLAlchemy | 2.0+ |
-| Database | PostgreSQL | - |
-| Migration | Alembic | - |
-| Package Manager | uv | - |
-| Linter/Formatter | Ruff | - |
-| Type Checker | mypy | strict mode |
-| Testing | pytest | - |
-| Container | Docker Compose | multi-profile |
-| CI/CD | GitHub Actions | - |
-| Secrets | SOPS + age | - |
 
 ## プロジェクト構造
 
