@@ -32,14 +32,14 @@
         }
       }
     },
-    "/api/api/system/healthcheck/": {
+    "/api/system/healthcheck/": {
       "get": {
         "tags": [
           "system"
         ],
         "summary": "Healthcheck",
         "description": "ヘルスチェックエンドポイント",
-        "operationId": "healthcheck_api_api_system_healthcheck__get",
+        "operationId": "healthcheck_api_system_healthcheck__get",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -50,7 +50,7 @@
                     "type": "string"
                   },
                   "type": "object",
-                  "title": "Response Healthcheck Api Api System Healthcheck  Get"
+                  "title": "Response Healthcheck Api System Healthcheck  Get"
                 }
               }
             }
@@ -58,14 +58,14 @@
         }
       }
     },
-    "/api/api/system/views/": {
+    "/api/system/views/": {
       "get": {
         "tags": [
           "views"
         ],
         "summary": "Index",
         "description": "インデックスページ（テンプレートが有効な場合）",
-        "operationId": "index_api_api_system_views__get",
+        "operationId": "index_api_system_views__get",
         "responses": {
           "200": {
             "description": "Successful Response",
