@@ -25,5 +25,5 @@ class TestErrorHandling:
     def test_405_method_not_allowed(self, client: TestClient) -> None:
         """許可されていないHTTPメソッドで405が返ること"""
         # ヘルスチェックはGETのみ許可
-        response = client.post("/system/healthcheck/")
+        response = client.post("/api/system/healthcheck/")
         assert response.status_code == 405

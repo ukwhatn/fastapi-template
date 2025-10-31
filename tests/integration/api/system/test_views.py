@@ -11,7 +11,7 @@ class TestViewsEndpoint:
 
     def test_views_index_without_templates(self, client: TestClient) -> None:
         """テンプレートが無効の場合、404が返ること"""
-        response = client.get("/system/views/")
+        response = client.get("/api/system/views/")
         # テンプレートディレクトリが存在しない場合は404
         assert response.status_code == 404
         data: Any = response.json()

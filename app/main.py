@@ -84,7 +84,7 @@ if settings.SENTRY_DSN:
 
 class HealthCheckFilter(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
-        return "/system/healthcheck" not in record.getMessage()
+        return "/api/system/healthcheck" not in record.getMessage()
 
 
 logging.getLogger("uvicorn.access").addFilter(HealthCheckFilter())

@@ -6,14 +6,14 @@
     "version": "0.1.0"
   },
   "paths": {
-    "/v1/": {
+    "/api/v1/": {
       "get": {
         "tags": [
           "root"
         ],
         "summary": "Read Root",
         "description": "ルートエンドポイント",
-        "operationId": "read_root_v1__get",
+        "operationId": "read_root_api_v1__get",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -24,7 +24,7 @@
                     "type": "string"
                   },
                   "type": "object",
-                  "title": "Response Read Root V1  Get"
+                  "title": "Response Read Root Api V1  Get"
                 }
               }
             }
@@ -32,14 +32,14 @@
         }
       }
     },
-    "/system/healthcheck/": {
+    "/api/api/system/healthcheck/": {
       "get": {
         "tags": [
           "system"
         ],
         "summary": "Healthcheck",
         "description": "ヘルスチェックエンドポイント",
-        "operationId": "healthcheck_system_healthcheck__get",
+        "operationId": "healthcheck_api_api_system_healthcheck__get",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -50,7 +50,7 @@
                     "type": "string"
                   },
                   "type": "object",
-                  "title": "Response Healthcheck System Healthcheck  Get"
+                  "title": "Response Healthcheck Api Api System Healthcheck  Get"
                 }
               }
             }
@@ -58,14 +58,14 @@
         }
       }
     },
-    "/system/views/": {
+    "/api/api/system/views/": {
       "get": {
         "tags": [
           "views"
         ],
         "summary": "Index",
         "description": "インデックスページ（テンプレートが有効な場合）",
-        "operationId": "index_system_views__get",
+        "operationId": "index_api_api_system_views__get",
         "responses": {
           "200": {
             "description": "Successful Response",
