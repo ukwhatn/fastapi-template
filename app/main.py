@@ -35,6 +35,25 @@ settings = get_settings()
 
 STATIC_DIR = Path(__file__).parent / "static"
 TEMPLATES_DIR = Path(__file__).parent / "templates"
+FRONTEND_DIST_DIR = Path(__file__).parent.parent / "frontend" / "dist"
+
+
+class SPAStaticFiles(StaticFiles):
+    """
+    SPA対応の静的ファイルサーバー
+
+    404エラーが発生した場合にindex.htmlを返すことで、
+    React Routerのhistory modeをサポート
+    """
+
+    async def get_response(self, path: str, scope: dict[str, Any]) -> Response:
+        try:
+            return await super().get_response(path, scope)
+        except StarletteHTTPException as ex:
+            if ex.status_code == 404:
+                return await super().get_response("index.html", scope)
+            raise ex
+
 
 app_params: dict[str, Any] = {
     "title": "FastAPI Template",
@@ -135,6 +154,18 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         logger.info(f"Jinja2 templates enabled: {TEMPLATES_DIR}")
     else:
         logger.info(f"Jinja2 templates disabled: {TEMPLATES_DIR}")
+
+    # フロントエンドの静的ファイルマウント（SPA対応）
+    # APIルーターより後にマウントすることで、/api/*が優先される
+    if FRONTEND_DIST_DIR.exists() and FRONTEND_DIST_DIR.is_dir():
+        app.mount(
+            "/",
+            SPAStaticFiles(directory=str(FRONTEND_DIST_DIR), html=True),
+            name="frontend",
+        )
+        logger.info(f"Frontend SPA enabled: {FRONTEND_DIST_DIR}")
+    else:
+        logger.info(f"Frontend SPA disabled: {FRONTEND_DIST_DIR} not found")
 
     yield
 
