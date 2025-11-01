@@ -22,7 +22,7 @@ services:
     volumes:
       - ./newrelic.ini:/etc/newrelic.ini:ro
     env_file:
-      - .env
+      - .env.stg
     environment:
       - ENV_MODE=staging
     restart: unless-stopped
@@ -43,7 +43,7 @@ services:
     container_name: ${COMPOSE_PROJECT_NAME:-fastapi-template}-db-stg
     image: postgres:17
     env_file:
-      - .env
+      - .env.stg
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-main}
       TZ: Asia/Tokyo
