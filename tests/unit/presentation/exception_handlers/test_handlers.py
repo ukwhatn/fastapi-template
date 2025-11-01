@@ -32,7 +32,7 @@ class TestDomainErrorHandler:
         response = asyncio.run(domain_error_handler(request, error))
 
         assert response.status_code == 404
-        content = json.loads(response.body.decode())
+        content = json.loads(bytes(response.body).decode())
         assert content["status"] == "error"
         assert content["code"] == "not_found"
         assert content["message"] == "User not found"
@@ -46,7 +46,7 @@ class TestDomainErrorHandler:
         response = asyncio.run(domain_error_handler(request, error))
 
         assert response.status_code == 400
-        content = json.loads(response.body.decode())
+        content = json.loads(bytes(response.body).decode())
         assert content["status"] == "error"
         assert content["code"] == "bad_request"
         assert content["message"] == "Invalid input"
@@ -59,7 +59,7 @@ class TestDomainErrorHandler:
         response = asyncio.run(domain_error_handler(request, error))
 
         assert response.status_code == 401
-        content = json.loads(response.body.decode())
+        content = json.loads(bytes(response.body).decode())
         assert content["status"] == "error"
         assert content["code"] == "unauthorized"
         assert content["message"] == "Token expired"
@@ -72,7 +72,7 @@ class TestDomainErrorHandler:
         response = asyncio.run(domain_error_handler(request, error))
 
         assert response.status_code == 403
-        content = json.loads(response.body.decode())
+        content = json.loads(bytes(response.body).decode())
         assert content["status"] == "error"
         assert content["code"] == "forbidden"
         assert content["message"] == "Insufficient permissions"
@@ -89,7 +89,7 @@ class TestDomainErrorHandler:
         response = asyncio.run(domain_error_handler(request, error))
 
         assert response.status_code == 400
-        content = json.loads(response.body.decode())
+        content = json.loads(bytes(response.body).decode())
         assert content["status"] == "error"
         assert content["code"] == "validation_error"
         assert content["message"] == "Validation error"
@@ -110,24 +110,24 @@ class TestValidationExceptionHandler:
                 "msg": "field required",
                 "type": "missing",
                 "input": {},
-            },  # type: ignore[typeddict-item]
+            },
             {
                 "loc": ("body", "password"),
                 "msg": "ensure this value has at least 8 characters",
                 "type": "string_too_short",
                 "input": "short",
-            },  # type: ignore[typeddict-item]
+            },
         ]
 
         # RequestValidationErrorを作成（直接errorsパラメータを渡す）
-        validation_error = RequestValidationError(errors=pydantic_errors)  # type: ignore[arg-type]
+        validation_error = RequestValidationError(errors=pydantic_errors)
 
         request = MagicMock()
 
         response = asyncio.run(validation_exception_handler(request, validation_error))
 
         assert response.status_code == 400
-        content = json.loads(response.body.decode())
+        content = json.loads(bytes(response.body).decode())
         assert content["status"] == "error"
         assert content["code"] == "validation_error"
         assert content["message"] == "Invalid request body"
@@ -144,17 +144,17 @@ class TestValidationExceptionHandler:
                 "msg": "invalid username",
                 "type": "value_error",
                 "input": "test",
-            }  # type: ignore[typeddict-item]
+            }
         ]
 
         # RequestValidationErrorを作成（直接errorsパラメータを渡す）
-        validation_error = RequestValidationError(errors=pydantic_errors)  # type: ignore[arg-type]
+        validation_error = RequestValidationError(errors=pydantic_errors)
 
         request = MagicMock()
 
         response = asyncio.run(validation_exception_handler(request, validation_error))
 
-        content = json.loads(response.body.decode())
+        content = json.loads(bytes(response.body).decode())
         assert "status" in content
         assert "code" in content
         assert "message" in content
