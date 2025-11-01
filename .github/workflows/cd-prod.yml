@@ -15,7 +15,7 @@ jobs:
     needs: build-and-push
     uses: ./.github/workflows/cd_deliverer.yml
     with:
-      environment: production
+      environment: prod
       branch: main
       image_tag: latest
     secrets:
