@@ -199,9 +199,9 @@ git push origin main
 
 ```bash
 # SOPS + age による暗号化
-make secrets:encrypt:dev    # Dev環境変数を暗号化
+make secrets:encrypt:stg    # Stg環境変数を暗号化
 make secrets:encrypt:prod   # Prod環境変数を暗号化
-make secrets:edit:dev       # Dev環境変数を編集（自動再暗号化）
+make secrets:edit:stg       # Stg環境変数を編集（自動再暗号化）
 make secrets:edit:prod      # Prod環境変数を編集（自動再暗号化）
 ```
 

@@ -1,13 +1,13 @@
 # Deployment
 
-本プロジェクトのデプロイメント戦略とワークフロー。3環境（Local/Dev/Prod）対応、GitHub Actions自動デプロイ、SOPS暗号化シークレット管理。
+本プロジェクトのデプロイメント戦略とワークフロー。3環境（Local/Stg/Prod）対応、GitHub Actions自動デプロイ、SOPS暗号化シークレット管理。
 
 ## 環境構成
 
 | 環境 | アプリ実行 | データベース | プロキシ | 自動デプロイ | Composeファイル |
 |------|-----------|-------------|---------|-------------|----------------|
 | **Local** | uv native (hot reload) | Docker (optional) | なし | なし | `compose.local.yml` |
-| **Dev** | Docker (GHCR.io) | Docker PostgreSQL | Cloudflare Tunnels | GitHub Actions (develop) | `compose.dev.yml` |
+| **Stg** | Docker (GHCR.io) | Docker PostgreSQL | Cloudflare Tunnels | GitHub Actions (develop) | `compose.stg.yml` |
 | **Prod** | Docker (GHCR.io) | External (Supabase) | nginx + Cloudflare | GitHub Actions (main) | `compose.prod.yml` |
 
 ### デプロイメント機能
@@ -53,7 +53,7 @@ uv run fastapi dev app/main.py
 docker compose -f compose.local.yml down
 ```
 
-## Dev環境
+## Stg環境
 
 ### 前提条件
 
@@ -82,16 +82,16 @@ cat ~/.config/sops/age/keys.txt | grep "public key:"
 #### 2. 暗号化環境ファイル作成（ローカルで）
 
 ```bash
-# Dev環境設定を作成
-cp .env.example .env.dev
-nano .env.dev  # Dev設定で編集
+# Stg環境設定を作成
+cp .env.example .env.stg
+nano .env.stg  # Stg設定で編集
 
 # 暗号化
-make secrets:encrypt:dev
+make secrets:encrypt:stg
 
 # Gitにコミット
-git add .env.dev.enc .sops.yaml
-git commit -m "Add encrypted dev secrets"
+git add .env.stg.enc .sops.yaml
+git commit -m "Add encrypted stg secrets"
 git push
 ```
 
@@ -101,15 +101,15 @@ git push
 # リポジトリクローン（sparse checkout）
 curl -o setup-server.sh https://raw.githubusercontent.com/ukwhatn/fastapi-template/develop/scripts/setup-server.sh
 chmod +x setup-server.sh
-./setup-server.sh dev
+./setup-server.sh stg
 
 # または手動で：
 git clone --filter=blob:none --sparse https://github.com/ukwhatn/fastapi-template.git
 cd fastapi-template
-git sparse-checkout set compose.dev.yml .env.dev.enc .sops.yaml Makefile newrelic.ini
-make secrets:decrypt:dev
-ENV=dev make compose:pull
-ENV=dev make compose:up
+git sparse-checkout set compose.stg.yml .env.stg.enc .sops.yaml Makefile newrelic.ini
+make secrets:decrypt:stg
+ENV=stg make compose:pull
+ENV=stg make compose:up
 ```
 
 #### 4. GitHub Secrets設定
@@ -118,10 +118,10 @@ ENV=dev make compose:up
 
 | Secret | 内容 |
 |--------|------|
-| `DEV_SSH_HOST` | 開発サーバーホスト名/IP |
-| `DEV_SSH_USER` | SSHユーザー名 |
-| `DEV_SSH_PORT` | SSHポート（デフォルト: 22） |
-| `DEV_SSH_PRIVATE_KEY` | SSH秘密鍵（`cat ~/.ssh/id_rsa`） |
+| `STG_SSH_HOST` | ステージングサーバーホスト名/IP |
+| `STG_SSH_USER` | SSHユーザー名 |
+| `STG_SSH_PORT` | SSHポート（デフォルト: 22） |
+| `STG_SSH_PRIVATE_KEY` | SSH秘密鍵（`cat ~/.ssh/id_rsa`） |
 
 ### 自動デプロイフロー
 
@@ -140,23 +140,23 @@ ENV=dev make compose:up
 
 ```bash
 # ログ表示
-ENV=dev make compose:logs
+ENV=stg make compose:logs
 
 # ステータス確認
-ENV=dev make compose:ps
+ENV=stg make compose:ps
 
 # サービス再起動
-ENV=dev make compose:restart
+ENV=stg make compose:restart
 
 # サービス停止
-ENV=dev make compose:down
+ENV=stg make compose:down
 ```
 
 ## Prod環境
 
 ### 初期セットアップ（1回のみ）
 
-Dev環境と同じ手順ですが以下が異なります：
+Stg環境と同じ手順ですが以下が異なります：
 
 1. ステップ2で本番設定を使用（`.env.prod`, `make secrets:encrypt:prod`）
 2. ステップ3で `./setup-server.sh prod`を実行
@@ -197,8 +197,8 @@ ENV=prod make compose:down
 ### 暗号化
 
 ```bash
-# Dev環境
-make secrets:encrypt:dev
+# Stg環境
+make secrets:encrypt:stg
 
 # Prod環境
 make secrets:encrypt:prod
@@ -207,8 +207,8 @@ make secrets:encrypt:prod
 ### 復号化
 
 ```bash
-# Dev環境
-make secrets:decrypt:dev
+# Stg環境
+make secrets:decrypt:stg
 
 # Prod環境
 make secrets:decrypt:prod
@@ -218,13 +218,13 @@ make secrets:decrypt:prod
 
 ```bash
 # 暗号化
-sops -e .env.dev > .env.dev.enc
+sops -e .env.stg > .env.stg.enc
 
 # 復号化
-sops -d .env.dev.enc > .env
+sops -d .env.stg.enc > .env
 
 # 暗号化ファイル編集
-sops .env.dev.enc
+sops .env.stg.enc
 ```
 
 **Reference**: 詳細は [Secrets Management Guide](./secrets-management.md) 参照
@@ -298,7 +298,7 @@ ssh-copy-id -i ~/.ssh/id_ed25519.pub user@host
 
 # 秘密鍵をGitHub Secretsに追加
 cat ~/.ssh/id_ed25519 | pbcopy  # macOS
-# GitHub Settings > Secrets > DEV_SSH_PRIVATE_KEY に貼り付け
+# GitHub Settings > Secrets > STG_SSH_PRIVATE_KEY に貼り付け
 ```
 
 ### SOPS復号化エラー
@@ -314,7 +314,7 @@ ls -la ~/.config/sops/age/keys.txt
 chmod 600 ~/.config/sops/age/keys.txt
 
 # 復号化テスト
-sops -d .env.dev.enc
+sops -d .env.stg.enc
 ```
 
 ### ヘルスチェックタイムアウト
@@ -324,22 +324,22 @@ sops -d .env.dev.enc
 **診断**:
 ```bash
 # コンテナログ確認
-ENV=dev make compose:logs
+ENV=stg make compose:logs
 
 # ヘルスステータス確認
-ENV=dev make compose:ps
+ENV=stg make compose:ps
 
 # ヘルスエンドポイントテスト
-docker exec fastapi-template-server-dev curl -f http://localhost:80/system/healthcheck/
+docker exec fastapi-template-server-stg curl -f http://localhost:80/system/healthcheck/
 ```
 
 **解決方法**:
 ```bash
 # DATABASE_URLが正しいか確認
-docker exec fastapi-template-server-dev env | grep DATABASE
+docker exec fastapi-template-server-stg env | grep DATABASE
 
 # サービス再起動
-ENV=dev make compose:restart
+ENV=stg make compose:restart
 ```
 
 ### git pull失敗（サーバー側）
@@ -379,8 +379,8 @@ cd fastapi-template
 git checkout <previous-commit-hash>
 
 # 再起動
-ENV=dev docker compose pull
-ENV=dev docker compose up -d --force-recreate
+ENV=stg docker compose pull
+ENV=stg docker compose up -d --force-recreate
 
 # 確認後、元に戻す
 git checkout develop  # または main
@@ -388,10 +388,10 @@ git checkout develop  # または main
 
 ## ベストプラクティス
 
-1. **暗号化環境ファイルを必ず使用** - Dev/Prodでは常にSOPS暗号化
+1. **暗号化環境ファイルを必ず使用** - Stg/Prodでは常にSOPS暗号化
 2. **平文シークレットをGitに含めない** - `.env`や秘密鍵を`.gitignore`
 3. **デプロイ後はログ確認** - GitHub Actionsログとサーバーログ
-4. **本番前にDevでテスト** - 本番デプロイ前に開発環境で検証
+4. **本番前にStgでテスト** - 本番デプロイ前にステージング環境で検証
 5. **age鍵を安全にバックアップ** - 紛失するとデプロイ不可
 6. **GitHubトークンを定期的にローテート** - セキュリティ強化
 7. **GitHub Actions専用SSH鍵を使用** - 個人用鍵と分離
@@ -409,14 +409,14 @@ git checkout develop  # または main
 
 ### ブランチ戦略
 
-- **develop → Dev環境**: 開発・テスト用
+- **develop → Stg環境**: ステージング・テスト用
 - **main → Prod環境**: 本番用
 - **PRフロー**: feature → develop → main
 
 ### モニタリング
 
 - **GitHub Actionsログ**: デプロイプロセス確認
-- **サーバーログ**: `ENV={dev|prod} make compose:logs`
+- **サーバーログ**: `ENV={stg|prod} make compose:logs`
 - **Sentry**: エラートラッキング（本番）
 - **New Relic**: APMモニタリング（本番）
 
