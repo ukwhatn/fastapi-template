@@ -8,22 +8,22 @@
 #   3. Keep private keys secure (never commit to git)
 #
 # Usage:
-#   Encrypt: sops -e .env.dev > .env.dev.enc
-#   Decrypt: sops -d .env.dev.enc > .env
-#   Edit: sops .env.dev.enc
+#   Encrypt: sops -e .env.stg > .env.stg.enc
+#   Decrypt: sops -d .env.stg.enc > .env
+#   Edit: sops .env.stg.enc
 
 creation_rules:
   # Dev environment
-  - path_regex: \.env\.dev(\.enc)?$
+  - path_regex: \.env\.stg(\.enc)?$
     age: >-
-      age1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+      age1pv907v4hzwdf900raqf5w40egm7n73kmhrg6husenmrlsn6f430sa9ncug
 
   # Production environment
   - path_regex: \.env\.prod(\.enc)?$
     age: >-
-      age1yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy
+      age1s82807xgq0v92sea205jpmt7q0dat9pe29cdpmm4l2juft9gle6q03h0ut
 
   # Default rule for any other .env files
   - path_regex: \.env\..*$
     age: >-
-      age1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+      age1e37lt3cs8ykf93nl3meav3jx46mnuu63xntxaqruypfv0dchpsfs8den23
