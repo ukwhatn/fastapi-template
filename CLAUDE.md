@@ -323,7 +323,7 @@ TaskRegistry.register(MyCustomTask)
 - Dockerマルチステージビルドでフロントエンドをビルド（`frontend/dist`）
 - FastAPIが静的ファイルとしてフロントエンドを配信
 - `SPAStaticFiles`クラスでReact Routerのhistory mode対応（404 → index.html）
-- `/api/*`はFastAPIルーター、`/*`はフロントエンドSPA
+- `/api/*`はFastAPIルーター、`/admin/*`はフロントエンドSPA
 
 ### ディレクトリ構造
 
@@ -376,7 +376,7 @@ class SPAStaticFiles(StaticFiles):
 
 # lifespanでマウント（APIルーターより後）
 if FRONTEND_DIST_DIR.exists() and FRONTEND_DIST_DIR.is_dir():
-    app.mount("/", SPAStaticFiles(directory=str(FRONTEND_DIST_DIR), html=True), name="frontend")
+    app.mount("/admin", SPAStaticFiles(directory=str(FRONTEND_DIST_DIR), html=True), name="frontend")
 ```
 
 ### APIクライアント実装例（フロントエンド）

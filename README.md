@@ -66,8 +66,8 @@ make local:serve:frontend  # フロントエンドのみ（ポート5173）
 ```
 
 - APIドキュメント: http://localhost:8000/docs
-- フロントエンド（開発）: http://localhost:5173
-- フロントエンド（本番ビルド）: http://localhost:8000
+- フロントエンド（開発）: http://localhost:5173/admin
+- フロントエンド（本番ビルド）: http://localhost:8000/admin
 
 ### Docker使用
 
