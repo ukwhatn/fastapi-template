@@ -185,18 +185,19 @@ db\:current:
 db\:history:
 	@cd $(ALEMBIC_DIR) && uv run alembic history
 
-# ==== DBバックアップ ====
+# ==== DBバックアップ (Docker経由実行) ====
 .PHONY: db\:backup\:oneshot
 db\:backup\:oneshot:
-	@uv run python -m app.utils.backup_cli oneshot
+	@echo "Running backup in Docker container..."
+	@$(COMPOSE_CMD) exec -T server uv run --directory /app python -m app.utils.backup_cli oneshot
 
 .PHONY: db\:backup\:list
 db\:backup\:list:
-	@uv run python -m app.utils.backup_cli list
+	@$(COMPOSE_CMD) exec -T server uv run --directory /app python -m app.utils.backup_cli list
 
 .PHONY: db\:backup\:list\:remote
 db\:backup\:list\:remote:
-	@uv run python -m app.utils.backup_cli list --remote
+	@$(COMPOSE_CMD) exec -T server uv run --directory /app python -m app.utils.backup_cli list --remote
 
 .PHONY: db\:backup\:diff
 db\:backup\:diff:
@@ -205,7 +206,7 @@ db\:backup\:diff:
 		echo "Usage: make db:backup:diff FILE=\"backup_20250101_120000.backup.gz\""; \
 		exit 1; \
 	fi
-	@uv run python -m app.utils.backup_cli diff $(FILE)
+	@$(COMPOSE_CMD) exec -T server uv run --directory /app python -m app.utils.backup_cli diff $(FILE)
 
 .PHONY: db\:backup\:diff\:s3
 db\:backup\:diff\:s3:
@@ -214,7 +215,7 @@ db\:backup\:diff\:s3:
 		echo "Usage: make db:backup:diff:s3 FILE=\"backup_20250101_120000.backup.gz\""; \
 		exit 1; \
 	fi
-	@uv run python -m app.utils.backup_cli diff $(FILE) --from-s3
+	@$(COMPOSE_CMD) exec -T server uv run --directory /app python -m app.utils.backup_cli diff $(FILE) --from-s3
 
 .PHONY: db\:backup\:restore
 db\:backup\:restore:
@@ -223,7 +224,10 @@ db\:backup\:restore:
 		echo "Usage: make db:backup:restore FILE=\"backup_20250101_120000.backup.gz\""; \
 		exit 1; \
 	fi
-	@uv run python -m app.utils.backup_cli restore $(FILE)
+	@echo "WARNING: This will restore the database from $(FILE)"
+	@echo "Press Ctrl+C to cancel, or Enter to continue..."
+	@read confirm
+	@$(COMPOSE_CMD) exec -T server uv run --directory /app python -m app.utils.backup_cli restore $(FILE)
 
 .PHONY: db\:backup\:restore\:s3
 db\:backup\:restore\:s3:
@@ -232,7 +236,10 @@ db\:backup\:restore\:s3:
 		echo "Usage: make db:backup:restore:s3 FILE=\"backup_20250101_120000.backup.gz\""; \
 		exit 1; \
 	fi
-	@uv run python -m app.utils.backup_cli restore $(FILE) --from-s3
+	@echo "WARNING: This will restore the database from S3: $(FILE)"
+	@echo "Press Ctrl+C to cancel, or Enter to continue..."
+	@read confirm
+	@$(COMPOSE_CMD) exec -T server uv run --directory /app python -m app.utils.backup_cli restore $(FILE) --from-s3
 
 .PHONY: db\:backup\:restore\:dry-run
 db\:backup\:restore\:dry-run:
@@ -241,7 +248,7 @@ db\:backup\:restore\:dry-run:
 		echo "Usage: make db:backup:restore:dry-run FILE=\"backup_20250101_120000.backup.gz\""; \
 		exit 1; \
 	fi
-	@uv run python -m app.utils.backup_cli restore $(FILE) --dry-run
+	@$(COMPOSE_CMD) exec -T server uv run --directory /app python -m app.utils.backup_cli restore $(FILE) --dry-run
 
 # ==== Frontend操作 ====
 .PHONY: frontend\:install
