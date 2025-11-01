@@ -28,6 +28,8 @@ jobs:
           make env
           # ローカルDB使用設定（テスト用）
           sed -i 's/POSTGRES_HOST=.*/POSTGRES_HOST=db/' .env
+          # prod環境用の.env.prodファイルを作成（compose.prod.ymlで必要）
+          cp .env .env.prod
 
       - name: Start services with local DB
         run: make compose:build
