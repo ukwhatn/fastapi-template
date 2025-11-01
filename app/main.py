@@ -142,6 +142,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """
     アプリケーションのライフサイクル管理
     """
+    # 起動時刻を記録（healthcheckのuptime計算用）
+    from datetime import datetime, timezone
+
+    app.state.start_time = datetime.now(timezone.utc)
+
     if SETTINGS.has_database:
         from .infrastructure.database.migration import run_migrations
 
