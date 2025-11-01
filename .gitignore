@@ -171,3 +171,8 @@ nginx/log/*
 
 # Local development files
 .local/
+
+# raw envirionment variables file
+.env
+.env.stg
+.env.prod

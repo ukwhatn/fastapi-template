@@ -2,7 +2,8 @@
 セッションヘルパー関数の単体テスト
 """
 
-from unittest.mock import Mock, MagicMock
+from unittest.mock import MagicMock, Mock
+
 from fastapi import Request, Response
 from sqlalchemy.orm import Session
 

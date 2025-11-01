@@ -1,9 +1,36 @@
 # syntax=docker/dockerfile:1
 
 # ========================================
-# ビルダーステージ
+# フロントエンドビルダーステージ
 # ========================================
-FROM ghcr.io/astral-sh/uv:0.9.5-python3.13-trixie-slim AS builder
+FROM node:22-slim AS frontend-builder
+
+WORKDIR /frontend
+
+# Corepackを有効化してpnpmを使用
+RUN corepack enable
+
+# package.json と pnpm-lock.yaml をコピー（キャッシュ最適化）
+COPY frontend/package.json frontend/pnpm-lock.yaml ./
+
+# pnpm fetchでロックファイルからパッケージを取得（キャッシュ層の最適化）
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
+    pnpm fetch --frozen-lockfile
+
+# 依存関係をインストール
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile --offline
+
+# フロントエンドのソースコードをコピー
+COPY frontend/ ./
+
+# ビルド実行
+RUN pnpm run build
+
+# ========================================
+# バックエンドビルダーステージ
+# ========================================
+FROM ghcr.io/astral-sh/uv:0.9.5-python3.13-trixie-slim AS backend-builder
 
 WORKDIR /app
 
@@ -61,7 +88,11 @@ RUN adduser --disabled-password --gecos "" nonroot
 
 WORKDIR /usr/src
 
-COPY --from=builder --chown=nonroot:nonroot /app /app
+# バックエンドビルド成果物をコピー
+COPY --from=backend-builder --chown=nonroot:nonroot /app /app
+
+# フロントエンドビルド成果物をコピー
+COPY --from=frontend-builder --chown=nonroot:nonroot /frontend/dist /usr/src/frontend/dist
 
 # 開発時のホットリロードのため./appをマウント（compose.yml参照）
 COPY --chown=nonroot:nonroot ./app /usr/src/app

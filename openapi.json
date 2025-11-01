@@ -38,7 +38,7 @@
           "system"
         ],
         "summary": "Healthcheck",
-        "description": "ヘルスチェックエンドポイント",
+        "description": "ヘルスチェックエンドポイント\n\n- DB接続状況\n- アプリケーションuptime\n- 環境情報を返す\n\nDB接続に失敗した場合は503 Service Unavailableを返す",
         "operationId": "healthcheck_api_system_healthcheck__get",
         "responses": {
           "200": {
@@ -46,11 +46,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": {
-                    "type": "string"
-                  },
-                  "type": "object",
-                  "title": "Response Healthcheck Api System Healthcheck  Get"
+                  "$ref": "#/components/schemas/HealthCheckResponse"
                 }
               }
             }
@@ -78,6 +74,99 @@
             }
           }
         }
+      }
+    },
+    "/": {
+      "get": {
+        "summary": "Root Redirect",
+        "description": "ルートパスから/adminへリダイレクト",
+        "operationId": "root_redirect__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "DatabaseStatus": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "healthy",
+              "unhealthy"
+            ],
+            "title": "Status"
+          },
+          "connection": {
+            "type": "boolean",
+            "title": "Connection"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "connection"
+        ],
+        "title": "DatabaseStatus",
+        "description": "データベース接続状況\n\nAttributes:\n    status: DB接続の状態（healthy/unhealthy）\n    connection: DB接続が確立されているか\n    error: エラーメッセージ（エラー時のみ）"
+      },
+      "HealthCheckResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "unhealthy"
+            ],
+            "title": "Status"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Timestamp"
+          },
+          "uptime_seconds": {
+            "type": "number",
+            "title": "Uptime Seconds"
+          },
+          "database": {
+            "$ref": "#/components/schemas/DatabaseStatus"
+          },
+          "environment": {
+            "type": "string",
+            "title": "Environment"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "timestamp",
+          "uptime_seconds",
+          "database",
+          "environment"
+        ],
+        "title": "HealthCheckResponse",
+        "description": "ヘルスチェックレスポンス\n\nAttributes:\n    status: 全体的なヘルス状態（ok/unhealthy）\n    timestamp: レスポンス生成時刻\n    uptime_seconds: アプリケーション起動からの経過秒数\n    database: データベース接続状況\n    environment: 実行環境（production/staging/local等）"
       }
     }
   }

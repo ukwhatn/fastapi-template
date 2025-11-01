@@ -145,32 +145,32 @@ age-keygen -y ~/.config/sops/age/keys.txt
 
 ```bash
 # 新規ファイルを暗号化
-cp .env.example .env.dev
-nano .env.dev  # 編集
-sops -e .env.dev > .env.dev.enc
+cp .env.example .env.stg
+nano .env.stg  # 編集
+sops -e .env.stg > .env.stg.enc
 
 # インプレース暗号化（元ファイル削除）
-sops -e -i .env.dev
+sops -e -i .env.stg
 ```
 
 ### 復号化
 
 ```bash
 # 標準出力に復号化
-sops -d .env.dev.enc
+sops -d .env.stg.enc
 
 # ファイルに復号化
-sops -d .env.dev.enc > .env
+sops -d .env.stg.enc > .env
 
 # インプレース復号化
-sops -d -i .env.dev.enc
+sops -d -i .env.stg.enc
 ```
 
 ### 編集
 
 ```bash
 # 暗号化ファイルを直接編集（推奨）
-sops .env.dev.enc
+sops .env.stg.enc
 
 # 保存すると自動的に再暗号化
 ```
@@ -179,10 +179,10 @@ sops .env.dev.enc
 
 ```bash
 # ファイルの暗号化情報を表示
-sops -d .env.dev.enc | tail -20
+sops -d .env.stg.enc | tail -20
 
 # または
-sops --decrypt --extract '["sops"]' .env.dev.enc
+sops --decrypt --extract '["sops"]' .env.stg.enc
 ```
 
 ## ワークフロー
@@ -205,17 +205,17 @@ creation_rules:
 EOF
 
 # 4. 環境ファイル作成＆暗号化
-cp .env.example .env.dev
-nano .env.dev
-sops -e .env.dev > .env.dev.enc
+cp .env.example .env.stg
+nano .env.stg
+sops -e .env.stg > .env.stg.enc
 
 # 5. Gitにコミット
-git add .env.dev.enc .sops.yaml
-git commit -m "Add encrypted dev secrets"
+git add .env.stg.enc .sops.yaml
+git commit -m "Add encrypted stg secrets"
 git push
 
-# 6. 平文の.env.devは削除
-rm .env.dev
+# 6. 平文の.env.stgは削除
+rm .env.stg
 ```
 
 ### 開発者Bがシークレットを使用
@@ -235,20 +235,20 @@ nano ~/.config/sops/age/keys.txt  # 秘密鍵を貼り付け
 chmod 600 ~/.config/sops/age/keys.txt
 
 # 4. 復号化してデプロイ
-sops -d .env.dev.enc > .env
-./scripts/deploy-dev.sh
+sops -d .env.stg.enc > .env
+./scripts/deploy-stg.sh
 ```
 
 ### シークレット更新
 
 ```bash
 # 1. 暗号化ファイルを編集
-sops .env.dev.enc
+sops .env.stg.enc
 
 # 2. 変更を保存（自動的に再暗号化）
 
 # 3. Gitにコミット
-git add .env.dev.enc
+git add .env.stg.enc
 git commit -m "Update API key"
 git push
 ```
@@ -268,10 +268,10 @@ nano .sops.yaml
 #   age1newmember...
 
 # 3. 既存の暗号化ファイルを再暗号化
-sops updatekeys .env.dev.enc
+sops updatekeys .env.stg.enc
 
 # 4. コミット
-git add .sops.yaml .env.dev.enc
+git add .sops.yaml .env.stg.enc
 git commit -m "Add new team member to secrets"
 git push
 ```
@@ -294,7 +294,7 @@ git push
    # .gitignoreに追加（必須）
    .env
    .env.local
-   .env.dev
+   .env.stg
    .env.prod
    secrets/
    ```
@@ -315,7 +315,7 @@ git push
 
    # .sops.yamlを更新
    # 暗号化ファイルを再暗号化
-   sops updatekeys .env.dev.enc
+   sops updatekeys .env.stg.enc
 
    # 古い鍵を削除
    ```
@@ -335,7 +335,7 @@ git push
 2. **復号化後は即削除**
    ```bash
    # デプロイスクリプトで自動削除
-   sops -d .env.dev.enc > .env
+   sops -d .env.stg.enc > .env
    ./deploy.sh
    rm .env  # 必ず削除
    ```
@@ -361,10 +361,10 @@ git push
 4. **シークレットの監査**
    ```bash
    # 誰がいつ変更したか確認
-   git log --oneline .env.dev.enc
+   git log --oneline .env.stg.enc
 
    # 差分確認（メタデータのみ）
-   git diff HEAD~1 .env.dev.enc
+   git diff HEAD~1 .env.stg.enc
    ```
 
 ### ファイル構成
@@ -373,10 +373,10 @@ git push
 project/
 ├── .sops.yaml              # SOPS設定（コミット✅）
 ├── .env.example            # テンプレート（コミット✅）
-├── .env.dev.enc           # 暗号化Dev環境変数（コミット✅）
+├── .env.stg.enc           # 暗号化Dev環境変数（コミット✅）
 ├── .env.prod.enc          # 暗号化Prod環境変数（コミット✅）
 ├── .env                   # 復号化後（gitignore❌）
-├── .env.dev               # 作業用（gitignore❌）
+├── .env.stg               # 作業用（gitignore❌）
 └── .env.prod              # 作業用（gitignore❌）
 ```
 
@@ -417,12 +417,12 @@ ls -la .env*
 cat .sops.yaml
 
 # 3. 正規表現テスト
-# ファイル: .env.dev.enc
+# ファイル: .env.stg.enc
 # パターン: \.env\.dev(\.enc)?$
 # マッチ: ✅
 
 # 4. 明示的に鍵を指定
-sops --age age1xxx... -e .env.dev > .env.dev.enc
+sops --age age1xxx... -e .env.stg > .env.stg.enc
 ```
 
 ### エラー: `MAC mismatch`
@@ -432,10 +432,10 @@ sops --age age1xxx... -e .env.dev > .env.dev.enc
 **解決方法**:
 ```bash
 # 1. Git履歴から復元
-git checkout HEAD -- .env.dev.enc
+git checkout HEAD -- .env.stg.enc
 
 # 2. バックアップから復元
-cp backup/.env.dev.enc .
+cp backup/.env.stg.enc .
 
 # 3. 再作成
 # 平文から再暗号化
@@ -448,10 +448,10 @@ cp backup/.env.dev.enc .
 **解決方法**:
 ```bash
 # シークレットのみ抽出
-sops -d --extract '["DATABASE_URL"]' .env.dev.enc
+sops -d --extract '["DATABASE_URL"]' .env.stg.enc
 
 # または特定のキーだけ復号化
-sops -d .env.dev.enc | grep DATABASE_URL
+sops -d .env.stg.enc | grep DATABASE_URL
 ```
 
 ### チームメンバーが復号化できない
@@ -467,10 +467,10 @@ sops -d .env.dev.enc | grep DATABASE_URL
 nano .sops.yaml
 
 # 3. 既存ファイルを再暗号化
-sops updatekeys .env.dev.enc
+sops updatekeys .env.stg.enc
 
 # 4. コミット＆プッシュ
-git add .sops.yaml .env.dev.enc
+git add .sops.yaml .env.stg.enc
 git commit -m "Add team member to secrets"
 git push
 ```

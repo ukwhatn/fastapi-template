@@ -3,9 +3,10 @@
 """
 
 from typing import Any
+from unittest.mock import Mock, patch
+
 import pytest
 from fastapi import HTTPException
-from unittest.mock import Mock, patch
 
 from app.presentation.api.deps import get_api_key, get_session
 

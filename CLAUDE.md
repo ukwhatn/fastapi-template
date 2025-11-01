@@ -4,17 +4,17 @@
 
 ## プロジェクト概要
 
-FastAPIプロダクションテンプレート。Clean Architecture（4層）、RDBベース暗号化セッション、包括的Docker展開を提供。
+FastAPIプロダクションテンプレート。Clean Architecture（4層）、RDBベース暗号化セッション、Vite+Reactフロントエンド統合、包括的Docker展開を提供。
 
 **技術スタック**:
-- FastAPI 0.120.0+, Python 3.13+
-- SQLAlchemy 2.0+, PostgreSQL
-- uv, Ruff, mypy strict, pytest
-- Docker Compose (multi-profile)
-- APScheduler, Sentry, New Relic
+- **バックエンド**: FastAPI 0.120.0+, Python 3.13+, SQLAlchemy 2.0+, PostgreSQL
+- **フロントエンド**: Vite 6.x, React 19.x, TypeScript 5.x, React Router 7.x, TanStack Query 5.x, Tailwind CSS 4.x
+- **ツール**: uv, pnpm, Ruff, mypy strict, pytest
+- **インフラ**: Docker Compose (multi-stage build, multi-profile), APScheduler, Sentry, New Relic
 
 **主要機能**:
 - Clean Architecture 4層構造
+- Vite+Reactフロントエンド統合（SPA fallback対応）
 - RDBベースセッション管理（Fernet暗号化、CSRF保護、フィンガープリント検証）
 - psycopg2ベースバックアップシステム（S3連携）
 - APSchedulerバッチシステム
@@ -25,11 +25,22 @@ FastAPIプロダクションテンプレート。Clean Architecture（4層）、
 **開発**:
 ```bash
 make dev:setup              # 依存関係インストール
+make frontend:install       # フロントエンド依存関係インストール
 make local:up               # DBサービス起動
-make local:serve            # アプリ起動（ホットリロード）
-make lint                   # リント
-make type-check             # 型チェック
-make test                   # テスト
+make local:serve            # バックエンド + フロントエンド並列起動（ホットリロード）
+make local:serve:backend    # バックエンドのみ起動
+make local:serve:frontend   # フロントエンドのみ起動
+make lint                   # バックエンドリント
+make type-check             # バックエンド型チェック
+make test                   # バックエンドテスト
+```
+
+**フロントエンド**:
+```bash
+make frontend:build         # 本番ビルド
+make frontend:lint          # ESLint実行
+make frontend:lint:fix      # ESLint修正
+make frontend:type-check    # TypeScriptチェック
 ```
 
 **データベース**:
@@ -298,6 +309,133 @@ TaskRegistry.register(MyCustomTask)
 **配置**: `app/infrastructure/batch/tasks/` に配置するだけで自動登録される。
 
 詳細: [docs/features/batch-system.md](docs/features/batch-system.md)
+
+## フロントエンド統合
+
+### アーキテクチャ
+
+**開発環境**:
+- Viteがポート5173でフロントエンド開発サーバーを起動
+- Vite proxyが`/api/*`リクエストをFastAPI（ポート8000）に転送
+- ホットリロード対応
+
+**本番環境**:
+- Dockerマルチステージビルドでフロントエンドをビルド（`frontend/dist`）
+- FastAPIが静的ファイルとしてフロントエンドを配信
+- `SPAStaticFiles`クラスでReact Routerのhistory mode対応（404 → index.html）
+- `/api/*`はFastAPIルーター、`/admin/*`はフロントエンドSPA
+
+### ディレクトリ構造
+
+```
+frontend/
+├── src/
+│   ├── pages/           # ページコンポーネント
+│   ├── App.tsx          # ルーター設定（React Router）
+│   └── main.tsx         # エントリーポイント
+├── dist/                # ビルド成果物（本番）
+├── package.json
+├── pnpm-lock.yaml
+├── vite.config.ts       # Vite設定
+└── tsconfig.json
+```
+
+### Vite設定（proxy）
+
+```typescript
+// frontend/vite.config.ts
+export default defineConfig({
+  plugins: [
+    tailwindcss(),  // Tailwind CSS v4
+    react(),
+  ],
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+      },
+    },
+  },
+})
+```
+
+### SPAStaticFiles実装
+
+```python
+# app/main.py
+class SPAStaticFiles(StaticFiles):
+    """React Routerのhistory mode対応"""
+    async def get_response(self, path: str, scope: dict[str, Any]) -> Response:
+        try:
+            return await super().get_response(path, scope)
+        except StarletteHTTPException as ex:
+            if ex.status_code == 404:
+                return await super().get_response("index.html", scope)
+            raise ex
+
+# lifespanでマウント（APIルーターより後）
+if FRONTEND_DIST_DIR.exists() and FRONTEND_DIST_DIR.is_dir():
+    app.mount("/admin", SPAStaticFiles(directory=str(FRONTEND_DIST_DIR), html=True), name="frontend")
+```
+
+### APIクライアント実装例（フロントエンド）
+
+```typescript
+// frontend/src/api/client.ts
+import { useQuery } from '@tanstack/react-query'
+
+// 型安全なAPIクライアント
+async function fetchApi<T>(path: string): Promise<T> {
+  const response = await fetch(`/api${path}`)
+  if (!response.ok) {
+    throw new Error(`API error: ${response.statusText}`)
+  }
+  return response.json()
+}
+
+// React Query フック
+export function useHealthCheck() {
+  return useQuery({
+    queryKey: ['healthcheck'],
+    queryFn: () => fetchApi<{ status: string }>('/system/healthcheck'),
+  })
+}
+```
+
+### 技術スタック
+
+- **Vite 6.x**: 高速ビルドツール
+- **React 19.x**: UIライブラリ
+- **TypeScript 5.x**: 型安全性
+- **React Router 7.x**: クライアントサイドルーティング（BrowserRouter）
+- **TanStack Query 5.x**: データフェッチ・キャッシュ
+- **Tailwind CSS 4.x**: CSS-first設定（`@import 'tailwindcss'`のみ、postcss不要）
+- **pnpm**: パッケージマネージャー
+
+### ベストプラクティス
+
+1. **API呼び出しは常に`/api`プレフィックス付き**
+   ```typescript
+   // ✅ GOOD
+   fetch('/api/users')
+
+   // ❌ BAD
+   fetch('http://localhost:8000/users')  // 環境依存
+   ```
+
+2. **TanStack Queryを活用**
+   - データフェッチ、キャッシュ、再検証を自動化
+   - サーバー状態とクライアント状態を分離
+
+3. **Tailwind CSS v4の使用**
+   - `frontend/src/index.css`に`@import 'tailwindcss'`のみ
+   - `vite.config.ts`に`@tailwindcss/vite`プラグイン追加
+   - postcss/autoprefixerは不要
+
+4. **型安全性の維持**
+   - OpenAPI Generatorでバックエンドの型を自動生成可能
+   - Zodでランタイムバリデーション
 
 ## 開発ワークフロー
 

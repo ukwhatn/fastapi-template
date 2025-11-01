@@ -22,7 +22,8 @@ class Settings(BaseSettings):
         extra="ignore",  # 未定義のフィールドを無視
     )
 
-    ENV_MODE: Literal["local", "dev", "prod", "test"] = "test"
+    APP_NAME: str = "FastAPI Template"
+    ENV_MODE: Literal["local", "stg", "staging", "prod", "production", "test"] = "test"
 
     BACKEND_CORS_ORIGINS: str | list[str] = []
 
@@ -135,19 +136,53 @@ class Settings(BaseSettings):
         return self.ENV_MODE == "local"
 
     @property
-    def is_development(self) -> bool:
-        """開発環境かどうか"""
-        return self.ENV_MODE == "dev"
+    def is_staging(self) -> bool:
+        """ステージング環境かどうか"""
+        return self.ENV_MODE == "staging" or self.ENV_MODE == "stg"
 
     @property
     def is_production(self) -> bool:
         """本番環境かどうか"""
-        return self.ENV_MODE == "prod"
+        return self.ENV_MODE == "production" or self.ENV_MODE == "prod"
 
     @property
     def is_test(self) -> bool:
         """テスト環境かどうか"""
         return self.ENV_MODE == "test"
+
+    @property
+    def normalized_env_mode(self) -> str:
+        if self.is_local:
+            return "local"
+        elif self.is_staging:
+            return "staging"
+        elif self.is_production:
+            return "production"
+        else:
+            return "test"
+
+    @property
+    def s3_backup_prefix(self) -> str:
+        """
+        S3バックアップのプレフィックス（ディレクトリパス）を取得
+
+        Returns:
+            本番環境: "{app_name}" (例: "my-app")
+            非本番環境: "{app_name}-{env}" (例: "my-app-staging")
+
+        Note:
+            - アプリ名を小文字に変換
+            - 空白をハイフンに置換
+            - S3命名規則に準拠（小文字、数字、ハイフン）
+        """
+        # アプリ名を正規化（小文字 + 空白をハイフンに置換）
+        normalized_app_name = self.APP_NAME.lower().replace(" ", "-")
+
+        # 本番環境はアプリ名のみ、それ以外は環境名を付与
+        if self.is_production:
+            return normalized_app_name
+        else:
+            return f"{normalized_app_name}-{self.normalized_env_mode}"
 
 
 @lru_cache

@@ -68,6 +68,13 @@ module = [
 ]
 ignore_missing_imports = true
 
+[tool.pytest.ini_options]
+# FastAPI内部のPydantic v1互換コードによる警告を抑制
+# プロジェクトコードの問題ではなく、FastAPI 0.120.4の内部実装による
+filterwarnings = [
+    "ignore:The `__fields__` attribute is deprecated:pydantic.warnings.PydanticDeprecatedSince20",
+]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
