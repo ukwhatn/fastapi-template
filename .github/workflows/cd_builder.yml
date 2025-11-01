@@ -25,6 +25,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Log in to GitHub Container Registry
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
@@ -51,8 +52,14 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=cd-builder
-          cache-to: type=gha,mode=max,scope=cd-builder
+          cache-from: |
+            type=gha,scope=cd-builder-${{ github.head_ref || github.ref_name }}
+            type=registry,ref=ghcr.io/${{ github.repository }}:buildcache
+            type=gha,scope=cd-builder-develop
+            type=gha,scope=cd-builder-main
+          cache-to: |
+            type=gha,mode=max,scope=cd-builder-${{ github.head_ref || github.ref_name }}
+            ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop') && format('type=registry,ref=ghcr.io/{0}:buildcache,mode=max', github.repository) || '' }}
 
       - name: Generate artifact attestation
         uses: actions/attest-build-provenance@v3
