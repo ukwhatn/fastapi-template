@@ -33,6 +33,7 @@ class BackupTask(BatchTask):
 
         S3設定が環境変数に存在する場合のみ初期化する。
         設定がない場合はローカルのみに保存される。
+        バックアップファイルは {app_name}-{env} または {app_name}（本番のみ）配下に保存される。
         """
         if (
             self.settings.S3_ENDPOINT
@@ -47,8 +48,11 @@ class BackupTask(BatchTask):
                     access_key_id=self.settings.S3_ACCESS_KEY,
                     secret_access_key=self.settings.S3_SECRET_KEY,
                     region=self.settings.S3_REGION or "auto",
+                    root=self.settings.s3_backup_prefix,
                 )
-                self.logger.info("S3 storage initialized")
+                self.logger.info(
+                    f"S3 storage initialized (prefix: {self.settings.s3_backup_prefix})"
+                )
             except Exception as e:
                 self.logger.warning(f"Failed to initialize S3 storage: {e}")
                 self.storage = None
