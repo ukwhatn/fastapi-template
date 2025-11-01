@@ -2,20 +2,22 @@ import contextlib
 import json
 import logging
 import os
+from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import Any, AsyncIterator, MutableMapping
-from collections.abc import Callable, Awaitable
 
+import newrelic.agent
 import sentry_sdk
 from fastapi import FastAPI, Request, Response
 from fastapi.encoders import jsonable_encoder
-from fastapi.exceptions import RequestValidationError
+from fastapi.exceptions import (
+    HTTPException as FastAPIHTTPException,
+    RequestValidationError,
+)
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from .presentation import api_router
 from .core import (
     APIError,
     DomainError,
@@ -25,13 +27,23 @@ from .core import (
     get_settings,
 )
 from .core.logging import get_logger
-from .presentation.middleware.security_headers import SecurityHeadersMiddleware
+from .infrastructure.batch.scheduler import (
+    create_scheduler,
+    start_scheduler,
+    stop_scheduler,
+)
 from .infrastructure.database import get_db
 from .infrastructure.repositories.session_repository import SessionService
+from .presentation import api_router
+from .presentation.middleware.security_headers import SecurityHeadersMiddleware
 
-# モジュールレベルでsettingsを取得（エントリーポイントのため許容）
-# アプリケーション起動時に一度だけ評価される
-settings = get_settings()
+APP_PARAMS: dict[str, Any] = {
+    "title": "FastAPI Template",
+    "description": "FastAPIアプリケーションのテンプレート",
+    "version": "0.1.0",
+}
+
+SETTINGS = get_settings()
 
 STATIC_DIR = Path(__file__).parent / "static"
 TEMPLATES_DIR = Path(__file__).parent / "templates"
@@ -51,59 +63,10 @@ class SPAStaticFiles(StaticFiles):
     ) -> Response:
         try:
             return await super().get_response(path, scope)
-        except StarletteHTTPException as ex:
+        except FastAPIHTTPException as ex:
             if ex.status_code == 404:
                 return await super().get_response("index.html", scope)
             raise ex
-
-
-app_params: dict[str, Any] = {
-    "title": "FastAPI Template",
-    "description": "FastAPIアプリケーションのテンプレート",
-    "version": "0.1.0",
-}
-
-logger = get_logger(__name__)
-
-# 本番環境ではドキュメントを無効化
-if settings.is_production:
-    app_params["docs_url"] = None
-    app_params["redoc_url"] = None
-    app_params["openapi_url"] = None
-
-if settings.is_production and settings.NEW_RELIC_LICENSE_KEY:
-    import newrelic.agent
-
-    os.environ["NEW_RELIC_LICENSE_KEY"] = settings.NEW_RELIC_LICENSE_KEY
-    os.environ["NEW_RELIC_APP_NAME"] = settings.NEW_RELIC_APP_NAME
-
-    newrelic_config = newrelic.agent.global_settings()
-    newrelic_config.high_security = settings.NEW_RELIC_HIGH_SECURITY
-    newrelic_config.monitor_mode = settings.NEW_RELIC_MONITOR_MODE
-    newrelic_config.app_name = (
-        f"{settings.NEW_RELIC_APP_NAME}[{settings.normalized_env_mode}]"
-    )
-
-    newrelic.agent.initialize(
-        config_file="/etc/newrelic.ini", environment=settings.ENV_MODE
-    )
-    logger.info("New Relic is enabled")
-else:
-    logger.info(
-        f"New Relic is disabled on {settings.ENV_MODE} mode"
-        if not settings.is_production
-        else "New Relic license key is not set"
-    )
-
-if settings.SENTRY_DSN:
-    sentry_sdk.init(
-        dsn=settings.SENTRY_DSN,
-        environment=settings.normalized_env_mode,
-        traces_sample_rate=settings.SENTRY_TRACES_SAMPLE_RATE,
-        _experiments={
-            "continuous_profiling_auto_start": True,
-        },
-    )
 
 
 class HealthCheckFilter(logging.Filter):
@@ -112,6 +75,54 @@ class HealthCheckFilter(logging.Filter):
 
 
 logging.getLogger("uvicorn.access").addFilter(HealthCheckFilter())
+
+logger = get_logger(__name__)
+
+
+# 本番環境ではドキュメントを無効化
+if SETTINGS.is_production:
+    APP_PARAMS["docs_url"] = None
+    APP_PARAMS["redoc_url"] = None
+    APP_PARAMS["openapi_url"] = None
+
+if SETTINGS.is_production and SETTINGS.NEW_RELIC_LICENSE_KEY:
+    os.environ["NEW_RELIC_LICENSE_KEY"] = SETTINGS.NEW_RELIC_LICENSE_KEY
+    os.environ["NEW_RELIC_APP_NAME"] = SETTINGS.NEW_RELIC_APP_NAME
+
+    newrelic_config = newrelic.agent.global_settings()
+    newrelic_config.high_security = SETTINGS.NEW_RELIC_HIGH_SECURITY
+    newrelic_config.monitor_mode = SETTINGS.NEW_RELIC_MONITOR_MODE
+    newrelic_config.app_name = (
+        f"{SETTINGS.NEW_RELIC_APP_NAME}[{SETTINGS.normalized_env_mode}]"
+    )
+
+    newrelic.agent.initialize(
+        config_file="/etc/newrelic.ini", environment=SETTINGS.ENV_MODE
+    )
+    logger.info(f"New Relic is enabled (name: {newrelic_config.app_name})")
+else:
+    logger.info(
+        f"New Relic is disabled on {SETTINGS.ENV_MODE} mode"
+        if not SETTINGS.is_production
+        else "New Relic license key is not set"
+    )
+
+if SETTINGS.SENTRY_DSN:
+    sentry_sdk.init(
+        dsn=SETTINGS.SENTRY_DSN,
+        environment=SETTINGS.normalized_env_mode,
+        traces_sample_rate=SETTINGS.SENTRY_TRACES_SAMPLE_RATE,
+        _experiments={
+            "continuous_profiling_auto_start": True,
+        },
+    )
+    logger.info(f"Sentry is enabled on {SETTINGS.normalized_env_mode} mode")
+else:
+    logger.info(
+        f"Sentry is disabled on {SETTINGS.normalized_env_mode} mode"
+        if not SETTINGS.is_production
+        else "Sentry DSN is not set"
+    )
 
 
 def has_content(directory: Path) -> bool:
@@ -130,18 +141,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """
     アプリケーションのライフサイクル管理
     """
-    if settings.has_database:
+    if SETTINGS.has_database:
         from .infrastructure.database.migration import run_migrations
 
         run_migrations(logger_key="uvicorn")
     else:
         logger.info("Database migrations are disabled")
 
-    from .infrastructure.batch.scheduler import (
-        create_scheduler,
-        start_scheduler,
-        stop_scheduler,
-    )
     from .infrastructure.batch import tasks  # タスク自動登録  # noqa: F401
 
     scheduler = create_scheduler()
@@ -162,7 +168,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     # テスト環境・ローカル環境ではSPAマウントを無効化（404テストを正しく動作させるため）
     if (
-        not (settings.is_local or settings.is_test)
+        not (SETTINGS.is_local or SETTINGS.is_test)
         and FRONTEND_DIST_DIR.exists()
         and FRONTEND_DIST_DIR.is_dir()
     ):
@@ -173,7 +179,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         )
         logger.info(f"Frontend SPA enabled: {FRONTEND_DIST_DIR}")
     else:
-        if settings.is_local or settings.is_test:
+        if SETTINGS.is_local or SETTINGS.is_test:
             logger.info("Frontend SPA disabled: local/test mode")
         else:
             logger.info(f"Frontend SPA disabled: {FRONTEND_DIST_DIR} not found")
@@ -183,14 +189,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     stop_scheduler(scheduler)
 
 
-app_params["lifespan"] = lifespan
+APP_PARAMS["lifespan"] = lifespan
 
-app = FastAPI(**app_params)
+app = FastAPI(**APP_PARAMS)
 
-if len(settings.BACKEND_CORS_ORIGINS) > 0:
+if len(SETTINGS.BACKEND_CORS_ORIGINS) > 0:
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[str(origin) for origin in settings.BACKEND_CORS_ORIGINS],
+        allow_origins=[str(origin) for origin in SETTINGS.BACKEND_CORS_ORIGINS],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -220,9 +226,9 @@ async def api_error_handler(request: Request, exc: APIError) -> Response:
     )
 
 
-@app.exception_handler(StarletteHTTPException)
+@app.exception_handler(FastAPIHTTPException)
 async def http_exception_handler(
-    request: Request, exc: StarletteHTTPException
+    request: Request, exc: FastAPIHTTPException
 ) -> Response:
     """HTTPException例外ハンドラ"""
     error = ErrorResponse(
@@ -286,11 +292,11 @@ async def session_middleware(
 
     DATABASE_URLが設定されている場合のみ、RDBベースのセッション管理を有効化
     """
-    if settings.has_database:
+    if SETTINGS.has_database:
         db_gen = get_db()
         db = next(db_gen)
         try:
-            session_id = request.cookies.get(settings.SESSION_COOKIE_NAME)
+            session_id = request.cookies.get(SETTINGS.SESSION_COOKIE_NAME)
             if session_id:
                 service = SessionService(db)
                 user_agent = request.headers.get("User-Agent")

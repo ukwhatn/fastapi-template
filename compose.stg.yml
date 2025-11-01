@@ -17,6 +17,8 @@ services:
       - -c
       - |
         fastapi run app/main.py --host 0.0.0.0 --port 80 --proxy-headers
+    ports:
+      - "127.0.0.1:${APP_PORT}:80"
     volumes:
       - ./newrelic.ini:/etc/newrelic.ini:ro
     env_file:
@@ -25,7 +27,7 @@ services:
       - ENV_MODE=staging
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:80/system/healthcheck/"]
+      test: ["CMD", "curl", "-f", "http://localhost:80/api/system/healthcheck/"]
       interval: 10s
       timeout: 5s
       retries: 5

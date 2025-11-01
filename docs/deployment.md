@@ -330,7 +330,7 @@ ENV=stg make compose:logs
 ENV=stg make compose:ps
 
 # ヘルスエンドポイントテスト
-docker exec fastapi-template-server-stg curl -f http://localhost:80/system/healthcheck/
+docker exec fastapi-template-server-stg curl -f http://localhost:80/api/system/healthcheck/
 ```
 
 **解決方法**:

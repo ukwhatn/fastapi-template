@@ -271,7 +271,7 @@ compose\:up:
 
 .PHONY: compose\:down
 compose\:down:
-	@$(COMPOSE_CMD) down
+	@$(COMPOSE_CMD) down --remove-orphans
 
 .PHONY: compose\:down\:v
 compose\:down\:v:
@@ -336,9 +336,9 @@ local\:serve\:frontend:
 	@cd frontend && pnpm dev
 
 # ==== stg環境操作 ====
-.PHONY: stg\:deploy
-stg\:deploy:
-	@./scripts/deploy-stg.sh
+.PHONY: stg\:up
+stg\:up:
+	@ENV=stg $(MAKE) compose:up
 
 .PHONY: stg\:logs
 stg\:logs:
@@ -353,9 +353,9 @@ stg\:down:
 	@ENV=stg $(MAKE) compose:down
 
 # ==== prod環境操作 ====
-.PHONY: prod\:deploy
-prod\:deploy:
-	@./scripts/deploy-prod.sh
+.PHONY: prod\:up
+prod\:up:
+	@ENV=prod $(MAKE) compose:up
 
 .PHONY: prod\:logs
 prod\:logs:
