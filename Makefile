@@ -1,14 +1,18 @@
 # ==== Prepare ====
--include .env
-export
 
 ENV ?= local
 
 ifeq ($(ENV), prod)
+	-include .env.prod
+	export
 	COMPOSE_FILE := compose.prod.yml
 else ifeq ($(ENV), stg)
+	-include .env.stg
+	export
 	COMPOSE_FILE := compose.stg.yml
 else
+	-include .env
+	export
 	COMPOSE_FILE := compose.local.yml
 endif
 

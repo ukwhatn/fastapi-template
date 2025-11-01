@@ -43,7 +43,7 @@ def _configure_migration_logging(settings: Settings) -> None:
     for handler in uvicorn_logger.handlers:
         sqlalchemy_logger.addHandler(handler)
 
-    if settings.is_staging:
+    if settings.is_local:
         sqlalchemy_logger.setLevel(logging.INFO)  # 開発環境: SQL文を表示
     else:
         sqlalchemy_logger.setLevel(logging.WARNING)  # 本番環境: 警告のみ
