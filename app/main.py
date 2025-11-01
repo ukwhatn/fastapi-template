@@ -9,6 +9,7 @@ from typing import Any, AsyncIterator, MutableMapping
 import newrelic.agent
 import sentry_sdk
 from fastapi import FastAPI, Request, Response
+from fastapi.responses import RedirectResponse
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import (
     HTTPException as FastAPIHTTPException,
@@ -173,11 +174,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         and FRONTEND_DIST_DIR.is_dir()
     ):
         app.mount(
-            "/",
+            "/admin",
             SPAStaticFiles(directory=str(FRONTEND_DIST_DIR), html=True),
             name="frontend",
         )
-        logger.info(f"Frontend SPA enabled: {FRONTEND_DIST_DIR}")
+        logger.info(f"Frontend SPA enabled at /admin: {FRONTEND_DIST_DIR}")
     else:
         if SETTINGS.is_local or SETTINGS.is_test:
             logger.info("Frontend SPA disabled: local/test mode")
@@ -335,3 +336,9 @@ async def session_middleware(
 
 
 app.include_router(api_router)
+
+
+@app.get("/")
+async def root_redirect() -> RedirectResponse:
+    """ルートパスから/adminへリダイレクト"""
+    return RedirectResponse(url="/admin/")
