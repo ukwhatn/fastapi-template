@@ -80,7 +80,9 @@ if settings.is_production and settings.NEW_RELIC_LICENSE_KEY:
     newrelic_config = newrelic.agent.global_settings()
     newrelic_config.high_security = settings.NEW_RELIC_HIGH_SECURITY
     newrelic_config.monitor_mode = settings.NEW_RELIC_MONITOR_MODE
-    newrelic_config.app_name = settings.NEW_RELIC_APP_NAME
+    newrelic_config.app_name = (
+        f"{settings.NEW_RELIC_APP_NAME}[{settings.normalized_env_mode}]"
+    )
 
     newrelic.agent.initialize(
         config_file="/etc/newrelic.ini", environment=settings.ENV_MODE
@@ -96,6 +98,7 @@ else:
 if settings.SENTRY_DSN:
     sentry_sdk.init(
         dsn=settings.SENTRY_DSN,
+        environment=settings.normalized_env_mode,
         traces_sample_rate=settings.SENTRY_TRACES_SAMPLE_RATE,
         _experiments={
             "continuous_profiling_auto_start": True,
