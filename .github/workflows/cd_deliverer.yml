@@ -5,7 +5,7 @@ on:
     inputs:
       environment:
         required: true
-        type: string  # dev or prod
+        type: string  # stg or prod
       branch:
         required: true
         type: string  # develop or main

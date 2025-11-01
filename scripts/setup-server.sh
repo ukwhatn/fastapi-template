@@ -9,7 +9,7 @@ set -euo pipefail
 #   - Docker & Docker Compose installed
 #
 # Usage:
-#   ./scripts/setup-server.sh dev
+#   ./scripts/setup-server.sh stg
 #   ./scripts/setup-server.sh prod
 
 echo "=== FastAPI Template Server Setup ==="
@@ -17,8 +17,8 @@ echo ""
 
 # 引数チェック
 if [ $# -eq 0 ]; then
-    echo "Error: Environment argument required (dev or prod)"
-    echo "Usage: ./scripts/setup-server.sh {dev|prod}"
+    echo "Error: Environment argument required (stg or prod)"
+    echo "Usage: ./scripts/setup-server.sh {stg|prod}"
     exit 1
 fi
 
@@ -26,8 +26,8 @@ ENV=$1
 REPO_NAME="fastapi-template"
 REPO_URL="https://github.com/ukwhatn/fastapi-template.git"
 
-if [ "$ENV" != "dev" ] && [ "$ENV" != "prod" ]; then
-    echo "Error: Environment must be 'dev' or 'prod'"
+if [ "$ENV" != "stg" ] && [ "$ENV" != "prod" ]; then
+    echo "Error: Environment must be 'stg' or 'prod'"
     exit 1
 fi
 
@@ -109,6 +109,6 @@ echo ""
 echo "Next steps:"
 echo "  - Check service status: ENV=$ENV make compose:ps"
 echo "  - View logs: ENV=$ENV make compose:logs"
-echo "  - GitHub Actions will automatically deploy on push to ${ENV == 'dev' ? 'develop' : 'main'}"
+echo "  - GitHub Actions will automatically deploy on push to ${ENV == 'stg' ? 'develop' : 'main'}"
 echo ""
 echo "⚠️  IMPORTANT: Keep .env file secure and never commit it to git!"
