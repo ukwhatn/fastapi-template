@@ -1,16 +1,16 @@
-# Dev environment (auto-deploy via Watchtower)
+# Stg environment (auto-deploy via Watchtower)
 # Image from GHCR.io (develop tag)
 # Database: Local (POSTGRES_HOST=db) or External (DBaaS like Supabase)
 # No port exposure (use Cloudflare Tunnels)
 #
 # Usage:
-#   make dev:deploy  # Initial deployment
-#   make dev:logs    # View logs
-#   make dev:ps      # Check status
+#   make stg:deploy  # Initial deployment
+#   make stg:logs    # View logs
+#   make stg:ps      # Check status
 
 services:
   server:
-    container_name: ${COMPOSE_PROJECT_NAME:-fastapi-template}-server-dev
+    container_name: ${COMPOSE_PROJECT_NAME:-fastapi-template}-server-stg
     image: ghcr.io/${GITHUB_REPOSITORY:-ukwhatn/fastapi-template}:develop
     command:
       - /bin/sh
@@ -22,7 +22,7 @@ services:
     env_file:
       - .env
     environment:
-      - ENV_MODE=development
+      - ENV_MODE=staging
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:80/system/healthcheck/"]
@@ -35,10 +35,10 @@ services:
         condition: service_healthy
         required: false
     networks:
-      - db-dev
+      - db-stg
 
   db:
-    container_name: ${COMPOSE_PROJECT_NAME:-fastapi-template}-db-dev
+    container_name: ${COMPOSE_PROJECT_NAME:-fastapi-template}-db-stg
     image: postgres:17
     env_file:
       - .env
@@ -46,7 +46,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-main}
       TZ: Asia/Tokyo
     volumes:
-      - pg_data_dev:/var/lib/postgresql/data
+      - pg_data_stg:/var/lib/postgresql/data
     restart: unless-stopped
     healthcheck:
       test: pg_isready -U ${POSTGRES_USER:-user} -d ${POSTGRES_DB:-main}
@@ -54,15 +54,15 @@ services:
       timeout: 5s
       retries: 30
     networks:
-      - db-dev
+      - db-stg
     profiles:
       - local-db
 
 volumes:
-  pg_data_dev:
-    name: ${COMPOSE_PROJECT_NAME:-fastapi-template}-pg-data-dev
+  pg_data_stg:
+    name: ${COMPOSE_PROJECT_NAME:-fastapi-template}-pg-data-stg
 
 networks:
-  db-dev:
-    name: ${COMPOSE_PROJECT_NAME:-fastapi-template}-db-dev
+  db-stg:
+    name: ${COMPOSE_PROJECT_NAME:-fastapi-template}-db-stg
     driver: bridge

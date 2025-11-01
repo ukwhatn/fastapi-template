@@ -1,4 +1,4 @@
-name: Deploy to Dev
+name: Deploy to Stg
 
 on:
   push:
@@ -15,11 +15,11 @@ jobs:
     needs: build-and-push
     uses: ./.github/workflows/cd_deliverer.yml
     with:
-      environment: dev
+      environment: stg
       branch: develop
       image_tag: develop
     secrets:
-      SSH_HOST: ${{ secrets.DEV_SSH_HOST }}
-      SSH_USER: ${{ secrets.DEV_SSH_USER }}
-      SSH_PORT: ${{ secrets.DEV_SSH_PORT }}
-      SSH_PRIVATE_KEY: ${{ secrets.DEV_SSH_PRIVATE_KEY }}
+      SSH_HOST: ${{ secrets.STG_SSH_HOST }}
+      SSH_USER: ${{ secrets.STG_SSH_USER }}
+      SSH_PORT: ${{ secrets.STG_SSH_PORT }}
+      SSH_PRIVATE_KEY: ${{ secrets.STG_SSH_PRIVATE_KEY }}
