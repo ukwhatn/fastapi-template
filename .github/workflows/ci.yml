@@ -24,6 +24,9 @@ jobs:
     uses: ./.github/workflows/ci_docker-test.yml
     secrets: inherit
 
+  frontend:
+    uses: ./.github/workflows/ci_frontend.yml
+
   # Branch Protection Rules 用
   # ci-success:
   #   runs-on: ubuntu-latest
