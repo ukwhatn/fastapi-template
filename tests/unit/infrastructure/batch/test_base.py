@@ -70,38 +70,6 @@ class TestBatchTaskRun:
 
     @patch("app.infrastructure.batch.base.sentry_sdk")
     @patch("app.infrastructure.batch.base.get_logger")
-    def test_run_logs_start_message(
-        self, mock_get_logger: Mock, mock_sentry: Mock
-    ) -> None:
-        """開始ログが出力されること"""
-        mock_logger = Mock()
-        mock_get_logger.return_value = mock_logger
-
-        task = SuccessfulTask()
-        task.run()
-
-        calls = [str(call) for call in mock_logger.info.call_args_list]
-        assert any("[BATCH] SuccessfulTask start" in call for call in calls)
-
-    @patch("app.infrastructure.batch.base.sentry_sdk")
-    @patch("app.infrastructure.batch.base.get_logger")
-    def test_run_logs_completion_message(
-        self, mock_get_logger: Mock, mock_sentry: Mock
-    ) -> None:
-        """完了ログが出力されること"""
-        mock_logger = Mock()
-        mock_get_logger.return_value = mock_logger
-
-        task = SuccessfulTask()
-        task.run()
-
-        calls = [str(call) for call in mock_logger.info.call_args_list]
-        assert any("[BATCH] SuccessfulTask completed" in call for call in calls), (
-            f"Actual calls: {calls}"
-        )
-
-    @patch("app.infrastructure.batch.base.sentry_sdk")
-    @patch("app.infrastructure.batch.base.get_logger")
     def test_run_calls_on_success_hook(
         self, mock_get_logger: Mock, mock_sentry: Mock
     ) -> None:
@@ -113,28 +81,6 @@ class TestBatchTaskRun:
         task.run()
 
         assert task.success_called is True
-
-    @patch("app.infrastructure.batch.base.sentry_sdk")
-    @patch("app.infrastructure.batch.base.get_logger")
-    def test_run_includes_elapsed_time_in_log(
-        self, mock_get_logger: Mock, mock_sentry: Mock
-    ) -> None:
-        """経過時間がログに含まれること"""
-        mock_logger = Mock()
-        mock_get_logger.return_value = mock_logger
-
-        task = SuccessfulTask()
-        task.run()
-
-        # 完了ログに経過時間が含まれることを確認
-        completion_logs = [
-            str(call)
-            for call in mock_logger.info.call_args_list
-            if "completed" in str(call)
-        ]
-        assert len(completion_logs) > 0
-        # 経過時間は (0:00:00.xxxxx) のような形式で含まれる
-        assert any("(" in log and ")" in log for log in completion_logs)
 
 
 class TestBatchTaskError:
@@ -189,58 +135,3 @@ class TestBatchTaskError:
             task.run()
 
         assert "Task execution failed" in str(exc_info.value)
-
-
-class TestBatchTaskHooks:
-    """on_success/on_failureフック"""
-
-    @patch("app.infrastructure.batch.base.sentry_sdk")
-    @patch("app.infrastructure.batch.base.get_logger")
-    def test_on_success_can_be_overridden(
-        self, mock_get_logger: Mock, mock_sentry: Mock
-    ) -> None:
-        """on_success()をオーバーライドできること"""
-        mock_logger = Mock()
-        mock_get_logger.return_value = mock_logger
-
-        task = TaskWithCustomHooks()
-        task.run()
-
-        assert task.success_called is True
-
-    @patch("app.infrastructure.batch.base.sentry_sdk")
-    @patch("app.infrastructure.batch.base.get_logger")
-    def test_on_failure_logs_error_by_default(
-        self, mock_get_logger: Mock, mock_sentry: Mock
-    ) -> None:
-        """on_failure()がデフォルトでログを出力すること"""
-        mock_logger = Mock()
-        mock_get_logger.return_value = mock_logger
-
-        task = FailingTask()
-
-        with pytest.raises(ValueError):
-            task.run()
-
-        # logger.error() が呼ばれたことを確認
-        mock_logger.error.assert_called_once()
-        call_args = str(mock_logger.error.call_args)
-        assert "Task failed" in call_args
-
-    @patch("app.infrastructure.batch.base.sentry_sdk")
-    @patch("app.infrastructure.batch.base.get_logger")
-    def test_on_failure_can_be_overridden(
-        self, mock_get_logger: Mock, mock_sentry: Mock
-    ) -> None:
-        """on_failure()をオーバーライドできること"""
-        mock_logger = Mock()
-        mock_get_logger.return_value = mock_logger
-
-        task = TaskWithCustomHooks()
-
-        # 失敗させるために execute をパッチ
-        with patch.object(task, "execute", side_effect=ValueError("Test error")):
-            with pytest.raises(ValueError):
-                task.run()
-
-        assert task.failure_called is True

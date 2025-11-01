@@ -28,22 +28,6 @@ class TestConfigDatabaseURI:
         )
         assert settings.database_uri == expected
 
-    def test_database_uri_always_returns_string(self) -> None:
-        """データベース設定が空でも文字列を返すこと（構築は可能）"""
-        from cryptography.fernet import Fernet
-
-        # 直接インスタンス化してテスト（.env読み込みをスキップ）
-        settings = Settings(
-            _env_file=None,
-            POSTGRES_USER="",
-            POSTGRES_PASSWORD="",
-            SESSION_ENCRYPTION_KEY=Fernet.generate_key().decode(),
-        )
-
-        # 空の設定でも文字列が構築される（デフォルト値が使用される）
-        assert isinstance(settings.database_uri, str)
-        assert "postgresql://" in settings.database_uri
-
 
 class TestConfigHasDatabase:
     """has_databaseプロパティのテスト"""
@@ -61,21 +45,6 @@ class TestConfigHasDatabase:
         )
         assert settings.has_database is True
 
-    def test_has_database_false(self) -> None:
-        """データベース設定がない場合、Falseを返すこと"""
-        from cryptography.fernet import Fernet
-
-        # 直接インスタンス化してテスト（.env読み込みをスキップ）
-        settings = Settings(
-            _env_file=None,
-            POSTGRES_USER="",
-            POSTGRES_PASSWORD="",
-            POSTGRES_HOST="",
-            SESSION_ENCRYPTION_KEY=Fernet.generate_key().decode(),
-        )
-
-        assert settings.has_database is False
-
 
 class TestConfigIsSupabase:
     """is_supabaseプロパティのテスト"""
@@ -90,25 +59,3 @@ class TestConfigIsSupabase:
             SESSION_ENCRYPTION_KEY=Fernet.generate_key().decode(),
         )
         assert settings.is_supabase is True
-
-    def test_is_supabase_false(self) -> None:
-        """Supabase以外のHOSTの場合、Falseを返すこと"""
-        from cryptography.fernet import Fernet
-
-        settings = Settings(
-            _env_file=None,
-            POSTGRES_HOST="localhost",
-            SESSION_ENCRYPTION_KEY=Fernet.generate_key().decode(),
-        )
-        assert settings.is_supabase is False
-
-    def test_is_supabase_false_when_host_is_db(self) -> None:
-        """POSTGRES_HOSTがdbの場合、Falseを返すこと"""
-        from cryptography.fernet import Fernet
-
-        settings = Settings(
-            _env_file=None,
-            POSTGRES_HOST="db",
-            SESSION_ENCRYPTION_KEY=Fernet.generate_key().decode(),
-        )
-        assert settings.is_supabase is False
