@@ -107,7 +107,8 @@ class TestSessionService:
         from app.infrastructure.database.models.session import Session as SessionModel
 
         session_model = (
-            db_session.query(SessionModel)
+            db_session
+            .query(SessionModel)
             .filter(SessionModel.session_id == session_id)
             .first()
         )
