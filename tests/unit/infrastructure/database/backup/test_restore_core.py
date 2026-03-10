@@ -152,7 +152,8 @@ class TestRestoreBackup:
 
             # 新しく追加したデータは削除されていること
             new_session_exists = (
-                db.query(SessionModel)
+                db
+                .query(SessionModel)
                 .filter(SessionModel.session_id == "test_session_new")
                 .first()
             )
