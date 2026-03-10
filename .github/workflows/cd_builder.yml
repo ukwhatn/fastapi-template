@@ -17,7 +17,7 @@ jobs:
       id-token: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           fetch-depth: 1
 
@@ -62,7 +62,7 @@ jobs:
             ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop') && format('type=registry,ref=ghcr.io/{0}:buildcache,mode=max', github.repository) || '' }}
 
       - name: Generate artifact attestation
-        uses: actions/attest-build-provenance@v3
+        uses: actions/attest-build-provenance@v4
         with:
           subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           subject-digest: ${{ steps.push.outputs.digest }}
