@@ -81,6 +81,7 @@ uv run pytest tests/integration/api/system/test_healthcheck.py::TestHealthCheck:
 ```python
 from fastapi.testclient import TestClient
 
+
 class TestYourEndpoint:
     def test_your_case(self, client: TestClient):
         response = client.get("/your/endpoint")
@@ -95,6 +96,7 @@ class TestYourEndpoint:
 
 ```python
 from app.infrastructure.security.encryption import generate_session_id
+
 
 class TestYourFunction:
     def test_your_case(self):

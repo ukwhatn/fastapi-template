@@ -1,7 +1,7 @@
 """バックアップ機能テスト用フィクスチャ"""
 
+from collections.abc import Generator
 from datetime import UTC, datetime
-from typing import Generator
 
 import pytest
 from sqlalchemy import delete
@@ -14,7 +14,7 @@ from app.infrastructure.database.models.session import Session as SessionModel
 @pytest.fixture
 def sample_session_data(
     test_engine: Engine,
-) -> Generator[list[SessionModel], None, None]:
+) -> Generator[list[SessionModel]]:
     """
     テスト用のサンプルセッションデータを作成する。
 

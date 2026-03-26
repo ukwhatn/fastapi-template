@@ -30,7 +30,7 @@ async def error_response_middleware(
         return await call_next(request)
     except Exception as e:
         sentry_sdk.capture_exception(e)
-        logger.error(f"Unhandled exception: {str(e)}", exc_info=e)
+        logger.error(f"Unhandled exception: {e!s}", exc_info=e)
 
         error = ErrorResponse(
             code="internal_server_error",

@@ -22,7 +22,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    "ruff>=0.14.2",
+    "ruff>=0.15.6",
     "bandit>=1.7.8",
     "semgrep>=1.63.0",
     "pytest>=8.3.5",
@@ -38,6 +38,18 @@ package = false
 
 [tool.ruff]
 preview = true
+
+[tool.ruff.lint]
+ignore = [
+    "B008",    # function-call-in-default-argument (FastAPI Depends pattern)
+    "BLE001",  # blind-except (intentional in CLI/backup error handling)
+    "DTZ005",  # call-datetime-now-without-tzinfo (local time usage is intentional)
+    "DTZ006",  # call-datetime-fromtimestamp (same as above)
+    "DTZ007",  # call-datetime-strptime-without-zone (same as above)
+    "G201",    # logging-exc-info (style choice)
+    "RUF059",  # unused-unpacked-variable (test helpers)
+    "TRY201",  # verbose-raise (explicit re-raise for clarity)
+]
 
 [tool.mypy]
 python_version = "3.13"

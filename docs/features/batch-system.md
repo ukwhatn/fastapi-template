@@ -55,6 +55,7 @@
 ```python
 from abc import ABC, abstractmethod
 
+
 class BaseTask(ABC):
     """
     バッチタスクの抽象基底クラス
@@ -64,6 +65,7 @@ class BaseTask(ABC):
         description: タスクの説明
         schedule: Cronスケジュール式
     """
+
     name: str
     description: str
     schedule: str
@@ -84,6 +86,7 @@ from app.infrastructure.batch.base import BaseTask
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
+
 
 class MyCustomTask(BaseTask):
     name = "my_custom_task"
@@ -109,6 +112,7 @@ class TaskRegistry:
 
     全てのバッチタスクを管理
     """
+
     _instance: Optional["TaskRegistry"] = None
     _tasks: list[type[BaseTask]] = []
 
@@ -133,6 +137,7 @@ class TaskRegistry:
 from app.infrastructure.batch.base import BaseTask
 from app.infrastructure.batch.registry import TaskRegistry
 
+
 class MyTask(BaseTask):
     name = "my_task"
     description = "My custom task"
@@ -141,6 +146,7 @@ class MyTask(BaseTask):
     def run(self) -> None:
         # タスクのロジック
         pass
+
 
 # 自動登録
 TaskRegistry.register(MyTask)
@@ -177,7 +183,7 @@ def create_scheduler() -> BackgroundScheduler:
         job_defaults={
             "coalesce": False,  # 遅延実行されたジョブをまとめない
             "max_instances": 1,  # 同時実行数1
-        }
+        },
     )
 
     # 全タスクをスケジューラーに登録
@@ -263,6 +269,7 @@ async def lifespan(app: FastAPI):
 ```python
 class BackupTask(BaseTask):
     """定期バックアップタスク"""
+
     name = "backup"
     description = "データベースバックアップを作成"
 
@@ -310,8 +317,10 @@ from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
+
 class CleanupSessionsTask(BaseTask):
     """期限切れセッション削除タスク"""
+
     name = "cleanup_sessions"
     description = "期限切れセッションを削除"
     schedule = "0 * * * *"  # 毎時0分に実行
@@ -324,6 +333,7 @@ class CleanupSessionsTask(BaseTask):
             logger.info(f"Cleaned up {count} expired sessions")
         finally:
             db.close()
+
 
 # 自動登録
 TaskRegistry.register(CleanupSessionsTask)
@@ -343,8 +353,10 @@ from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
+
 class MyCustomTask(BaseTask):
     """カスタムタスクの説明"""
+
     name = "my_custom_task"
     description = "カスタムタスク"
     schedule = "30 3 * * *"  # 毎日午前3時30分に実行
@@ -356,6 +368,7 @@ class MyCustomTask(BaseTask):
         # 例: データベースクエリ、外部API呼び出し、ファイル処理等
 
         logger.info(f"Completed {self.name}")
+
 
 # 自動登録
 TaskRegistry.register(MyCustomTask)
@@ -384,6 +397,7 @@ TaskRegistry.register(MyCustomTask)
 ```python
 from app.infrastructure.database import get_db
 
+
 class DatabaseTask(BaseTask):
     name = "database_task"
     description = "データベースを使用するタスク"
@@ -404,6 +418,7 @@ class DatabaseTask(BaseTask):
 ```python
 import httpx
 
+
 class APITask(BaseTask):
     name = "api_task"
     description = "外部APIを呼び出すタスク"
@@ -420,6 +435,7 @@ class APITask(BaseTask):
 
 ```python
 from app.domain.exceptions.base import DomainError
+
 
 class RobustTask(BaseTask):
     name = "robust_task"
@@ -456,8 +472,10 @@ from datetime import datetime, timedelta
 
 logger = get_logger(__name__)
 
+
 class DailyReportTask(BaseTask):
     """日次レポート作成タスク"""
+
     name = "daily_report"
     description = "日次レポートを作成"
     schedule = "0 1 * * *"  # 毎日午前1時
@@ -470,14 +488,16 @@ class DailyReportTask(BaseTask):
 
             # ユーザー登録数
             user_count = (
-                db.query(func.count(User.id))
+                db
+                .query(func.count(User.id))
                 .filter(func.date(User.created_at) == yesterday)
                 .scalar()
             )
 
             # セッション数
             session_count = (
-                db.query(func.count(Session.session_id))
+                db
+                .query(func.count(Session.session_id))
                 .filter(func.date(Session.created_at) == yesterday)
                 .scalar()
             )
@@ -491,6 +511,7 @@ class DailyReportTask(BaseTask):
         finally:
             db.close()
 
+
 TaskRegistry.register(DailyReportTask)
 ```
 
@@ -499,8 +520,10 @@ TaskRegistry.register(DailyReportTask)
 ```python
 from app.core.config import get_settings
 
+
 class DynamicScheduleTask(BaseTask):
     """動的スケジュールタスク"""
+
     name = "dynamic_schedule"
     description = "動的スケジュールタスク"
 
@@ -542,6 +565,7 @@ from fastapi import APIRouter, Request
 
 router = APIRouter()
 
+
 @router.get("/scheduler/jobs")
 async def get_scheduled_jobs(request: Request):
     """スケジューラーのジョブ一覧を取得"""
@@ -552,7 +576,9 @@ async def get_scheduled_jobs(request: Request):
         {
             "id": job.id,
             "name": job.name,
-            "next_run_time": job.next_run_time.isoformat() if job.next_run_time else None,
+            "next_run_time": job.next_run_time.isoformat()
+            if job.next_run_time
+            else None,
             "trigger": str(job.trigger),
         }
         for job in jobs
@@ -595,6 +621,7 @@ class HeavyTask(BaseTask):
             # 重い処理
             pass
 
+
 # ✅ GOOD: バッチ処理で分割
 class OptimizedTask(BaseTask):
     def run(self) -> None:
@@ -631,6 +658,7 @@ class RobustTask(BaseTask):
 
 ```python
 import time
+
 
 class MonitoredTask(BaseTask):
     def run(self) -> None:

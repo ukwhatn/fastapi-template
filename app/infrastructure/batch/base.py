@@ -39,7 +39,6 @@ class BatchTask(ABC):
         Raises:
             NotImplementedError: サブクラスで実装されていない場合
         """
-        pass
 
     def on_success(self) -> None:
         """
@@ -47,7 +46,6 @@ class BatchTask(ABC):
 
         オプション。成功時に追加処理が必要な場合にオーバーライドする。
         """
-        pass
 
     def on_failure(self, error: Exception) -> None:
         """
@@ -59,7 +57,7 @@ class BatchTask(ABC):
         Args:
             error: 発生した例外
         """
-        self.logger.error(f"Task failed: {error}", exc_info=True)
+        self.logger.error(f"Task failed: {error}", exc_info=error)
 
     def run(self) -> None:
         """

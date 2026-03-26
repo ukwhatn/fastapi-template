@@ -232,6 +232,7 @@ make secrets:edit:prod      # Prod環境変数を編集（自動再暗号化）
    # app/domain/exceptions/your_exceptions.py
    from .base import DomainError
 
+
    class YourCustomError(DomainError):
        def __init__(self, message: str = "Custom error"):
            super().__init__(message=message, code="your_custom_error")
@@ -243,6 +244,7 @@ make secrets:edit:prod      # Prod環境変数を編集（自動再暗号化）
    from .base import BaseModel
    from sqlalchemy.orm import Mapped, mapped_column
 
+
    class YourModel(BaseModel):
        __tablename__ = "your_table"
        name: Mapped[str] = mapped_column(String(100))
@@ -252,6 +254,7 @@ make secrets:edit:prod      # Prod環境変数を編集（自動再暗号化）
    ```python
    # app/presentation/schemas/your_schema.py
    from pydantic import BaseModel
+
 
    class YourSchema(BaseModel):
        name: str

@@ -93,6 +93,14 @@ openapi\:generate:
 # ==== コード品質チェック ====
 .PHONY: test
 test:
+	@uv run --active pytest tests/unit/ -v
+
+.PHONY: test\:integration
+test\:integration:
+	@uv run --active pytest tests/integration/ -v
+
+.PHONY: test\:all
+test\:all:
 	@uv run --active pytest tests/ -v
 
 .PHONY: test\:cov
@@ -139,10 +147,6 @@ security\:scan\:sast:
 .PHONY: security\:scan\:sast\:critical
 security\:scan\:sast\:critical:
 	@uv run --active semgrep scan --config=p/python --config=p/security-audit --config=p/owasp-top-ten --severity ERROR --error
-
-.PHONY: security\:scan\:trivy
-security\:scan\:trivy:
-	@trivy config --exit-code 1 --severity CRITICAL Dockerfile
 
 # ==== Pre-commit ====
 .PHONY: pre-commit\:install

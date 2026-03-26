@@ -69,6 +69,7 @@ class Session(Base, TimeStampMixin):
         fingerprint: セッションフィンガープリント（User-Agent + IPのSHA256ハッシュ）
         csrf_token: CSRFトークン（64文字HEX）
     """
+
     __tablename__ = "sessions"
 
     session_id: Mapped[str] = mapped_column(String(128), primary_key=True, index=True)
@@ -76,7 +77,9 @@ class Session(Base, TimeStampMixin):
     expires_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, index=True
     )
-    fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)  # SHA256ハッシュ
+    fingerprint: Mapped[str] = mapped_column(
+        String(64), nullable=False
+    )  # SHA256ハッシュ
     csrf_token: Mapped[str] = mapped_column(String(64), nullable=False)
 ```
 
@@ -99,6 +102,7 @@ class SessionEncryption:
 
     Fernet (対称暗号化) を使用してセッションデータを安全に保存
     """
+
     def __init__(self, encryption_key: Optional[str] = None):
         if encryption_key is None:
             settings = get_settings()
@@ -160,8 +164,8 @@ session_data = service.get_session(
     session_id,
     user_agent,
     client_ip,
-    verify_csrf=True,           # CSRF検証を有効化
-    csrf_token=request_csrf_token  # リクエストから取得したトークン
+    verify_csrf=True,  # CSRF検証を有効化
+    csrf_token=request_csrf_token,  # リクエストから取得したトークン
 )
 ```
 
@@ -170,7 +174,7 @@ session_data = service.get_session(
 @router.post("/update-profile")
 async def update_profile(
     csrf_token: str = Header(..., alias="X-CSRF-Token"),
-    deps: DBWithSession = Depends(get_db_with_session)
+    deps: DBWithSession = Depends(get_db_with_session),
 ):
     service = SessionService(deps.db)
     session_data = service.get_session(
@@ -178,7 +182,7 @@ async def update_profile(
         deps.user_agent,
         deps.client_ip,
         verify_csrf=True,
-        csrf_token=csrf_token
+        csrf_token=csrf_token,
     )
     if not session_data:
         raise UnauthorizedError("Invalid CSRF token")
@@ -208,9 +212,7 @@ def generate_fingerprint(user_agent: Optional[str], client_ip: Optional[str]) ->
 **検証**:
 ```python
 def verify_fingerprint(
-    stored_fingerprint: str,
-    user_agent: Optional[str],
-    client_ip: Optional[str]
+    stored_fingerprint: str, user_agent: Optional[str], client_ip: Optional[str]
 ) -> bool:
     """フィンガープリントを検証（定数時間比較）"""
     current_fingerprint = generate_fingerprint(user_agent, client_ip)
@@ -227,9 +229,7 @@ def verify_fingerprint(
 **ログイン成功時の推奨処理**:
 ```python
 def regenerate_session_id(
-    old_session_id: str,
-    user_agent: Optional[str],
-    client_ip: Optional[str]
+    old_session_id: str, user_agent: Optional[str], client_ip: Optional[str]
 ) -> Optional[tuple[str, str]]:
     """
     セッションIDを再生成（セッション固定攻撃対策）
@@ -308,7 +308,7 @@ session_id, csrf_token = service.create_session(
     data={"user_id": 123, "role": "admin"},
     user_agent=request.headers.get("User-Agent"),
     client_ip="192.168.1.1",
-    expire_seconds=3600  # 1時間（オプション）
+    expire_seconds=3600,  # 1時間（オプション）
 )
 ```
 
@@ -344,7 +344,7 @@ session_data = service.get_session(
     user_agent=request.headers.get("User-Agent"),
     client_ip="192.168.1.1",
     verify_csrf=True,
-    csrf_token=request.headers.get("X-CSRF-Token")
+    csrf_token=request.headers.get("X-CSRF-Token"),
 )
 
 if session_data:
@@ -584,6 +584,7 @@ class DBWithSession:
     db: Session
     session: SessionSchema
 
+
 def get_db_with_session(
     db: Session = Depends(get_db),
     session: SessionSchema = Depends(get_session),
@@ -656,6 +657,7 @@ async def logout(
 
 ```python
 from app.domain.exceptions.base import UnauthorizedError
+
 
 @router.get("/protected")
 async def protected_endpoint(deps: DBWithSession = Depends(get_db_with_session)):
@@ -742,12 +744,15 @@ session_data = {"user_id": user.id, "role": user.role}
 @router.post("/delete-account")
 async def delete_account(
     csrf_token: str = Header(..., alias="X-CSRF-Token"),
-    deps: DBWithSession = Depends(get_db_with_session)
+    deps: DBWithSession = Depends(get_db_with_session),
 ):
     service = SessionService(deps.db)
     session_data = service.get_session(
-        deps.session_id, deps.user_agent, deps.client_ip,
-        verify_csrf=True, csrf_token=csrf_token
+        deps.session_id,
+        deps.user_agent,
+        deps.client_ip,
+        verify_csrf=True,
+        csrf_token=csrf_token,
     )
     if not session_data:
         raise UnauthorizedError("Invalid CSRF token")

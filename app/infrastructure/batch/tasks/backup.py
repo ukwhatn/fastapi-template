@@ -2,7 +2,6 @@
 
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Optional
 
 import opendal
 
@@ -24,7 +23,7 @@ class BackupTask(BatchTask):
         """バックアップタスクを初期化する。"""
         super().__init__()
         self.settings = get_settings()
-        self.storage: Optional[opendal.Operator] = None
+        self.storage: opendal.Operator | None = None
         self._init_storage()
 
     def _init_storage(self) -> None:

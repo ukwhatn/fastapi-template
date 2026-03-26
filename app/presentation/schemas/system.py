@@ -1,7 +1,7 @@
 """システム関連のスキーマ定義"""
 
 from datetime import datetime
-from typing import Literal, Optional
+from typing import Literal
 
 from pydantic import BaseModel
 
@@ -18,7 +18,7 @@ class DatabaseStatus(BaseModel):
 
     status: Literal["healthy", "unhealthy"]
     connection: bool
-    error: Optional[str] = None
+    error: str | None = None
 
 
 class HealthCheckResponse(BaseModel):

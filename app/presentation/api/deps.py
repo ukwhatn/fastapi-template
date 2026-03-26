@@ -1,5 +1,6 @@
+from collections.abc import Generator
 from dataclasses import dataclass
-from typing import Any, Generator
+from typing import Any
 
 from fastapi import Depends, HTTPException, Request, Security
 from fastapi.security import APIKeyHeader
@@ -33,7 +34,7 @@ def get_session(request: Request) -> SessionSchema:
 def get_db_with_session(
     db: Session = Depends(get_db),
     session: SessionSchema = Depends(get_session),
-) -> Generator[DBWithSession, None, None]:
+) -> Generator[DBWithSession]:
     """
     DBとセッションの両方を取得するdependency
 

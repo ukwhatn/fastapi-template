@@ -1,12 +1,15 @@
 """FastAPI例外ハンドラー"""
 
 import json
-from typing import Awaitable, Callable, cast
+from collections.abc import Awaitable, Callable
+from typing import cast
 
 from fastapi import FastAPI, Request, Response
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import (
     HTTPException as FastAPIHTTPException,
+)
+from fastapi.exceptions import (
     RequestValidationError,
 )
 

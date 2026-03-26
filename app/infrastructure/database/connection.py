@@ -1,6 +1,7 @@
-from typing import Generator, Optional
-from sqlalchemy import create_engine, Engine
-from sqlalchemy.orm import sessionmaker, Session
+from collections.abc import Generator
+
+from sqlalchemy import Engine, create_engine
+from sqlalchemy.orm import Session, sessionmaker
 
 from ...core.config import get_settings
 from ...core.logging import get_logger
@@ -9,8 +10,8 @@ logger = get_logger(__name__)
 settings = get_settings()
 
 # データベース接続設定
-engine: Optional[Engine]
-SessionLocal: Optional[sessionmaker[Session]]
+engine: Engine | None
+SessionLocal: sessionmaker[Session] | None
 
 if settings.has_database:
     if not settings.database_uri:
@@ -35,7 +36,7 @@ else:
     logger.warning("DATABASE_URL not set. Database functionality disabled.")
 
 
-def get_db() -> Generator[Session, None, None]:
+def get_db() -> Generator[Session]:
     """
     DB接続のためのデペンデンシー
     yield構文でセッションをコンテキストマネージャとして提供

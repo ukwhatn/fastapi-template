@@ -1,9 +1,8 @@
-from typing import Optional
 from fastapi import Request
 from fastapi.templating import Jinja2Templates
 
 
-def get_templates(request: Request) -> Optional[Jinja2Templates]:
+def get_templates(request: Request) -> Jinja2Templates | None:
     """
     リクエストからJinja2Templatesインスタンスを取得
 

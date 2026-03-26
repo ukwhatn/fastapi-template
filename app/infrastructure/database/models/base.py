@@ -1,13 +1,11 @@
 from datetime import datetime
 
 from sqlalchemy import DateTime, Integer, func
-from sqlalchemy.orm import Mapped, mapped_column, DeclarativeBase
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
 class Base(DeclarativeBase):
     """SQLAlchemy declarative base"""
-
-    pass
 
 
 class TimeStampMixin:

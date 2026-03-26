@@ -61,8 +61,11 @@ class DomainError(Exception):
         self.details = details
         super().__init__(message)
 
+
 class NotFoundError(DomainError):
-    def __init__(self, message: str = "Resource not found", details: Optional[dict] = None):
+    def __init__(
+        self, message: str = "Resource not found", details: Optional[dict] = None
+    ):
         super().__init__(message=message, code="not_found", details=details)
 ```
 
@@ -97,6 +100,7 @@ app/application/
 # app/application/interfaces/user_repository.py
 from abc import ABC, abstractmethod
 from typing import Optional
+
 
 class IUserRepository(ABC):
     @abstractmethod
@@ -146,6 +150,7 @@ app/infrastructure/
 # app/infrastructure/repositories/user_repository.py
 from app.application.interfaces.user_repository import IUserRepository
 from app.domain.exceptions.base import NotFoundError
+
 
 class UserRepository(IUserRepository):
     def __init__(self, db: Session):
@@ -198,11 +203,9 @@ from app.domain.exceptions.base import NotFoundError
 
 router = APIRouter()
 
+
 @router.get("/{user_id}", response_model=UserResponse)
-async def get_user(
-    user_id: int,
-    db: Session = Depends(get_db)
-):
+async def get_user(user_id: int, db: Session = Depends(get_db)):
     repo = UserRepository(db)
     user = await repo.find_by_id(user_id)
     return UserResponse.from_orm(user)
@@ -232,6 +235,7 @@ Domain ← Application ← Infrastructure
 # ❌ BAD: Domain層でFastAPIに依存
 from fastapi import HTTPException  # NG
 
+
 class DomainError(HTTPException):  # NG
     pass
 ```
@@ -253,6 +257,7 @@ class DomainError(Exception):
 from fastapi import Depends
 from sqlalchemy.orm import Session
 
+
 def get_db() -> Generator[Session, None, None]:
     """DBセッション取得"""
     db = SessionLocal()
@@ -260,6 +265,7 @@ def get_db() -> Generator[Session, None, None]:
         yield db
     finally:
         db.close()
+
 
 def get_session(request: Request) -> SessionSchema:
     """セッションデータ取得"""
@@ -273,6 +279,7 @@ def get_session(request: Request) -> SessionSchema:
 class DBWithSession:
     db: Session
     session: SessionSchema
+
 
 def get_db_with_session(
     db: Session = Depends(get_db),
@@ -303,6 +310,7 @@ class IUserRepository(ABC):
     async def find_by_id(self, user_id: int) -> User:
         pass
 
+
 # Infrastructure層
 class UserRepository(IUserRepository):
     def __init__(self, db: Session):
@@ -312,15 +320,14 @@ class UserRepository(IUserRepository):
         # 実装
         pass
 
+
 # Presentation層
 def get_user_repository(db: Session = Depends(get_db)) -> IUserRepository:
     return UserRepository(db)
 
+
 @router.get("/{user_id}")
-async def get_user(
-    user_id: int,
-    repo: IUserRepository = Depends(get_user_repository)
-):
+async def get_user(user_id: int, repo: IUserRepository = Depends(get_user_repository)):
     user = await repo.find_by_id(user_id)
     return user
 ```
@@ -365,12 +372,16 @@ async def domain_error_handler(request: Request, exc: DomainError) -> Response:
 # app/infrastructure/database/models/base.py
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
+
 class Base(DeclarativeBase):
     """SQLAlchemy declarative base"""
+
     pass
+
 
 class TimeStampMixin:
     """タイムスタンプ自動管理"""
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
@@ -378,8 +389,10 @@ class TimeStampMixin:
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
+
 class BaseModel(Base, TimeStampMixin):
     """全モデルの基底クラス"""
+
     __abstract__ = True
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
 ```
@@ -406,6 +419,7 @@ class User(BaseModel):
 async def lifespan(app: FastAPI):
     if settings.has_database:
         from .infrastructure.database.migration import run_migrations
+
         run_migrations(logger_key="uvicorn")
     # ...
 ```
@@ -435,7 +449,9 @@ async def session_middleware(request: Request, call_next):
             if session_id:
                 service = SessionService(db)
                 user_agent = request.headers.get("User-Agent")
-                client_ip = get_client_ip(request)  # CF-Connecting-IP > X-Forwarded-For > client.host
+                client_ip = get_client_ip(
+                    request
+                )  # CF-Connecting-IP > X-Forwarded-For > client.host
 
                 session_data = service.get_session(session_id, user_agent, client_ip)
                 request.state.session = session_data or {}
@@ -497,6 +513,7 @@ async def lifespan(app: FastAPI):
     # 1. マイグレーション実行
     if settings.has_database:
         from .infrastructure.database.migration import run_migrations
+
         run_migrations(logger_key="uvicorn")
 
     # 2. バッチスケジューラー起動
@@ -535,7 +552,10 @@ if settings.SENTRY_DSN:
 ```python
 if settings.is_production and settings.NEW_RELIC_LICENSE_KEY:
     import newrelic.agent
-    newrelic.agent.initialize(config_file="/etc/newrelic.ini", environment=settings.ENV_MODE)
+
+    newrelic.agent.initialize(
+        config_file="/etc/newrelic.ini", environment=settings.ENV_MODE
+    )
 ```
 
 ## ベストプラクティス
@@ -551,6 +571,7 @@ async def create_user(user_data: UserCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Password too short")
     # ...
 
+
 # ✅ GOOD: Application層にユースケースを定義
 class CreateUserUseCase:
     def __init__(self, user_repo: IUserRepository):
@@ -562,10 +583,11 @@ class CreateUserUseCase:
             raise ValidationError("Password too short")
         # ...
 
+
 @router.post("/users")
 async def create_user(
     user_data: UserCreate,
-    use_case: CreateUserUseCase = Depends(get_create_user_use_case)
+    use_case: CreateUserUseCase = Depends(get_create_user_use_case),
 ):
     return await use_case.execute(user_data)
 ```
@@ -576,13 +598,16 @@ async def create_user(
 # ❌ BAD: HTTPExceptionを直接raise
 from fastapi import HTTPException
 
+
 def find_user(user_id: int):
     user = db.query(User).filter_by(id=user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
+
 # ✅ GOOD: Domain例外を使用
 from app.domain.exceptions.base import NotFoundError
+
 
 def find_user(user_id: int):
     user = db.query(User).filter_by(id=user_id).first()
@@ -601,15 +626,14 @@ async def get_user(user_id: int, db: Session = Depends(get_db)):
     user = await repo.find_by_id(user_id)
     return user
 
+
 # ✅ GOOD: 依存性注入でリポジトリを取得
 def get_user_repository(db: Session = Depends(get_db)) -> IUserRepository:
     return UserRepository(db)
 
+
 @router.get("/users/{user_id}")
-async def get_user(
-    user_id: int,
-    repo: IUserRepository = Depends(get_user_repository)
-):
+async def get_user(user_id: int, repo: IUserRepository = Depends(get_user_repository)):
     user = await repo.find_by_id(user_id)
     return user
 ```
@@ -621,8 +645,10 @@ async def get_user(
 def get_user(user_id):
     return db.query(User).filter_by(id=user_id).first()
 
+
 # ✅ GOOD: 厳格な型ヒント
 from typing import Optional
+
 
 def get_user(user_id: int) -> Optional[User]:
     return db.query(User).filter_by(id=user_id).first()

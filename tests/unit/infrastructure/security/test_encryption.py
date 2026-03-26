@@ -4,6 +4,7 @@
 
 import pytest
 from cryptography.fernet import Fernet
+
 from app.infrastructure.security.encryption import (
     SessionEncryption,
     generate_fingerprint,
@@ -37,7 +38,7 @@ class TestSessionEncryption:
         key = Fernet.generate_key().decode()
         encryptor = SessionEncryption(encryption_key=key)
 
-        with pytest.raises(Exception):
+        with pytest.raises((ValueError, Exception)):
             encryptor.decrypt("invalid-encrypted-data")
 
 

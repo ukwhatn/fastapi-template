@@ -1,9 +1,9 @@
 """アプリケーションライフサイクル管理"""
 
 import contextlib
-from datetime import datetime, timezone
+from collections.abc import AsyncIterator
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import AsyncIterator
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
@@ -64,7 +64,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         None
     """
     # 起動時刻を記録（healthcheckのuptime計算用）
-    app.state.start_time = datetime.now(timezone.utc)
+    app.state.start_time = datetime.now(UTC)
 
     # マイグレーション
     if settings.has_database:

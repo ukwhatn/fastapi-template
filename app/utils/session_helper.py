@@ -4,15 +4,16 @@
 FastAPIのRequestとResponseからセッションを操作するための便利な関数
 """
 
-from typing import Any, Optional
+from typing import Any
+
 from fastapi import Request, Response
 from sqlalchemy.orm import Session as DBSession
 
-from ..infrastructure.repositories.session_repository import SessionService
 from ..core.config import get_settings
+from ..infrastructure.repositories.session_repository import SessionService
 
 
-def get_client_ip(request: Request) -> Optional[str]:
+def get_client_ip(request: Request) -> str | None:
     """
     クライアントIPアドレスを取得
 
@@ -31,7 +32,7 @@ def get_client_ip(request: Request) -> Optional[str]:
     return request.client.host if request.client else None
 
 
-def get_user_agent(request: Request) -> Optional[str]:
+def get_user_agent(request: Request) -> str | None:
     """
     User-Agentヘッダーを取得
 
@@ -84,8 +85,8 @@ def get_session_data(
     db: DBSession,
     request: Request,
     verify_csrf: bool = False,
-    csrf_token: Optional[str] = None,
-) -> Optional[dict[str, Any]]:
+    csrf_token: str | None = None,
+) -> dict[str, Any] | None:
     """
     セッションデータを取得
 
@@ -173,7 +174,7 @@ def regenerate_session_id(
     db: DBSession,
     request: Request,
     response: Response,
-) -> Optional[tuple[str, str]]:
+) -> tuple[str, str] | None:
     """
     セッションIDを再生成（ログイン時などに使用）
 
@@ -211,7 +212,7 @@ def regenerate_session_id(
     return new_session_id, new_csrf_token
 
 
-def get_csrf_token(db: DBSession, request: Request) -> Optional[str]:
+def get_csrf_token(db: DBSession, request: Request) -> str | None:
     """
     CSRFトークンを取得
 

@@ -47,6 +47,7 @@ class DomainError(Exception):
         code: エラーコード（識別子）
         details: エラーの詳細情報（オプション）
     """
+
     def __init__(
         self,
         message: str,
@@ -71,6 +72,7 @@ class DomainError(Exception):
 ```python
 class NotFoundError(DomainError):
     """リソースが見つからない場合のエラー"""
+
     def __init__(
         self,
         message: str = "Resource not found",
@@ -93,6 +95,7 @@ if not user:
 ```python
 class BadRequestError(DomainError):
     """不正なリクエストエラー"""
+
     def __init__(
         self,
         message: str = "Bad request",
@@ -114,6 +117,7 @@ if quantity <= 0:
 ```python
 class UnauthorizedError(DomainError):
     """認証エラー"""
+
     def __init__(
         self,
         message: str = "Authentication required",
@@ -135,6 +139,7 @@ if not session.data.get("user_id"):
 ```python
 class ForbiddenError(DomainError):
     """アクセス権限エラー"""
+
     def __init__(
         self,
         message: str = "Access forbidden",
@@ -156,6 +161,7 @@ if user.role != "admin":
 ```python
 class ValidationError(BadRequestError):
     """バリデーションエラー"""
+
     def __init__(
         self,
         message: str = "Validation error",
@@ -197,6 +203,7 @@ class ErrorResponse(BaseModel):
         message: エラーメッセージ
         details: エラーの詳細情報（オプション）
     """
+
     status: str = "error"
     code: str
     message: str
@@ -229,6 +236,7 @@ class APIError(HTTPException):
         error_message: エラーメッセージ
         details: エラーの詳細情報
     """
+
     status_code: int = status.HTTP_500_INTERNAL_SERVER_ERROR
     error_code: str = "internal_server_error"
     error_message: str = "Internal server error"
@@ -245,9 +253,7 @@ class APIError(HTTPException):
     def to_response(self) -> ErrorResponse:
         """標準エラーレスポンス形式に変換"""
         return ErrorResponse(
-            code=self.error_code,
-            message=self.error_message,
-            details=self.details
+            code=self.error_code, message=self.error_message, details=self.details
         )
 ```
 
@@ -411,6 +417,7 @@ from sqlalchemy.orm import Session
 
 router = APIRouter()
 
+
 @router.get("/users/{user_id}")
 async def get_user(user_id: int, db: Session = Depends(get_db)):
     user = db.query(User).filter_by(id=user_id).first()
@@ -419,12 +426,12 @@ async def get_user(user_id: int, db: Session = Depends(get_db)):
 
     return user
 
+
 @router.post("/users")
 async def create_user(user_data: UserCreate, db: Session = Depends(get_db)):
     if db.query(User).filter_by(email=user_data.email).first():
         raise BadRequestError(
-            "Email already exists",
-            details={"email": user_data.email}
+            "Email already exists", details={"email": user_data.email}
         )
 
     user = User(**user_data.dict())
@@ -439,8 +446,10 @@ async def create_user(user_data: UserCreate, db: Session = Depends(get_db)):
 # app/domain/exceptions/custom.py
 from .base import DomainError
 
+
 class ResourceConflictError(DomainError):
     """リソース競合エラー"""
+
     def __init__(
         self,
         message: str = "Resource conflict",
@@ -470,8 +479,7 @@ from app.domain.exceptions.custom import ResourceConflictError
 
 if db.query(User).filter_by(username=username).first():
     raise ResourceConflictError(
-        f"Username '{username}' is already taken",
-        details={"username": username}
+        f"Username '{username}' is already taken", details={"username": username}
     )
 ```
 
@@ -484,20 +492,14 @@ def validate_user_data(user_data: UserCreate) -> None:
     if len(user_data.password) < 8:
         errors.append({
             "field": "password",
-            "error": "Password must be at least 8 characters"
+            "error": "Password must be at least 8 characters",
         })
 
     if "@" not in user_data.email:
-        errors.append({
-            "field": "email",
-            "error": "Invalid email format"
-        })
+        errors.append({"field": "email", "error": "Invalid email format"})
 
     if user_data.age < 18:
-        errors.append({
-            "field": "age",
-            "error": "Must be 18 or older"
-        })
+        errors.append({"field": "age", "error": "Must be 18 or older"})
 
     if errors:
         raise ValidationError("Validation failed", details=errors)
@@ -544,7 +546,7 @@ raise NotFoundError("User not found")
 # ✅ GOOD: 詳細情報を含める
 raise NotFoundError(
     f"User {user_id} not found",
-    details={"user_id": user_id, "requested_at": datetime.now().isoformat()}
+    details={"user_id": user_id, "requested_at": datetime.now().isoformat()},
 )
 ```
 

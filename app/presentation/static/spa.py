@@ -1,6 +1,7 @@
 """SPA対応の静的ファイルサーバー"""
 
-from typing import Any, MutableMapping
+from collections.abc import MutableMapping
+from typing import Any
 
 from fastapi import Response
 from fastapi.exceptions import HTTPException as FastAPIHTTPException
