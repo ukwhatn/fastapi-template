@@ -1,13 +1,171 @@
 """
-統合テスト用フィクスチャ
+統合テスト用フィクスチャ（PostgreSQLベース）
 
-統合テスト固有のフィクスチャをここに定義します。
-共通フィクスチャ（client, db_sessionなど）はtests/conftest.pyで定義されています。
+DB接続が必要なフィクスチャをここに集約する。
 """
 
+import os
+from collections.abc import Generator
+from typing import Any
 
-# TODO: 統合テスト固有のフィクスチャをここに追加
-# 例:
-# - 認証トークン生成フィクスチャ
-# - テストデータ作成フィクスチャ
-# - モック外部API呼び出しフィクスチャ
+import pytest
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine, event
+from sqlalchemy.engine import Engine
+from sqlalchemy.orm import Session, sessionmaker
+
+from app.core.config import get_settings
+from app.infrastructure.database import get_db
+from app.main import app
+from tests.helpers import (
+    create_test_database,
+    drop_test_database,
+    generate_test_db_name,
+    run_migrations,
+)
+
+# テスト用データベース名（session scope）
+_test_db_name: str | None = None
+
+
+@pytest.fixture(scope="session")
+def test_database() -> Generator[str]:
+    """
+    テスト用PostgreSQLデータベースを作成・削除する。
+
+    session scopeなので、全テスト実行前に1回だけ作成され、
+    全テスト終了後に削除される。
+
+    Yields:
+        データベース名
+    """
+    global _test_db_name
+
+    # ランダムなDB名を生成
+    _test_db_name = generate_test_db_name()
+
+    # DB作成
+    create_test_database(_test_db_name)
+
+    # database_urlを構築
+    settings = get_settings()
+    database_url = (
+        f"postgresql://{settings.POSTGRES_USER}:{settings.POSTGRES_PASSWORD}"
+        f"@{settings.POSTGRES_HOST}:{settings.POSTGRES_PORT}/{_test_db_name}"
+        f"?gssencmode=disable"
+    )
+
+    # マイグレーション実行
+    run_migrations(database_url)
+
+    # 環境変数を設定（integration testでlifespanイベントが正しいDBを使うように）
+    original_db_name = os.environ.get("POSTGRES_DB")
+    os.environ["POSTGRES_DB"] = _test_db_name
+
+    # get_settings()のキャッシュをクリア（環境変数変更を反映）
+    get_settings.cache_clear()
+
+    yield _test_db_name
+
+    # 環境変数を元に戻す
+    if original_db_name is not None:
+        os.environ["POSTGRES_DB"] = original_db_name
+    else:
+        os.environ.pop("POSTGRES_DB", None)
+
+    # DB削除
+    drop_test_database(_test_db_name)
+    _test_db_name = None
+
+
+@pytest.fixture(scope="session")
+def test_engine(test_database: str) -> Generator[Engine]:
+    """
+    テスト用SQLAlchemy Engineを作成する。
+
+    Args:
+        test_database: テスト用データベース名
+
+    Yields:
+        SQLAlchemy Engine
+    """
+    settings = get_settings()
+    database_url = (
+        f"postgresql://{settings.POSTGRES_USER}:{settings.POSTGRES_PASSWORD}"
+        f"@{settings.POSTGRES_HOST}:{settings.POSTGRES_PORT}/{test_database}"
+        f"?gssencmode=disable"
+    )
+
+    engine = create_engine(database_url, echo=False)
+
+    yield engine
+
+    engine.dispose()
+
+
+@pytest.fixture(scope="function")
+def db_session(test_engine: Engine) -> Generator[Session]:
+    """
+    テスト用DBセッション（トランザクションベース）
+
+    各テストごとにトランザクションを開始し、テスト後にロールバックする。
+    これにより、テスト間のデータ分離を実現しつつ、高速な実行が可能。
+
+    Args:
+        test_engine: テスト用Engine
+
+    Yields:
+        SQLAlchemy Session
+    """
+    # コネクションを取得
+    connection = test_engine.connect()
+
+    # トランザクション開始
+    transaction = connection.begin()
+
+    # セッション作成
+    TestingSessionLocal = sessionmaker(
+        autocommit=False, autoflush=False, bind=connection
+    )
+    session = TestingSessionLocal()
+
+    # ネストトランザクション（SAVEPOINT）サポート
+    @event.listens_for(session, "after_transaction_end")
+    def restart_savepoint(session: Session, transaction: Any) -> None:
+        """トランザクション終了後にSAVEPOINTを再開始"""
+        if transaction.nested and not transaction._parent.nested:
+            session.begin_nested()
+
+    # 初回のSAVEPOINT開始
+    session.begin_nested()
+
+    yield session
+
+    # クリーンアップ
+    session.close()
+    transaction.rollback()
+    connection.close()
+
+
+@pytest.fixture(scope="function")
+def client(db_session: Session) -> Generator[TestClient]:
+    """
+    テスト用FastAPIクライアント
+
+    Args:
+        db_session: テスト用DBセッション
+
+    Yields:
+        FastAPI TestClient
+    """
+
+    def override_get_db() -> Generator[Session]:
+        try:
+            yield db_session
+        finally:
+            pass
+
+    app.dependency_overrides[get_db] = override_get_db
+    with TestClient(app) as test_client:
+        yield test_client
+    app.dependency_overrides.clear()

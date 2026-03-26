@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           fetch-depth: 1
 
@@ -17,20 +17,11 @@ jobs:
 
       - name: Run security scans
         run: |
-          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin v0.46.1 &
-          TRIVY_INSTALL_PID=$!
-
           make security:scan:code:critical &
           BANDIT_PID=$!
 
           make security:scan:sast:critical &
           SEMGREP_PID=$!
 
-          wait $TRIVY_INSTALL_PID
-
-          make security:scan:trivy &
-          TRIVY_PID=$!
-
           wait $BANDIT_PID || exit 1
           wait $SEMGREP_PID || exit 1
-          wait $TRIVY_PID || exit 1

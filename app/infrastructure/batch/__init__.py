@@ -7,8 +7,8 @@ from .scheduler import create_scheduler, start_scheduler, stop_scheduler
 __all__ = [
     "BatchTask",
     "TaskRegistry",
-    "task_registry",
     "create_scheduler",
     "start_scheduler",
     "stop_scheduler",
+    "task_registry",
 ]

@@ -13,8 +13,10 @@ SQLAlchemy DeclarativeBase。全モデルの基底クラス。
 ```python
 from sqlalchemy.orm import DeclarativeBase
 
+
 class Base(DeclarativeBase):
     """SQLAlchemy declarative base"""
+
     pass
 ```
 
@@ -29,6 +31,7 @@ from sqlalchemy import DateTime, func
 from sqlalchemy.orm import Mapped, mapped_column
 from datetime import datetime
 
+
 class TimeStampMixin:
     """
     タイムスタンプMixin
@@ -37,6 +40,7 @@ class TimeStampMixin:
         created_at: 作成日時（自動設定）
         updated_at: 更新日時（自動更新）
     """
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
@@ -55,6 +59,7 @@ Base + TimeStampMixin + id。全モデルの推奨基底クラス。
 from sqlalchemy import Integer
 from sqlalchemy.orm import Mapped, mapped_column
 
+
 class BaseModel(Base, TimeStampMixin):
     """
     ベースモデル
@@ -65,6 +70,7 @@ class BaseModel(Base, TimeStampMixin):
         created_at: 作成日時（TimeStampMixinから継承）
         updated_at: 更新日時（TimeStampMixinから継承）
     """
+
     __abstract__ = True
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -75,6 +81,7 @@ class BaseModel(Base, TimeStampMixin):
 from app.infrastructure.database.models.base import BaseModel
 from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column
+
 
 class User(BaseModel):
     __tablename__ = "users"
@@ -96,6 +103,7 @@ class User(BaseModel):
 from pydantic import BaseModel, ConfigDict
 from typing import Any
 
+
 class SessionSchema(BaseModel):
     """
     セッションデータスキーマ
@@ -103,6 +111,7 @@ class SessionSchema(BaseModel):
     Attributes:
         data: セッションデータ（辞書形式）
     """
+
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     data: dict[str, Any] = {}
@@ -288,6 +297,7 @@ from typing import Optional
 from fastapi import Request
 from fastapi.templating import Jinja2Templates
 
+
 def get_templates(request: Request) -> Optional[Jinja2Templates]:
     """
     リクエストからJinja2Templatesインスタンスを取得
@@ -303,6 +313,7 @@ def get_templates(request: Request) -> Optional[Jinja2Templates]:
 **使用例**:
 ```python
 from app.utils.templates import get_templates
+
 
 @router.get("/")
 async def index(request: Request):
@@ -323,6 +334,7 @@ async def index(request: Request):
 from typing import Generator
 from sqlalchemy.orm import Session
 
+
 def get_db() -> Generator[Session, None, None]:
     """
     DBセッション取得
@@ -342,6 +354,7 @@ def get_db() -> Generator[Session, None, None]:
 from fastapi import Depends
 from sqlalchemy.orm import Session
 
+
 @router.get("/users")
 async def get_users(db: Session = Depends(get_db)):
     users = db.query(User).all()
@@ -355,6 +368,7 @@ async def get_users(db: Session = Depends(get_db)):
 ```python
 from fastapi import Request
 from app.utils.schemas import SessionSchema
+
 
 def get_session(request: Request) -> SessionSchema:
     """
@@ -372,6 +386,7 @@ def get_session(request: Request) -> SessionSchema:
 ```python
 from fastapi import Depends
 from app.utils.schemas import SessionSchema
+
 
 @router.get("/profile")
 async def get_profile(session: SessionSchema = Depends(get_session)):
@@ -392,10 +407,12 @@ from fastapi import Depends
 from sqlalchemy.orm import Session
 from app.utils.schemas import SessionSchema
 
+
 @dataclass
 class DBWithSession:
     db: Session
     session: SessionSchema
+
 
 def get_db_with_session(
     db: Session = Depends(get_db),
@@ -415,6 +432,7 @@ def get_db_with_session(
 from fastapi import Depends
 from app.presentation.api.deps import DBWithSession, get_db_with_session
 
+
 @router.get("/protected")
 async def protected_endpoint(deps: DBWithSession = Depends(get_db_with_session)):
     user_id = deps.session.data.get("user_id")
@@ -433,7 +451,10 @@ async def protected_endpoint(deps: DBWithSession = Depends(get_db_with_session))
 from fastapi import Security
 from fastapi.security import APIKeyHeader
 
-api_key_header = APIKeyHeader(name="Authorization", scheme_name="Bearer", auto_error=False)
+api_key_header = APIKeyHeader(
+    name="Authorization", scheme_name="Bearer", auto_error=False
+)
+
 
 def get_api_key(api_key_header: str = Security(api_key_header)) -> str:
     """
@@ -456,6 +477,7 @@ def get_api_key(api_key_header: str = Security(api_key_header)) -> str:
 ```python
 from fastapi import Depends
 
+
 @router.get("/api-protected")
 async def api_protected_endpoint(api_key: str = Depends(get_api_key)):
     return {"message": "API authenticated", "api_key": api_key}
@@ -469,6 +491,7 @@ async def api_protected_endpoint(api_key: str = Depends(get_api_key)):
 
 ```python
 import logging
+
 
 def get_logger(name: str) -> logging.Logger:
     """
@@ -502,6 +525,7 @@ logger.error("Error message", exc_info=True)
 ```python
 from functools import lru_cache
 from app.core.config import Settings
+
 
 @lru_cache
 def get_settings() -> Settings:
@@ -537,6 +561,7 @@ class SessionEncryption:
 
     Fernet (対称暗号化) を使用
     """
+
     def __init__(self, encryption_key: Optional[str] = None):
         """
         Args:
@@ -617,9 +642,7 @@ def generate_fingerprint(user_agent: Optional[str], client_ip: Optional[str]) ->
 
 ```python
 def verify_fingerprint(
-    stored_fingerprint: str,
-    user_agent: Optional[str],
-    client_ip: Optional[str]
+    stored_fingerprint: str, user_agent: Optional[str], client_ip: Optional[str]
 ) -> bool:
     """
     セッションフィンガープリントを検証

@@ -65,19 +65,24 @@
 ```python
 class BackupMetadata(BaseModel):
     """バックアップメタデータ"""
+
     timestamp: datetime
     migration_version: str
     database_name: str
     database_host: str
 
+
 class TableBackup(BaseModel):
     """テーブルバックアップ"""
+
     row_count: int
     columns: list[str]
     data: list[list[Any]]
 
+
 class BackupData(BaseModel):
     """バックアップデータ全体"""
+
     metadata: BackupMetadata
     tables: dict[str, TableBackup]
 ```
@@ -190,8 +195,9 @@ def calculate_diff(backup_path: Path) -> DiffSummary:
 ```python
 class TableDiff(BaseModel):
     current_rows: int  # 現在の行数
-    backup_rows: int   # バックアップの行数
-    diff: int          # 差分（backup - current）
+    backup_rows: int  # バックアップの行数
+    diff: int  # 差分（backup - current）
+
 
 class DiffSummary(BaseModel):
     tables: dict[str, TableDiff]
@@ -206,7 +212,9 @@ from app.infrastructure.database.backup.core import calculate_diff
 
 diff = calculate_diff(Path("./backups/backup_20251101_123456.backup.gz"))
 for table_name, table_diff in diff.tables.items():
-    print(f"{table_name}: {table_diff.current_rows} → {table_diff.backup_rows} ({table_diff.diff:+d})")
+    print(
+        f"{table_name}: {table_diff.current_rows} → {table_diff.backup_rows} ({table_diff.diff:+d})"
+    )
 ```
 
 **コマンドライン**:
@@ -266,8 +274,7 @@ def restore_backup(backup_path: Path, show_diff: bool = True) -> RestoreResult:
 from app.infrastructure.database.backup.core import restore_backup
 
 result = restore_backup(
-    backup_path=Path("./backups/backup_20251101_123456.backup.gz"),
-    show_diff=True
+    backup_path=Path("./backups/backup_20251101_123456.backup.gz"), show_diff=True
 )
 
 if result.success:
@@ -359,6 +366,7 @@ uv run python app/utils/backup_cli.py restore-s3 backup_20251101_123456.backup.g
 ```python
 class BackupTask(BaseTask):
     """定期バックアップタスク"""
+
     name = "backup"
     description = "データベースバックアップを作成"
     schedule: str  # BACKUP_CRONから取得
@@ -449,8 +457,7 @@ from app.infrastructure.database.backup.core import restore_backup
 # リストア
 try:
     result = restore_backup(
-        backup_path=Path("./backups/backup_20251101_123456.backup.gz"),
-        show_diff=True
+        backup_path=Path("./backups/backup_20251101_123456.backup.gz"), show_diff=True
     )
     if result.success:
         print(f"Restored {result.restored_rows} rows")
@@ -466,6 +473,7 @@ except RuntimeError as e:
 from app.infrastructure.batch.base import BaseTask
 from app.infrastructure.database.backup.core import create_backup
 from pathlib import Path
+
 
 class CustomBackupTask(BaseTask):
     name = "custom_backup"

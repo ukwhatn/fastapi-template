@@ -39,7 +39,6 @@ class TaskWithCustomHooks(BatchTask):
 
     def execute(self) -> None:
         """タスクを実行する"""
-        pass
 
     def on_success(self) -> None:
         """成功時のカスタムフック"""
@@ -98,9 +97,11 @@ class TestBatchTaskError:
         task = TaskWithCustomHooks()
 
         # 失敗させるために execute をパッチ
-        with patch.object(task, "execute", side_effect=ValueError("Test error")):
-            with pytest.raises(ValueError):
-                task.run()
+        with (
+            patch.object(task, "execute", side_effect=ValueError("Test error")),
+            pytest.raises(ValueError),
+        ):
+            task.run()
 
         assert task.failure_called is True
 

@@ -7,10 +7,8 @@ Alembic環境設定
 
 from logging.config import fileConfig
 
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
-
 from alembic import context
+from sqlalchemy import engine_from_config, pool
 
 # プロジェクト設定とモデルのインポート
 from app.core.config import get_settings
@@ -27,7 +25,7 @@ if config.config_file_name is not None:
 target_metadata = Base.metadata
 
 # 全てのモデルをインポート（autogenerateで検出させるため）
-from app.infrastructure.database.models.session import Session  # noqa: F401, E402
+from app.infrastructure.database.models.session import Session  # noqa: F401
 
 
 def get_url() -> str:

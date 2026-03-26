@@ -8,20 +8,21 @@ RDBベースのセッション管理を提供
 - 期限切れセッションの自動削除
 """
 
-from typing import Any, Optional, cast
 from datetime import UTC, datetime, timedelta
-from sqlalchemy.orm import Session as DBSession
-from sqlalchemy import delete
+from typing import Any, Optional, cast
 
-from ..database.models.session import Session
+from sqlalchemy import delete
+from sqlalchemy.orm import Session as DBSession
+
 from ...core.config import get_settings
 from ...core.logging import get_logger
+from ..database.models.session import Session
 from ..security.encryption import (
     SessionEncryption,
-    get_session_encryption,
-    generate_session_id,
     generate_csrf_token,
     generate_fingerprint,
+    generate_session_id,
+    get_session_encryption,
     verify_fingerprint,
 )
 
@@ -48,9 +49,9 @@ class SessionService:
     def create_session(
         self,
         data: dict[str, Any],
-        user_agent: Optional[str] = None,
-        client_ip: Optional[str] = None,
-        expire_seconds: Optional[int] = None,
+        user_agent: str | None = None,
+        client_ip: str | None = None,
+        expire_seconds: int | None = None,
     ) -> tuple[str, str]:
         """
         新しいセッションを作成
@@ -92,11 +93,11 @@ class SessionService:
     def get_session(
         self,
         session_id: str,
-        user_agent: Optional[str] = None,
-        client_ip: Optional[str] = None,
+        user_agent: str | None = None,
+        client_ip: str | None = None,
         verify_csrf: bool = False,
-        csrf_token: Optional[str] = None,
-    ) -> Optional[dict[str, Any]]:
+        csrf_token: str | None = None,
+    ) -> dict[str, Any] | None:
         """
         セッションを取得
 
@@ -150,8 +151,8 @@ class SessionService:
         self,
         session_id: str,
         data: dict[str, Any],
-        user_agent: Optional[str] = None,
-        client_ip: Optional[str] = None,
+        user_agent: str | None = None,
+        client_ip: str | None = None,
     ) -> bool:
         """
         セッションデータを更新
@@ -246,9 +247,9 @@ class SessionService:
     def regenerate_session_id(
         self,
         old_session_id: str,
-        user_agent: Optional[str] = None,
-        client_ip: Optional[str] = None,
-    ) -> Optional[tuple[str, str]]:
+        user_agent: str | None = None,
+        client_ip: str | None = None,
+    ) -> tuple[str, str] | None:
         """
         セッションIDを再生成（セッション固定攻撃対策）
 
@@ -276,7 +277,7 @@ class SessionService:
         logger.info(f"Session ID regenerated: {old_session_id} -> {new_session_id}")
         return new_session_id, new_csrf_token
 
-    def get_csrf_token(self, session_id: str) -> Optional[str]:
+    def get_csrf_token(self, session_id: str) -> str | None:
         """
         セッションのCSRFトークンを取得
 

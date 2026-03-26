@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Request, Response, status
 from sqlalchemy import text
@@ -29,7 +29,7 @@ async def healthcheck(request: Request, response: Response) -> HealthCheckRespon
     start_time = getattr(request.app.state, "start_time", None)
     uptime_seconds = 0.0
     if start_time:
-        uptime_seconds = (datetime.now(timezone.utc) - start_time).total_seconds()
+        uptime_seconds = (datetime.now(UTC) - start_time).total_seconds()
 
     # DB接続チェック
     db_status = DatabaseStatus(status="healthy", connection=True, error=None)
@@ -59,7 +59,7 @@ async def healthcheck(request: Request, response: Response) -> HealthCheckRespon
             logger.error(f"Database connection failed: {e}", exc_info=True)
             db_status.status = "unhealthy"
             db_status.connection = False
-            db_status.error = f"DB not configured: {str(e)}"
+            db_status.error = f"DB not configured: {e!s}"
             overall_status = "unhealthy"
     else:
         db_status.status = "healthy"
@@ -72,7 +72,7 @@ async def healthcheck(request: Request, response: Response) -> HealthCheckRespon
 
     return HealthCheckResponse(
         status=overall_status,
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
         uptime_seconds=uptime_seconds,
         database=db_status,
         environment=settings.normalized_env_mode,

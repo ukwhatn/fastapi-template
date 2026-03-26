@@ -1,6 +1,7 @@
-from sqlalchemy import String, DateTime, Text
-from sqlalchemy.orm import Mapped, mapped_column
 from datetime import datetime
+
+from sqlalchemy import DateTime, String, Text
+from sqlalchemy.orm import Mapped, mapped_column
 
 from .base import Base, TimeStampMixin
 

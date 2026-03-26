@@ -5,9 +5,10 @@
 """
 
 import hashlib
-import secrets
 import json
-from typing import Any, Optional
+import secrets
+from typing import Any
+
 from cryptography.fernet import Fernet, InvalidToken
 
 from ...core.config import get_settings
@@ -23,7 +24,7 @@ class SessionEncryption:
     Fernet (対称暗号化) を使用してセッションデータを安全に保存
     """
 
-    def __init__(self, encryption_key: Optional[str] = None):
+    def __init__(self, encryption_key: str | None = None):
         """
         Args:
             encryption_key: 暗号化キー（Noneの場合は設定から取得）
@@ -38,7 +39,7 @@ class SessionEncryption:
             encryption_key = None
 
         self.encryption_key = encryption_key
-        self.cipher: Optional[Fernet]
+        self.cipher: Fernet | None
         self.enabled: bool
 
         if self.encryption_key:
@@ -137,7 +138,7 @@ def generate_session_id() -> str:
     return secrets.token_hex(32)
 
 
-def generate_fingerprint(user_agent: Optional[str], client_ip: Optional[str]) -> str:
+def generate_fingerprint(user_agent: str | None, client_ip: str | None) -> str:
     """
     セッションフィンガープリントを生成
 
@@ -158,7 +159,7 @@ def generate_fingerprint(user_agent: Optional[str], client_ip: Optional[str]) ->
 
 
 def verify_fingerprint(
-    stored_fingerprint: str, user_agent: Optional[str], client_ip: Optional[str]
+    stored_fingerprint: str, user_agent: str | None, client_ip: str | None
 ) -> bool:
     """
     セッションフィンガープリントを検証
@@ -176,7 +177,7 @@ def verify_fingerprint(
 
 
 # シングルトンインスタンス
-_session_encryption: Optional[SessionEncryption] = None
+_session_encryption: SessionEncryption | None = None
 
 
 def get_session_encryption() -> SessionEncryption:

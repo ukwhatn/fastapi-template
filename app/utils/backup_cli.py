@@ -2,7 +2,6 @@
 
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 import click
 import opendal
@@ -70,7 +69,6 @@ def get_s3_backups() -> list[str]:
 @click.group()
 def cli() -> None:
     """データベースバックアップ管理CLI"""
-    pass
 
 
 @cli.command("oneshot")
@@ -135,7 +133,7 @@ def backup_diff(backup_file: str, from_s3: bool) -> None:
 
     settings = get_settings()
 
-    restore_path: Optional[Path] = None
+    restore_path: Path | None = None
 
     try:
         # S3からダウンロード
@@ -227,7 +225,7 @@ def backup_restore(backup_file: str, from_s3: bool, yes: bool, dry_run: bool) ->
 
     settings = get_settings()
 
-    restore_path: Optional[Path] = None
+    restore_path: Path | None = None
 
     try:
         # S3からダウンロード

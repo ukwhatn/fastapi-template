@@ -1,6 +1,6 @@
 import os
 from functools import lru_cache
-from typing import Literal, Optional
+from typing import Literal
 
 from pydantic import ValidationInfo, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -106,29 +106,29 @@ class Settings(BaseSettings):
 
         return v
 
-    SENTRY_DSN: Optional[str] = None
+    SENTRY_DSN: str | None = None
     SENTRY_TRACES_SAMPLE_RATE: float = 1.0
 
     @classmethod
     @field_validator("SENTRY_DSN")
-    def sentry_dsn_can_be_blank(cls, v: Optional[str]) -> Optional[str]:
+    def sentry_dsn_can_be_blank(cls, v: str | None) -> str | None:
         if v is None or v == "":
             return None
         return v
 
-    NEW_RELIC_LICENSE_KEY: Optional[str] = None
+    NEW_RELIC_LICENSE_KEY: str | None = None
     NEW_RELIC_APP_NAME: str = "FastAPI Template"
     NEW_RELIC_HIGH_SECURITY: bool = False
     NEW_RELIC_MONITOR_MODE: bool = True
 
-    BACKUP_SCHEDULE: Optional[str] = None  # cron形式 (例: "0 3 * * *")
+    BACKUP_SCHEDULE: str | None = None  # cron形式 (例: "0 3 * * *")
     BACKUP_RETENTION_DAYS: int = 7
 
-    S3_ENDPOINT: Optional[str] = None
-    S3_BUCKET: Optional[str] = None
-    S3_ACCESS_KEY: Optional[str] = None
-    S3_SECRET_KEY: Optional[str] = None
-    S3_REGION: Optional[str] = None
+    S3_ENDPOINT: str | None = None
+    S3_BUCKET: str | None = None
+    S3_ACCESS_KEY: str | None = None
+    S3_SECRET_KEY: str | None = None
+    S3_REGION: str | None = None
 
     @property
     def is_local(self) -> bool:
